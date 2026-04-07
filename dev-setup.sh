@@ -159,24 +159,36 @@ EOF
 
 kubectl -n odoo-admin rollout restart deployment odoo-admin
 
-# ── 9. Expose services locally via NodePort (dev only) ───────────────────────
-info "Exposing Odoo and Portal as NodePort services …"
+# ── 9. Expose services locally via LoadBalancer (dev only) ───────────────────────
+info "Exposing Odoo and Portal as LoadBalancer services (Standard Ports) …"
 
 kubectl -n aeisoftware expose deployment portal \
-  --name=portal-nodeport \
-  --type=NodePort \
+  --name=portal-lb \
+  --type=LoadBalancer \
   --port=8000 \
   --target-port=8000 \
   --dry-run=client -o yaml | \
   kubectl apply -f - 2>/dev/null || true
 
-kubectl -n odoo-admin expose deployment odoo-admin \
-  --name=odoo-nodeport \
-  --type=NodePort \
-  --port=8069 \
-  --target-port=8069 \
-  --dry-run=client -o yaml | \
-  kubectl apply -f - 2>/dev/null || true
+# Odoo LoadBalancer requires both 8069 and 8072. We'll use a standard manifest.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-lb
+  namespace: odoo-admin
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8069
+      targetPort: 8069
+    - name: longpoll
+      port: 8072
+      targetPort: 8072
+  selector:
+    app: odoo-admin
+EOF
 
 # ── 10. Wait for pods ────────────────────────────────────────────────────────
 info "Waiting for Postgres …"
