@@ -19,8 +19,11 @@ POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5002"))          # PgBouncer poo
 POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Primary directo
 POSTGRES_USER = os.getenv("POSTGRES_USER", "odoo")
 ODOO_IMAGE = os.getenv("ODOO_IMAGE", "odoo:18")
-
-ODOO_HEADERS_MIDDLEWARE = "kube-system-odoo-headers@kubernetescrd"
+# local-path para dev local K3s, ceph-rbd para producción Cloud
+STORAGE_CLASS = os.getenv("STORAGE_CLASS", "local-path")
+# Middleware namespace = namespace donde se despliegan los middlewares de Traefik
+# En dev = aeisoftware, en prod = aeisoftware (mismo namespace del portal)
+ODOO_HEADERS_MIDDLEWARE = os.getenv("ODOO_HEADERS_MIDDLEWARE", "aeisoftware-odoo-headers@kubernetescrd")
 
 
 def namespace_manifest(tenant_id: str) -> dict[str, Any]:
@@ -48,7 +51,7 @@ def pvc_manifest(tenant_id: str, storage_gi: int = 10) -> dict[str, Any]:
         },
         "spec": {
             "accessModes": ["ReadWriteOnce"],
-            "storageClassName": "ceph-rbd",
+            "storageClassName": STORAGE_CLASS,
             "resources": {"requests": {"storage": f"{storage_gi}Gi"}},
         },
     }
@@ -311,7 +314,7 @@ def ingress_manifest(tenant_id: str) -> dict[str, Any]:
             "namespace": _ns(tenant_id),
             "annotations": {
                 "traefik.ingress.kubernetes.io/router.entrypoints": "web",
-                "traefik.ingress.kubernetes.io/router.middlewares": "kube-system-odoo-headers@kubernetescrd,kube-system-odoo-compress@kubernetescrd",
+                "traefik.ingress.kubernetes.io/router.middlewares": ODOO_HEADERS_MIDDLEWARE,
             },
         },
         "spec": {

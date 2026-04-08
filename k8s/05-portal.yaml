@@ -71,6 +71,10 @@ spec:
                   key: API_KEY
             - name: BASE_DOMAIN
               value: aeisoftware.com
+            - name: STORAGE_CLASS
+              value: local-path          # dev: local-path | prod: ceph-rbd
+            - name: ODOO_HEADERS_MIDDLEWARE
+              value: aeisoftware-odoo-headers@kubernetescrd
           readinessProbe:
             httpGet:
               path: /healthz
