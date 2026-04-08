@@ -48,6 +48,7 @@ spec:
       containers:
         - name: portal
           image: ghcr.io/jpvargassoruco/odoo-saas-mvp/portal:main
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
