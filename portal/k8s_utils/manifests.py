@@ -14,6 +14,7 @@ import os
 from typing import Any
 
 BASE_DOMAIN = os.getenv("BASE_DOMAIN", "aeisoftware.com")
+URL_SCHEME = os.getenv("URL_SCHEME", "http")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres.aeisoftware.svc.cluster.local")
 POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5002"))          # PgBouncer pooled
 POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Primary directo
@@ -187,9 +188,13 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "    print(f\"Cloning {url} branch {branch} into {dest}...\")\n"
                                 "    if not os.path.exists(dest):\n"
                                 "        subprocess.run(cmd, check=True)\n"
-                                "'"
+                                "' && chown -R 101:101 /mnt/extra-addons"
                             ],
                             "volumeMounts": _vol_mounts,
+                            "securityContext": {
+                                "runAsUser": 0,
+                                "runAsNonRoot": False,
+                            },
                         },
                         {
                             "name": "odoo-init",

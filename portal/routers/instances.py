@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, BASE_DOMAIN, POSTGRES_HOST, POSTGRES_PORT
+from k8s_utils.manifests import all_manifests, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ def create_instance(req: CreateInstanceRequest):
     return InstanceResponse(
         tenant_id=req.tenant_id,
         namespace=f"odoo-{req.tenant_id}",
-        url=f"https://{req.tenant_id}.{BASE_DOMAIN}",
+        url=f"{URL_SCHEME}://{req.tenant_id}.{BASE_DOMAIN}",
         status="provisioning",
         app_admin_password=app_admin_password,
     )
@@ -157,7 +157,7 @@ def get_instance(tenant_id: str):
     return InstanceResponse(
         tenant_id=tenant_id,
         namespace=namespace,
-        url=f"https://{tenant_id}.{BASE_DOMAIN}",
+        url=f"{URL_SCHEME}://{tenant_id}.{BASE_DOMAIN}",
         status=status,
         user_count=user_count,
     )

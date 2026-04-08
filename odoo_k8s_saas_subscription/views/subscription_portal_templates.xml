@@ -33,15 +33,15 @@
         id="portal_my_home_subscription"
         name="Show Subscriptions"
         inherit_id="portal.portal_my_home"
-        customize_show="True"
         priority="30"
     >
-        <div id="portal_common_category" position="inside">
+        <div id="portal_client_category" position="inside">
             <t t-call="portal.portal_docs_entry">
                 <t t-set="icon" t-value="'/odoo_k8s_saas_subscription/static/src/img/subscription_icon.svg'" />
                 <t t-set="title">Subscriptions</t>
                 <t t-set="url" t-value="'/my/subscriptions'" />
                 <t t-set="placeholder_count" t-value="'subscription_count'" />
+                <t t-set="show_count" t-value="True" />
             </t>
         </div>
     </template>
