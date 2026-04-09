@@ -321,6 +321,10 @@ def _create_pg_user(pg_user: str, password: str, db_name: str) -> None:
                 cur.execute(f'CREATE ROLE "{pg_user}" LOGIN PASSWORD %s', (password,))
                 logger.info("Created Postgres role %s", pg_user)
 
+            # PG 16+ requires the admin user to hold membership in the target
+            # role before it can CREATE DATABASE ... OWNER <role>.
+            cur.execute(f'GRANT "{pg_user}" TO "{_PG_ADMIN_USER}"')
+
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             if not cur.fetchone():
                 cur.execute(f'CREATE DATABASE "{db_name}" OWNER "{pg_user}"')
