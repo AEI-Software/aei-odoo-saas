@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT
+from k8s_utils.manifests import all_manifests, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status
 
 logger = logging.getLogger(__name__)
@@ -267,9 +267,25 @@ def get_instance_logs(tenant_id: str, lines: int = 200):
 # ── Postgres helpers ─────────────────────────────────────────────────────────
 
 def _pg_conn(dbname: str = "postgres"):
+    """Connect via PgBouncer (port 5002) — for read queries only."""
     return psycopg2.connect(
         host=POSTGRES_HOST,
         port=POSTGRES_PORT,
+        dbname=dbname,
+        user=_PG_ADMIN_USER,
+        password=_PG_ADMIN_PASSWORD,
+    )
+
+
+def _pg_admin_conn(dbname: str = "postgres"):
+    """Connect to primary directly (port 5000) — for DDL: CREATE/DROP ROLE/DATABASE.
+
+    PgBouncer (5002) operates in transaction-pooling mode and blocks
+    SET ROLE, CREATE ROLE, CREATE DATABASE, and similar session-level commands.
+    """
+    return psycopg2.connect(
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT_PRIMARY,
         dbname=dbname,
         user=_PG_ADMIN_USER,
         password=_PG_ADMIN_PASSWORD,
@@ -292,7 +308,7 @@ def _get_user_count(tenant_id: str) -> int:
 
 def _create_pg_user(pg_user: str, password: str, db_name: str) -> None:
     """Create a dedicated Postgres role + database for a tenant (idempotent)."""
-    conn = _pg_conn()
+    conn = _pg_admin_conn()
     conn.autocommit = True
     try:
         with conn.cursor() as cur:
@@ -319,7 +335,7 @@ def _drop_pg_user(pg_user: str, db_name: str) -> None:
     Terminates active connections first to avoid
     'database is being accessed by other users' errors.
     """
-    conn = _pg_conn()
+    conn = _pg_admin_conn()
     conn.autocommit = True
     try:
         with conn.cursor() as cur:

@@ -1,0 +1,137 @@
+# Network Policies for aeisoftware namespace (production)
+# ──────────────────────────────────────────────────────────
+# default-deny-all + explicit allow rules
+# Uses both standard NetworkPolicy AND CiliumNetworkPolicy
+# because Cilium treats host/kube-apiserver as special entities
+# that ipBlock CIDRs cannot match.
+#
+# Apply:  kubectl apply -f k8s/prod/07-network-policies.yaml
+# ──────────────────────────────────────────────────────────
+
+# 1. Default deny all ingress + egress
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: aeisoftware
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+
+---
+# 2. Allow DNS for all pods → kube-system/coredns
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: aeisoftware
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+    to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+
+---
+# 3. Allow HTTPS egress for all pods (GitHub clone, Cloudflare, etc.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-https
+  namespace: aeisoftware
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - ports:
+    - port: 443
+      protocol: TCP
+    to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+
+---
+# 4. Allow PostgreSQL HA egress for all pods → 192.168.0.0/24 ports 5000-5002
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-pg-ha
+  namespace: aeisoftware
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - ports:
+    - port: 5000
+      protocol: TCP
+    - port: 5001
+      protocol: TCP
+    - port: 5002
+      protocol: TCP
+    to:
+    - ipBlock:
+        cidr: 192.168.0.0/24
+
+---
+# 5. Allow ingress to portal from Traefik (kube-system) and Odoo admin
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-portal-ingress
+  namespace: aeisoftware
+spec:
+  podSelector:
+    matchLabels:
+      app: portal
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: odoo-admin
+    ports:
+    - port: 8000
+      protocol: TCP
+
+---
+# 6. [CILIUM] Allow portal pods to reach the K8s API server
+#    Standard NetworkPolicy ipBlock CANNOT match host/kube-apiserver
+#    traffic in Cilium — must use CiliumNetworkPolicy with toEntities.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-portal-k8s-api
+  namespace: aeisoftware
+spec:
+  endpointSelector:
+    matchLabels:
+      app: portal
+  egress:
+  - toEntities:
+    - kube-apiserver
+    - host
+    toPorts:
+    - ports:
+      - port: "6443"
+        protocol: TCP
+      - port: "443"
+        protocol: TCP
