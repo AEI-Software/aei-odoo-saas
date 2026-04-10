@@ -11,6 +11,7 @@ import secrets
 import string
 
 import psycopg2
+from psycopg2 import sql
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 import re
@@ -326,19 +327,33 @@ def _create_pg_user(pg_user: str, password: str, db_name: str) -> None:
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (pg_user,))
             if cur.fetchone():
                 # Role exists — always sync password so K8s secret stays consistent
-                cur.execute(f'ALTER ROLE "{pg_user}" PASSWORD %s', (password,))
+                cur.execute(
+                    sql.SQL('ALTER ROLE {} PASSWORD %s').format(sql.Identifier(pg_user)),
+                    (password,),
+                )
                 logger.info("Updated password for existing Postgres role %s", pg_user)
             else:
-                cur.execute(f'CREATE ROLE "{pg_user}" LOGIN PASSWORD %s', (password,))
+                cur.execute(
+                    sql.SQL('CREATE ROLE {} LOGIN PASSWORD %s').format(sql.Identifier(pg_user)),
+                    (password,),
+                )
                 logger.info("Created Postgres role %s", pg_user)
 
             # PG 16+ requires the admin user to hold membership in the target
             # role before it can CREATE DATABASE ... OWNER <role>.
-            cur.execute(f'GRANT "{pg_user}" TO "{_PG_ADMIN_USER}"')
+            cur.execute(
+                sql.SQL('GRANT {} TO {}').format(
+                    sql.Identifier(pg_user), sql.Identifier(_PG_ADMIN_USER)
+                )
+            )
 
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             if not cur.fetchone():
-                cur.execute(f'CREATE DATABASE "{db_name}" OWNER "{pg_user}"')
+                cur.execute(
+                    sql.SQL('CREATE DATABASE {} OWNER {}').format(
+                        sql.Identifier(db_name), sql.Identifier(pg_user)
+                    )
+                )
                 logger.info("Created Postgres database %s", db_name)
     finally:
         conn.close()
@@ -360,8 +375,8 @@ def _drop_pg_user(pg_user: str, db_name: str) -> None:
                 "FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
                 (db_name,),
             )
-            cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-            cur.execute(f'DROP ROLE IF EXISTS "{pg_user}"')
+            cur.execute(sql.SQL('DROP DATABASE IF EXISTS {}').format(sql.Identifier(db_name)))
+            cur.execute(sql.SQL('DROP ROLE IF EXISTS {}').format(sql.Identifier(pg_user)))
             logger.info("Dropped Postgres role/db for %s", pg_user)
     finally:
         conn.close()

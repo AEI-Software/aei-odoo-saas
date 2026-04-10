@@ -11,7 +11,7 @@ import os
 import requests
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,28 @@ class SaasInstance(models.Model):
         help='JSON array of {"url": "...", "branch": "..."} objects. '
              'These repos are git-cloned into the tenant pod on provision.',
     )
+
+    _sql_constraints = [
+        ("tenant_id_unique", "UNIQUE(tenant_id)", "Tenant ID must be unique."),
+    ]
+
+    @api.constrains("tenant_id")
+    def _check_tenant_id(self):
+        import re
+        pattern = re.compile(r"^[a-z0-9][a-z0-9\-]{0,46}[a-z0-9]$")
+        for rec in self:
+            tid = rec.tenant_id
+            if not tid:
+                continue
+            if len(tid) < 2:
+                raise ValidationError(
+                    _("Tenant ID must be at least 2 characters long (got '%s').") % tid
+                )
+            if not pattern.match(tid):
+                raise ValidationError(
+                    _("Tenant ID '%s' is invalid. Use only lowercase letters, "
+                      "digits, and hyphens. Must start and end with alphanumeric.") % tid
+                )
 
     # ── actions ───────────────────────────────────────────────────────────────
 

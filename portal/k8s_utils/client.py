@@ -8,38 +8,61 @@ falls back to kubeconfig file for local dev.
 from __future__ import annotations
 import logging
 import os
-from functools import lru_cache
 
 from kubernetes import client, config as kube_config
 
 logger = logging.getLogger(__name__)
 
-
-@lru_cache(maxsize=1)
-def _core() -> client.CoreV1Api:
-    _load_config()
-    return client.CoreV1Api()
-
-
-@lru_cache(maxsize=1)
-def _apps() -> client.AppsV1Api:
-    _load_config()
-    return client.AppsV1Api()
-
-
-@lru_cache(maxsize=1)
-def _networking() -> client.NetworkingV1Api:
-    _load_config()
-    return client.NetworkingV1Api()
+_config_loaded = False
+_core_api: client.CoreV1Api | None = None
+_apps_api: client.AppsV1Api | None = None
+_net_api: client.NetworkingV1Api | None = None
+_policy_api: client.PolicyV1Api | None = None
 
 
 def _load_config():
+    global _config_loaded
+    if _config_loaded:
+        return
     try:
         kube_config.load_incluster_config()
         logger.info("Using in-cluster kubeconfig")
     except Exception:
         kube_config.load_kube_config()
         logger.info("Using local kubeconfig")
+    _config_loaded = True
+
+
+def _core() -> client.CoreV1Api:
+    global _core_api
+    if _core_api is None:
+        _load_config()
+        _core_api = client.CoreV1Api()
+    return _core_api
+
+
+def _apps() -> client.AppsV1Api:
+    global _apps_api
+    if _apps_api is None:
+        _load_config()
+        _apps_api = client.AppsV1Api()
+    return _apps_api
+
+
+def _networking() -> client.NetworkingV1Api:
+    global _net_api
+    if _net_api is None:
+        _load_config()
+        _net_api = client.NetworkingV1Api()
+    return _net_api
+
+
+def _policy() -> client.PolicyV1Api:
+    global _policy_api
+    if _policy_api is None:
+        _load_config()
+        _policy_api = client.PolicyV1Api()
+    return _policy_api
 
 
 def apply_manifest(manifest: dict) -> None:
@@ -97,6 +120,26 @@ def apply_manifest(manifest: dict) -> None:
         except client.exceptions.ApiException as e:
             if e.status != 409:
                 raise
+
+    elif kind == "NetworkPolicy":
+        try:
+            _networking().create_namespaced_network_policy(namespace=ns, body=manifest)
+        except client.exceptions.ApiException as e:
+            if e.status == 409:
+                name = manifest.get("metadata", {}).get("name")
+                _networking().replace_namespaced_network_policy(
+                    name=name, namespace=ns, body=manifest
+                )
+            else:
+                raise
+
+    elif kind == "PodDisruptionBudget":
+        try:
+            _policy().create_namespaced_pod_disruption_budget(namespace=ns, body=manifest)
+        except client.exceptions.ApiException as e:
+            if e.status != 409:
+                raise
+
     else:
         logger.warning("apply_manifest: unhandled kind %s", kind)
 

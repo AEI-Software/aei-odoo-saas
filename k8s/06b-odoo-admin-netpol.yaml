@@ -1,0 +1,79 @@
+# NetworkPolicy for odoo-admin namespace
+# Only allows:
+#   - Ingress from Traefik (kube-system) on ports 8069/8072
+#   - Ingress from portal (aeisoftware) on port 8069
+#   - Egress to PostgreSQL (aeisoftware) on ports 5000/5002
+#   - Egress to DNS (kube-system) on port 53
+#   - Egress to portal (aeisoftware) on port 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: odoo-admin
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-odoo-traffic
+  namespace: odoo-admin
+spec:
+  podSelector:
+    matchLabels:
+      app: odoo
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Traefik reverse proxy → Odoo HTTP + longpolling
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 8069
+          protocol: TCP
+        - port: 8072
+          protocol: TCP
+    # Portal API calls → Odoo XML-RPC
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aeisoftware
+      ports:
+        - port: 8069
+          protocol: TCP
+  egress:
+    # DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # PostgreSQL (PgBouncer + primary)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aeisoftware
+      ports:
+        - port: 5000
+          protocol: TCP
+        - port: 5002
+          protocol: TCP
+    # Portal API
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aeisoftware
+      ports:
+        - port: 8000
+          protocol: TCP

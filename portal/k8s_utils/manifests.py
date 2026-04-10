@@ -226,6 +226,12 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                             ],
                             "env": _env,
                             "volumeMounts": _vol_mounts,
+                            "livenessProbe": {
+                                "httpGet": {"path": "/web/health", "port": 8069},
+                                "initialDelaySeconds": 120,
+                                "periodSeconds": 30,
+                                "failureThreshold": 3,
+                            },
                             "readinessProbe": {
                                 "httpGet": {"path": "/web/health", "port": 8069},
                                 "initialDelaySeconds": 30,

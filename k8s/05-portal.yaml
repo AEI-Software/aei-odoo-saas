@@ -78,6 +78,13 @@ spec:
               value: aeisoftware-odoo-headers@kubernetescrd
             - name: URL_SCHEME
               value: https
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /healthz

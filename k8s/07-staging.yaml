@@ -181,6 +181,13 @@ spec:
               mountPath: /var/lib/odoo
             - name: odoo-addons
               mountPath: /mnt/extra-addons
+          livenessProbe:
+            httpGet:
+              path: /web/health
+              port: 8069
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 3
           readinessProbe:
             tcpSocket:
               port: 8069
@@ -317,6 +324,13 @@ spec:
               value: local-path
             - name: URL_SCHEME
               value: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /healthz
