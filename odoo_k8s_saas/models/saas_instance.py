@@ -55,7 +55,19 @@ class SaasInstance(models.Model):
         help="Sale order that triggered this instance's creation.",
     )
 
-    # ── config / logs / addons ─────────────────────────────────────────────
+    # ── config / logs / addons / credentials ──────────────────────────────────
+    admin_password = fields.Char(
+        string="App Admin Password",
+        copy=False,
+        help="The randomly generated password for the application's admin user.",
+    )
+    odoo_version = fields.Selection([
+        ('17.0', 'Odoo 17.0 (Official)'),
+        ('18.0', 'Odoo 18.0 (Official)'),
+        ('19.0', 'Odoo 19.0 (Official)'),
+        ('custom', 'Custom Image'),
+    ], string="Odoo Version", default='18.0', required=True)
+    custom_image = fields.Char(string="Custom Odoo Image")
     odoo_conf = fields.Text(
         string="odoo.conf",
         help="Current odoo.conf content (fetched from the running instance).",
@@ -169,6 +181,8 @@ class SaasInstance(models.Model):
                 "tenant_id": self.tenant_id,
                 "plan": self.plan,
                 "storage_gi": self.storage_gi,
+                "odoo_version": self.odoo_version or "18.0",
+                "custom_image": self.custom_image if self.custom_image else None,
             }
             # Include addon repos if configured
             if self.addons_repos_json:
@@ -190,6 +204,7 @@ class SaasInstance(models.Model):
                 "state": "provisioning",
                 "url": data.get("url"),
                 "namespace": data.get("namespace"),
+                "admin_password": data.get("app_admin_password"),
                 "error_msg": False,
             })
         except Exception as exc:
@@ -212,8 +227,16 @@ class SaasInstance(models.Model):
                 data = resp.json()
                 if data.get("status") == "ready":
                     rec.state = "ready"
+                    rec.action_send_credentials_email()
             except Exception as exc:
                 logger.warning("Status check failed for %s: %s", rec.tenant_id, exc)
+
+    def action_send_credentials_email(self):
+        self.ensure_one()
+        template = self.env.ref("odoo_k8s_saas.email_template_saas_credentials", raise_if_not_found=False)
+        if template and self.partner_id and self.partner_id.email:
+            template.send_mail(self.id, force_send=True)
+            self.message_post(body=_("Credentials email dispatched to %s") % self.partner_id.email)
 
     def action_delete(self):
         self.ensure_one()

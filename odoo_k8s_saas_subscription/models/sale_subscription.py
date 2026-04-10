@@ -32,6 +32,13 @@ class SaleSubscription(models.Model):
     _inherit = ["sale.subscription", "portal.mixin"]
     _name = "sale.subscription"
 
+    # ── Relational fields ───────────────────────────────────────
+    saas_instance_ids = fields.One2many(
+        "saas.instance",
+        "subscription_id",
+        string="SaaS Instances",
+    )
+
     # ── Computed fields ─────────────────────────────────────────
     saas_instance_count = fields.Integer(
         string="SaaS Instances",
@@ -59,26 +66,27 @@ class SaleSubscription(models.Model):
         help="Monthly charge for extra users (extra_users × price_per_extra_user).",
     )
 
-    @api.depends_context("uid")
+    @api.depends("saas_instance_ids", "saas_instance_ids.state")
     def _compute_saas_instance_count(self):
-        Instance = self.env["saas.instance"]
         for rec in self:
-            instances = Instance.search([
-                ("subscription_id", "=", rec.id),
-                ("state", "not in", ["deleted"]),
-            ])
-            rec.saas_instance_count = len(instances)
-            rec.has_active_instance = bool(instances)
+            active = rec.saas_instance_ids.filtered(
+                lambda i: i.state not in ("deleted",)
+            )
+            rec.saas_instance_count = len(active)
+            rec.has_active_instance = bool(active)
 
-    @api.depends("template_id.included_users", "template_id.price_per_extra_user")
+    @api.depends(
+        "saas_instance_ids.user_count",
+        "saas_instance_ids.state",
+        "template_id.included_users",
+        "template_id.price_per_extra_user",
+    )
     def _compute_user_billing(self):
-        Instance = self.env["saas.instance"]
         for rec in self:
-            instances = Instance.search([
-                ("subscription_id", "=", rec.id),
-                ("state", "not in", ["deleted"]),
-            ])
-            total_users = sum(instances.mapped("user_count"))
+            active_instances = rec.saas_instance_ids.filtered(
+                lambda i: i.state not in ("deleted",)
+            )
+            total_users = sum(active_instances.mapped("user_count"))
             included = rec.template_id.included_users if rec.template_id else 0
             extra = max(0, total_users - included)
             price = rec.template_id.price_per_extra_user if rec.template_id else 0.0
@@ -152,6 +160,18 @@ class SaleSubscription(models.Model):
 
         storage_map = {"starter": 10, "pro": 50, "enterprise": 100}
 
+        # Determine saas product to copy configuration
+        saas_product = False
+        if self.sale_order_id:
+            saas_category = self.env.ref("odoo_k8s_saas.product_category_odoo_saas", raise_if_not_found=False)
+            for line in self.sale_order_id.order_line:
+                if not line.product_id: continue
+                in_categ = saas_category and self._is_saas_category(line.product_id.categ_id, saas_category)
+                in_name = "saas" in (line.product_id.name or "").lower()
+                if in_categ or in_name:
+                    saas_product = line.product_id
+                    break
+
         instance = self.env["saas.instance"].create({
             "name": f"{self.partner_id.name} — Re-provision ({self.display_name})",
             "tenant_id": tenant_id,
@@ -160,6 +180,8 @@ class SaleSubscription(models.Model):
             "partner_id": self.partner_id.id,
             "sale_order_id": self.sale_order_id.id if self.sale_order_id else False,
             "subscription_id": self.id,
+            "odoo_version": saas_product.odoo_version if saas_product else "18.0",
+            "custom_image": saas_product.custom_image if saas_product else False,
         })
 
         logger.info(
@@ -220,82 +242,94 @@ class SaleSubscription(models.Model):
 
             # → In Progress: create and provision
             if stage_in_progress and new_stage_id == stage_in_progress.id:
-                if not instances and rec.sale_order_id:
-                    # Check if there is a SaaS product in the SO
-                    saas_category = self.env.ref("odoo_k8s_saas.product_category_odoo_saas", raise_if_not_found=False)
-                    has_saas = False
+                # Guard: only provision if the template is marked as a SaaS plan
+                if (not instances and rec.sale_order_id
+                        and rec.template_id and rec.template_id.is_saas_plan):
+                    # Collect ALL SaaS order lines (one instance per line)
+                    saas_category = self.env.ref(
+                        "odoo_k8s_saas.product_category_odoo_saas",
+                        raise_if_not_found=False,
+                    )
+                    saas_lines = []
                     for line in rec.sale_order_id.order_line:
                         if not line.product_id:
                             continue
-                        in_categ = saas_category and rec._is_saas_category(line.product_id.categ_id, saas_category)
+                        in_categ = (saas_category
+                                    and rec._is_saas_category(
+                                        line.product_id.categ_id, saas_category))
                         in_name = "saas" in (line.product_id.name or "").lower()
                         if in_categ or in_name:
-                            has_saas = True
-                            break
-                    
-                    if has_saas:
-                        # Create the instance
-                        sub_code = (rec.name or "").lower().replace("/", "-")
-                        tenant_id = rec._generate_saas_tenant_id(rec.partner_id, sub_code)
+                            saas_lines.append(line)
 
-                        # ── Idempotency guard: check if sale_order_id already exists ──────
-                        # This prevents creating multiple instances for the same sale.order
-                        # even if the subscription is different (e.g., cron loop).
+                    for sol in saas_lines:
+                        saas_product = sol.product_id
+                        sub_code = (rec.name or "").lower().replace("/", "-")
+                        tenant_id = rec._generate_saas_tenant_id(
+                            rec.partner_id, sub_code)
+                        # Append version suffix when there are multiple SaaS lines
+                        if len(saas_lines) > 1 and saas_product.odoo_version:
+                            tenant_id = f"{tenant_id}-{saas_product.odoo_version.replace('.', '')}"
+
+                        # ── Idempotency guard 1: by sale_order_line_id ────────
                         existing = self.env["saas.instance"].search(
-                            [("sale_order_id", "=", rec.sale_order_id.id)], limit=1
+                            [("sale_order_line_id", "=", sol.id)], limit=1,
                         )
                         if existing:
                             logger.warning(
-                                "write() subscription %s: sale_order_id '%s' already has a "
-                                "saas.instance (id=%s, state=%s) — reusing it instead of "
-                                "creating a duplicate.",
-                                rec.name, rec.sale_order_id.id, existing.id, existing.state,
+                                "write() subscription %s: order line %s already "
+                                "has saas.instance (id=%s) — reusing.",
+                                rec.name, sol.id, existing.id,
                             )
-                            # Re-link it to this subscription so provisioning below works
                             if not existing.subscription_id:
                                 existing.subscription_id = rec.id
-                            instances = existing
-                        else:
-                            # ── Idempotency guard 2: check by tenant_id ──────────────────────
-                            # Secondary guard: prevents creating a duplicate if a K8s namespace
-                            # with this tenant_id already exists (orphaned from a DB rollback).
-                            existing_by_tid = self.env["saas.instance"].search(
-                                [("tenant_id", "=", tenant_id)], limit=1
+                            instances |= existing
+                            continue
+
+                        # ── Idempotency guard 2: by tenant_id ─────────────────
+                        existing_by_tid = self.env["saas.instance"].search(
+                            [("tenant_id", "=", tenant_id)], limit=1,
+                        )
+                        if existing_by_tid:
+                            logger.warning(
+                                "write() subscription %s: tenant_id '%s' "
+                                "already exists (id=%s) — reusing.",
+                                rec.name, tenant_id, existing_by_tid.id,
                             )
-                            if existing_by_tid:
-                                logger.warning(
-                                    "write() subscription %s: tenant_id '%s' already has "
-                                    "saas.instance (id=%s, state=%s) — reusing.",
-                                    rec.name, tenant_id, existing_by_tid.id, existing_by_tid.state,
-                                )
-                                if not existing_by_tid.subscription_id:
-                                    existing_by_tid.subscription_id = rec.id
-                                instances = existing_by_tid
-                            else:
-                                plan = "starter"
-                                if rec.template_id:
-                                    tmpl_name = (rec.template_id.name or "").lower()
-                                    if "enterprise" in tmpl_name:
-                                        plan = "enterprise"
-                                    elif "pro" in tmpl_name:
-                                        plan = "pro"
+                            if not existing_by_tid.subscription_id:
+                                existing_by_tid.subscription_id = rec.id
+                            instances |= existing_by_tid
+                            continue
 
-                                storage_map = {"starter": 10, "pro": 50, "enterprise": 100}
+                        # ── Create instance ───────────────────────────────────
+                        plan = "starter"
+                        if rec.template_id:
+                            tmpl_name = (rec.template_id.name or "").lower()
+                            if "enterprise" in tmpl_name:
+                                plan = "enterprise"
+                            elif "pro" in tmpl_name:
+                                plan = "pro"
 
-                                inst = self.env["saas.instance"].create({
-                                    "name": f"{rec.partner_id.name} — {rec.display_name}",
-                                    "tenant_id": tenant_id,
-                                    "plan": plan,
-                                    "storage_gi": storage_map.get(plan, 10),
-                                    "partner_id": rec.partner_id.id,
-                                    "sale_order_id": rec.sale_order_id.id,
-                                    "subscription_id": rec.id,
-                                })
-                                logger.info(
-                                    "Created saas.instance %s from subscription %s",
-                                    inst.tenant_id, rec.name,
-                                )
-                                instances = inst
+                        storage_map = {"starter": 10, "pro": 50, "enterprise": 100}
+
+                        inst = self.env["saas.instance"].create({
+                            "name": f"{rec.partner_id.name} — {rec.display_name}",
+                            "tenant_id": tenant_id,
+                            "plan": plan,
+                            "storage_gi": storage_map.get(plan, 10),
+                            "partner_id": rec.partner_id.id,
+                            "sale_order_id": rec.sale_order_id.id,
+                            "sale_order_line_id": sol.id,
+                            "subscription_id": rec.id,
+                            "odoo_version": saas_product.odoo_version if saas_product else "18.0",
+                            "custom_image": saas_product.custom_image if saas_product else False,
+                        })
+                        logger.info(
+                            "Created saas.instance %s (version=%s) from "
+                            "subscription %s, order line %s",
+                            inst.tenant_id, inst.odoo_version,
+                            rec.name, sol.id,
+                        )
+                        instances |= inst
 
                 # Provision any draft/error instances
                 for inst in instances.filtered(lambda i: i.state in ("draft", "error")):
@@ -458,5 +492,93 @@ class SaleSubscription(models.Model):
             except Exception:
                 logger.exception(
                     "_cron_sync_user_count: failed for %s", inst.tenant_id
+                )
+
+    @api.model
+    def _cron_update_extra_user_line(self):
+        """Daily cron: update subscription line qty for extra users.
+
+        For each active SaaS subscription:
+        - If extra_users > 0: create or update an "Extra User" line
+          with qty = extra_users and price = template.price_per_extra_user
+        - If extra_users <= 0: remove any existing "Extra User" line
+
+        This runs daily, ensuring the subscription line reflects the current
+        user count before OCA's invoicing cron generates the monthly invoice.
+        """
+        stage_in_progress = self.env.ref(_STAGE_IN_PROGRESS, raise_if_not_found=False)
+        if not stage_in_progress:
+            logger.warning(
+                "_cron_update_extra_user_line: stage '%s' not found — skipping.",
+                _STAGE_IN_PROGRESS,
+            )
+            return
+
+        active_subs = self.search([
+            ("stage_id", "=", stage_in_progress.id),
+            ("template_id.is_saas_plan", "=", True),
+        ])
+
+        extra_user_product = self.env.ref(
+            "odoo_k8s_saas_subscription.product_extra_user",
+            raise_if_not_found=False,
+        )
+        if not extra_user_product:
+            logger.error(
+                "_cron_update_extra_user_line: missing product "
+                "'product_extra_user' — cannot bill extra users."
+            )
+            return
+
+        logger.info(
+            "_cron_update_extra_user_line: processing %d active subscriptions",
+            len(active_subs),
+        )
+
+        for sub in active_subs:
+            extra = sub.extra_users  # computed field
+            existing_line = sub.sale_subscription_line_ids.filtered(
+                lambda l: l.product_id == extra_user_product
+            )
+
+            if extra <= 0:
+                # No extra users — remove the billing line if present
+                if existing_line:
+                    existing_line.unlink()
+                    logger.info(
+                        "_cron_update_extra_user_line: removed extra-user line "
+                        "from subscription %s (no extra users)",
+                        sub.display_name,
+                    )
+                continue
+
+            price = sub.template_id.price_per_extra_user
+
+            if existing_line:
+                # Update qty/price only if changed
+                if existing_line.product_uom_qty != extra or existing_line.price_unit != price:
+                    existing_line.write({
+                        "product_uom_qty": extra,
+                        "price_unit": price,
+                        "name": f"Extra Users ({extra} × {price} Bs./user/month)",
+                    })
+                    logger.info(
+                        "_cron_update_extra_user_line: updated %s → %d extra users "
+                        "× %.2f Bs.",
+                        sub.display_name, extra, price,
+                    )
+            else:
+                # Create new extra-user line
+                self.env["sale.subscription.line"].create({
+                    "subscription_id": sub.id,
+                    "product_id": extra_user_product.id,
+                    "name": f"Extra Users ({extra} × {price} Bs./user/month)",
+                    "product_uom_qty": extra,
+                    "price_unit": price,
+                })
+                logger.info(
+                    "_cron_update_extra_user_line: created extra-user line for "
+                    "%s → %d extra users × %.2f Bs.",
+                    sub.display_name, extra, price,
                 )
 

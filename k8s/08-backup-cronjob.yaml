@@ -1,0 +1,12 @@
+# =============================================================================
+# k8s/08-backup-cronjob.yaml — DESHABILITADO en Fase 2
+#
+# Este CronJob hacía backups de PG desde dentro del clúster K3s.
+# En Fase 2 los backups son manejados por pgBackRest en las VMs PG HA
+# con el CronJob de Patroni + S3 (RadosGW) definido en:
+#   infra/postgres-ha/06-setup-pgbackrest.sh
+#
+# NO eliminar — referencia de configuración del backup scheduler anterior.
+# =============================================================================
+#
+# ARCHIVO INACTIVO

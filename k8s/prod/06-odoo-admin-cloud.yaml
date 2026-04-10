@@ -1,0 +1,256 @@
+---
+# Single shared Odoo 18 instance for admin use (admin.aeisoftware.com)
+# Includes odoo_k8s_saas and odoo_k8s_saas_subscription addons, cloned
+# from the branch specified by addon-git-branch on each pod start.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: odoo-admin
+  labels:
+    managed-by: manual
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: odoo-admin-data
+  namespace: odoo-admin
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ceph-rbd
+  resources:
+    requests:
+      storage: 20Gi
+
+
+# NOTE: odoo-admin-secret is NOT defined here.
+# It is applied by infra/apply-manifests.sh from .secrets.env (gitignored).
+# Running `kubectl apply -f 06-odoo-admin.yaml` directly will NOT touch secrets.
+
+---
+# ${DB_PASSWORD} and ${ADMIN_PASSWD} are substituted at startup by the
+# render-config init container using sed.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: odoo-admin-conf
+  namespace: odoo-admin
+data:
+  addon-git-branch: "main"
+  odoo.conf.tmpl: |
+    [options]
+    db_host = postgres.aeisoftware.svc.cluster.local
+    db_port = 5002
+    db_user = odoo
+    db_password = REPLACE_DB_PASSWORD
+    admin_passwd = REPLACE_ADMIN_PASSWD
+    dbfilter = ^admin$
+    list_db = True
+    addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
+    data_dir = /var/lib/odoo
+    workers = 2
+    max_cron_threads = 1
+    gevent_port = 8072
+    proxy_mode = True
+    limit_time_cpu = 1200
+    limit_time_real = 2400
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odoo-admin
+  namespace: odoo-admin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: odoo-admin
+  template:
+    metadata:
+      labels:
+        app: odoo-admin
+    spec:
+      initContainers:
+        # 1. Clone the SaaS addons from GitHub
+        - name: copy-addon
+          image: alpine/git
+          imagePullPolicy: Always
+          env:
+            - name: ADDON_GIT_BRANCH
+              valueFrom:
+                configMapKeyRef:
+                  name: odoo-admin-conf
+                  key: addon-git-branch
+          command:
+            - sh
+            - -c
+            - |
+              echo "==> Cloning branch: $ADDON_GIT_BRANCH"
+              # Clone SaaS repo (base addons + payment_qr_mercantil)
+              git clone --depth=1 -b "$ADDON_GIT_BRANCH" https://github.com/jpvargassoruco/odoo-saas-mvp.git /tmp/repo
+              cp -r /tmp/repo/odoo_k8s_saas /mnt/extra-addons/
+              cp -r /tmp/repo/odoo_k8s_saas_subscription /mnt/extra-addons/
+              cp -r /tmp/repo/payment_qr_mercantil /mnt/extra-addons/
+              # Clone subscription_oca from OCA fork
+              git clone --depth=1 -b 18.0 https://github.com/jpvargassoruco/odoo18-oca-contract.git /tmp/oca-contract
+              cp -r /tmp/oca-contract/subscription_oca /mnt/extra-addons/
+              # Clone MUK modules (v19.0)
+              git clone --depth=1 -b 19.0 https://github.com/muk-it/muk_base.git /tmp/muk-base
+              for d in /tmp/muk-base/muk_*/; do
+                cp -r "$d" /mnt/extra-addons/
+              done
+              echo "All addons copied OK"
+              ls -la /mnt/extra-addons/
+          volumeMounts:
+            - name: odoo-addons
+              mountPath: /mnt/extra-addons
+
+        # 2. Render odoo.conf: replace REPLACE_* placeholders with real secret values
+        # Uses sed with literal placeholders (no ${} in template) to avoid YAML/shell quoting issues.
+        - name: render-config
+          image: alpine:3.19
+          command:
+            - sh
+            - -c
+            - |
+              sed -e "s|REPLACE_DB_PASSWORD|${DB_PASSWORD}|g" \
+                  -e "s|REPLACE_ADMIN_PASSWD|${ADMIN_PASSWD}|g" \
+                  /tmpl/odoo.conf.tmpl > /etc/odoo/odoo.conf
+              echo "odoo.conf rendered:"
+              cat /etc/odoo/odoo.conf
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-admin-secret
+                  key: DB_PASSWORD
+            - name: ADMIN_PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: odoo-admin-secret
+                  key: ADMIN_PASSWD
+          volumeMounts:
+            - name: odoo-conf-tmpl
+              mountPath: /tmpl
+            - name: odoo-conf-rendered
+              mountPath: /etc/odoo
+
+      containers:
+        - name: odoo
+          image: odoo:18
+          # No --update flag: run manually with:
+          # kubectl exec -n odoo-admin deploy/odoo-admin -- odoo -u <module> --stop-after-init
+          ports:
+            - containerPort: 8069
+            - containerPort: 8072
+          env:
+            - name: SAAS_PORTAL_URL
+              value: "http://portal.aeisoftware.svc.cluster.local:8000"
+            - name: SAAS_PORTAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: portal-secret
+                  key: API_KEY
+                  optional: true
+          volumeMounts:
+            - name: odoo-conf-rendered
+              mountPath: /etc/odoo
+            - name: odoo-data
+              mountPath: /var/lib/odoo
+            - name: odoo-addons
+              mountPath: /mnt/extra-addons
+          readinessProbe:
+            tcpSocket:
+              port: 8069
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 2Gi
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        fsGroup: 101
+      volumes:
+        - name: odoo-conf-tmpl
+          configMap:
+            name: odoo-admin-conf
+        - name: odoo-conf-rendered
+          emptyDir: {}
+        - name: odoo-data
+          persistentVolumeClaim:
+            claimName: odoo-admin-data
+        - name: odoo-addons
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-admin-svc
+  namespace: odoo-admin
+spec:
+  selector:
+    app: odoo-admin
+  ports:
+    - name: http
+      port: 8069
+      targetPort: 8069
+    - name: longpoll
+      port: 8072
+      targetPort: 8072
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: odoo-admin-ingress
+  namespace: odoo-admin
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: odoo-admin-odoo-headers@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: admin.aeisoftware.com
+      http:
+        paths:
+          - path: /websocket
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-admin-svc
+                port:
+                  number: 8072
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-admin-svc
+                port:
+                  number: 8069
+    - host: www.aeisoftware.com
+      http:
+        paths:
+          - path: /websocket
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-admin-svc
+                port:
+                  number: 8072
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-admin-svc
+                port:
+                  number: 8069

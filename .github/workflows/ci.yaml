@@ -1,4 +1,4 @@
-name: CI
+name: CI — K3s HA Stack
 
 on:
   push:
@@ -7,13 +7,17 @@ on:
     branches: [main, "feature/*"]
 
 jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Build & Push imagen del portal
+  # ─────────────────────────────────────────────────────────────────────────────
   build-portal:
     name: Build & Push Portal
     runs-on: ubuntu-latest
-    # Only push the image on commits to main (not on PRs)
     permissions:
       contents: read
       packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
 
     steps:
       - name: Checkout
@@ -45,6 +49,3 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Deployment is manual — SSH into the server and run:
-      #   KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl -n aeisoftware rollout restart deployment/portal
-      # See Operational-Runbook for full steps.

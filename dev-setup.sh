@@ -36,6 +36,17 @@ if ! docker ps &>/dev/null; then
   error "Cannot access Docker daemon. Ensure you are in the docker group or run: sudo chmod 666 /var/run/docker.sock"
 fi
 
+# ── 0.5. Configure /etc/hosts for local dev (same domains as production) ─────
+NODE_IP=$(hostname -I | awk '{print $1}')
+DEV_HOSTS=("admin.aeisoftware.com" "www.aeisoftware.com" "portal.aeisoftware.com")
+info "Ensuring /etc/hosts points to K3s node ($NODE_IP) for: ${DEV_HOSTS[*]}"
+for h in "${DEV_HOSTS[@]}"; do
+  # Remove any stale entry, then add with current node IP
+  sudo sed -i "/$h/d" /etc/hosts
+  echo "$NODE_IP   $h" | sudo tee -a /etc/hosts > /dev/null
+  info "  Set: $NODE_IP → $h"
+done
+
 # ── 1. Install K3s ───────────────────────────────────────────────────────────
 if ! command -v k3s &>/dev/null; then
   info "Installing K3s …"
@@ -122,6 +133,10 @@ kubectl apply -f "$K8S_DIR/02-postgres.yaml"
 info "Applying RBAC …"
 kubectl apply -f "$K8S_DIR/04-rbac.yaml"
 
+# ── 6.5. Apply Traefik Middlewares ───────────────────────────────────────────
+info "Applying Traefik Middlewares (Odoo headers & buffers) …"
+kubectl apply -f "$K8S_DIR/03-traefik-middlewares.yaml"
+
 # ── 7. Apply Portal (patched to use local image) ─────────────────────────────
 info "Applying portal (local image, imagePullPolicy=Never) …"
 kubectl apply -f "$K8S_DIR/05-portal.yaml"
@@ -155,24 +170,36 @@ EOF
 
 kubectl -n odoo-admin rollout restart deployment odoo-admin
 
-# ── 9. Expose services locally via NodePort (dev only) ───────────────────────
-info "Exposing Odoo and Portal as NodePort services …"
+# ── 9. Expose services locally via LoadBalancer (dev only) ───────────────────────
+info "Exposing Odoo and Portal as LoadBalancer services (Standard Ports) …"
 
 kubectl -n aeisoftware expose deployment portal \
-  --name=portal-nodeport \
-  --type=NodePort \
+  --name=portal-lb \
+  --type=LoadBalancer \
   --port=8000 \
   --target-port=8000 \
   --dry-run=client -o yaml | \
   kubectl apply -f - 2>/dev/null || true
 
-kubectl -n odoo-admin expose deployment odoo-admin \
-  --name=odoo-nodeport \
-  --type=NodePort \
-  --port=8069 \
-  --target-port=8069 \
-  --dry-run=client -o yaml | \
-  kubectl apply -f - 2>/dev/null || true
+# Odoo LoadBalancer requires both 8069 and 8072. We'll use a standard manifest.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-lb
+  namespace: odoo-admin
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8069
+      targetPort: 8069
+    - name: longpoll
+      port: 8072
+      targetPort: 8072
+  selector:
+    app: odoo-admin
+EOF
 
 # ── 10. Wait for pods ────────────────────────────────────────────────────────
 info "Waiting for Postgres …"

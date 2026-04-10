@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, BASE_DOMAIN, POSTGRES_HOST, POSTGRES_PORT
+from k8s_utils.manifests import all_manifests, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,8 @@ class CreateInstanceRequest(BaseModel):
     plan: str = "starter"   # starter | pro | enterprise
     storage_gi: int = 10
     addons_repos: list = []
+    odoo_version: str = "18.0"
+    custom_image: str | None = None
 
     @field_validator("tenant_id")
     @classmethod
@@ -47,6 +49,7 @@ class InstanceResponse(BaseModel):
     url: str
     status: str
     user_count: int = 0
+    app_admin_password: str = None
 
 
 # ── endpoints ────────────────────────────────────────────────────────────────
@@ -98,6 +101,7 @@ def create_instance(req: CreateInstanceRequest):
 
     db_password = _gen_password()
     admin_password = _gen_password()
+    app_admin_password = _gen_password(16)
     pg_user = f"odoo-{req.tenant_id}"
     db_name = f"odoo_{req.tenant_id}"
 
@@ -113,8 +117,11 @@ def create_instance(req: CreateInstanceRequest):
         tenant_id=req.tenant_id,
         db_password=db_password,
         admin_password=admin_password,
+        app_admin_password=app_admin_password,
         storage_gi=req.storage_gi,
         addons_repos=req.addons_repos,
+        odoo_version=req.odoo_version,
+        custom_image=req.custom_image,
     )
 
     for m in manifests:
@@ -127,8 +134,9 @@ def create_instance(req: CreateInstanceRequest):
     return InstanceResponse(
         tenant_id=req.tenant_id,
         namespace=f"odoo-{req.tenant_id}",
-        url=f"https://{req.tenant_id}.{BASE_DOMAIN}",
+        url=f"{URL_SCHEME}://{req.tenant_id}.{BASE_DOMAIN}",
         status="provisioning",
+        app_admin_password=app_admin_password,
     )
 
 
@@ -149,7 +157,7 @@ def get_instance(tenant_id: str):
     return InstanceResponse(
         tenant_id=tenant_id,
         namespace=namespace,
-        url=f"https://{tenant_id}.{BASE_DOMAIN}",
+        url=f"{URL_SCHEME}://{tenant_id}.{BASE_DOMAIN}",
         status=status,
         user_count=user_count,
     )
@@ -259,6 +267,7 @@ def get_instance_logs(tenant_id: str, lines: int = 200):
 # ── Postgres helpers ─────────────────────────────────────────────────────────
 
 def _pg_conn(dbname: str = "postgres"):
+    """Connect via PgBouncer (port 5002) — for read queries only."""
     return psycopg2.connect(
         host=POSTGRES_HOST,
         port=POSTGRES_PORT,
@@ -267,13 +276,39 @@ def _pg_conn(dbname: str = "postgres"):
         password=_PG_ADMIN_PASSWORD,
     )
 
+
+def _pg_admin_conn(dbname: str = "postgres"):
+    """Connect to primary directly (port 5000) — for DDL: CREATE/DROP ROLE/DATABASE.
+
+    PgBouncer (5002) operates in transaction-pooling mode and blocks
+    SET ROLE, CREATE ROLE, CREATE DATABASE, and similar session-level commands.
+    """
+    return psycopg2.connect(
+        host=POSTGRES_HOST,
+        port=POSTGRES_PORT_PRIMARY,
+        dbname=dbname,
+        user=_PG_ADMIN_USER,
+        password=_PG_ADMIN_PASSWORD,
+    )
+
 def _get_user_count(tenant_id: str) -> int:
-    """Connect directly to the tenant database to count paying users."""
+    """Connect directly to the tenant database to count paying users.
+
+    Excludes system/technical users that should not be billed:
+    - __system__: Odoo internal system user (UID 1)
+    - share=true: portal/external users
+    - active=false: deactivated users
+    """
     db_name = f"odoo_{tenant_id}"
     try:
         conn = _pg_conn(dbname=db_name)
         with conn.cursor() as cur:
-            cur.execute("SELECT count(*) FROM res_users WHERE share=false AND active=true")
+            cur.execute("""
+                SELECT count(*) FROM res_users
+                WHERE share = false
+                  AND active = true
+                  AND login NOT IN ('__system__')
+            """)
             count = cur.fetchone()[0]
         conn.close()
         return count
@@ -284,7 +319,7 @@ def _get_user_count(tenant_id: str) -> int:
 
 def _create_pg_user(pg_user: str, password: str, db_name: str) -> None:
     """Create a dedicated Postgres role + database for a tenant (idempotent)."""
-    conn = _pg_conn()
+    conn = _pg_admin_conn()
     conn.autocommit = True
     try:
         with conn.cursor() as cur:
@@ -296,6 +331,10 @@ def _create_pg_user(pg_user: str, password: str, db_name: str) -> None:
             else:
                 cur.execute(f'CREATE ROLE "{pg_user}" LOGIN PASSWORD %s', (password,))
                 logger.info("Created Postgres role %s", pg_user)
+
+            # PG 16+ requires the admin user to hold membership in the target
+            # role before it can CREATE DATABASE ... OWNER <role>.
+            cur.execute(f'GRANT "{pg_user}" TO "{_PG_ADMIN_USER}"')
 
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             if not cur.fetchone():
@@ -311,7 +350,7 @@ def _drop_pg_user(pg_user: str, db_name: str) -> None:
     Terminates active connections first to avoid
     'database is being accessed by other users' errors.
     """
-    conn = _pg_conn()
+    conn = _pg_admin_conn()
     conn.autocommit = True
     try:
         with conn.cursor() as cur:

@@ -8,6 +8,7 @@ metadata:
   namespace: aeisoftware
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: aeisoftware-odoo-headers@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -29,7 +30,12 @@ metadata:
   name: portal
   namespace: aeisoftware
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: portal
@@ -42,13 +48,16 @@ spec:
       containers:
         - name: portal
           image: ghcr.io/jpvargassoruco/odoo-saas-mvp/portal:main
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
             - name: POSTGRES_HOST
               value: postgres.aeisoftware.svc.cluster.local
             - name: POSTGRES_PORT
-              value: "5432"
+              value: "5002"                 # PgBouncer pooled → HTTP workers
+            - name: POSTGRES_PORT_PRIMARY
+              value: "5000"                 # Primary directo → operaciones admin
             - name: POSTGRES_ADMIN_USER
               value: odoo
             - name: POSTGRES_ADMIN_PASSWORD
@@ -63,6 +72,12 @@ spec:
                   key: API_KEY
             - name: BASE_DOMAIN
               value: aeisoftware.com
+            - name: STORAGE_CLASS
+              value: ceph-rbd              # dev: local-path | prod: ceph-rbd
+            - name: ODOO_HEADERS_MIDDLEWARE
+              value: aeisoftware-odoo-headers@kubernetescrd
+            - name: URL_SCHEME
+              value: https
           readinessProbe:
             httpGet:
               path: /healthz

@@ -40,7 +40,7 @@ data:
   odoo.conf.tmpl: |
     [options]
     db_host = postgres.aeisoftware.svc.cluster.local
-    db_port = 5432
+    db_port = 5002
     db_user = odoo
     db_password = REPLACE_DB_PASSWORD
     admin_passwd = REPLACE_ADMIN_PASSWD
@@ -52,6 +52,8 @@ data:
     max_cron_threads = 1
     gevent_port = 8072
     proxy_mode = True
+    limit_time_cpu = 1200
+    limit_time_real = 2400
 
 ---
 apiVersion: apps/v1
@@ -95,6 +97,11 @@ spec:
               # Clone subscription_oca from OCA fork
               git clone --depth=1 -b 18.0 https://github.com/jpvargassoruco/odoo18-oca-contract.git /tmp/oca-contract
               cp -r /tmp/oca-contract/subscription_oca /mnt/extra-addons/
+              # Clone MUK modules (v19.0)
+              git clone --depth=1 -b 19.0 https://github.com/muk-it/muk_base.git /tmp/muk-base
+              for d in /tmp/muk-base/muk_*/; do
+                cp -r "$d" /mnt/extra-addons/
+              done
               echo "All addons copied OK"
               ls -la /mnt/extra-addons/
           volumeMounts:
@@ -156,8 +163,7 @@ spec:
             - name: odoo-addons
               mountPath: /mnt/extra-addons
           readinessProbe:
-            httpGet:
-              path: /web/health
+            tcpSocket:
               port: 8069
             initialDelaySeconds: 60
             periodSeconds: 10
@@ -169,7 +175,10 @@ spec:
             limits:
               cpu: 1
               memory: 2Gi
-
+      #securityContext:
+      #  runAsNonRoot: true
+      #  runAsUser: 101
+      #  fsGroup: 101
       volumes:
         - name: odoo-conf-tmpl
           configMap:
@@ -207,6 +216,7 @@ metadata:
   namespace: odoo-admin
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: odoo-admin-odoo-headers@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
