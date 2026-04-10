@@ -232,7 +232,8 @@ metadata:
   name: odoo-stg-ingress
   namespace: staging
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-odoo-headers@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -352,7 +353,8 @@ metadata:
   name: portal-stg-ingress
   namespace: staging
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-odoo-headers@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

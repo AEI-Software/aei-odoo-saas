@@ -312,10 +312,9 @@ def ingress_manifest(tenant_id: str) -> dict[str, Any]:
     """Standard K8s Ingress for Traefik."""
     subdomain = tenant_id  # e.g. demo → demo.aeisoftware.com
     annotations = {
-        "traefik.ingress.kubernetes.io/router.entrypoints": "web",
+        "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure",
+        "traefik.ingress.kubernetes.io/router.middlewares": ODOO_HEADERS_MIDDLEWARE,
     }
-    if URL_SCHEME != "http":
-        annotations["traefik.ingress.kubernetes.io/router.middlewares"] = ODOO_HEADERS_MIDDLEWARE
 
     return {
         "apiVersion": "networking.k8s.io/v1",
