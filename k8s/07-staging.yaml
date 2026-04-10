@@ -63,8 +63,9 @@ data:
     db_user = odoo
     db_password = REPLACE_DB_PASSWORD
     admin_passwd = REPLACE_ADMIN_PASSWD
+    db_name = staging
     dbfilter = ^staging$
-    list_db = True
+    list_db = False
     addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
     data_dir = /var/lib/odoo
     workers = 2
@@ -93,6 +94,9 @@ spec:
       labels:
         app: odoo-stg
     spec:
+      securityContext:
+        runAsUser: 100
+        fsGroup: 101
       initContainers:
         # 1. Clone addons from "main" branch
         - name: copy-addon
