@@ -32,6 +32,13 @@ class SaleSubscription(models.Model):
     _inherit = ["sale.subscription", "portal.mixin"]
     _name = "sale.subscription"
 
+    # ── Relational fields ───────────────────────────────────────
+    saas_instance_ids = fields.One2many(
+        "saas.instance",
+        "subscription_id",
+        string="SaaS Instances",
+    )
+
     # ── Computed fields ─────────────────────────────────────────
     saas_instance_count = fields.Integer(
         string="SaaS Instances",
@@ -59,26 +66,27 @@ class SaleSubscription(models.Model):
         help="Monthly charge for extra users (extra_users × price_per_extra_user).",
     )
 
-    @api.depends_context("uid")
+    @api.depends("saas_instance_ids", "saas_instance_ids.state")
     def _compute_saas_instance_count(self):
-        Instance = self.env["saas.instance"]
         for rec in self:
-            instances = Instance.search([
-                ("subscription_id", "=", rec.id),
-                ("state", "not in", ["deleted"]),
-            ])
-            rec.saas_instance_count = len(instances)
-            rec.has_active_instance = bool(instances)
+            active = rec.saas_instance_ids.filtered(
+                lambda i: i.state not in ("deleted",)
+            )
+            rec.saas_instance_count = len(active)
+            rec.has_active_instance = bool(active)
 
-    @api.depends("template_id.included_users", "template_id.price_per_extra_user")
+    @api.depends(
+        "saas_instance_ids.user_count",
+        "saas_instance_ids.state",
+        "template_id.included_users",
+        "template_id.price_per_extra_user",
+    )
     def _compute_user_billing(self):
-        Instance = self.env["saas.instance"]
         for rec in self:
-            instances = Instance.search([
-                ("subscription_id", "=", rec.id),
-                ("state", "not in", ["deleted"]),
-            ])
-            total_users = sum(instances.mapped("user_count"))
+            active_instances = rec.saas_instance_ids.filtered(
+                lambda i: i.state not in ("deleted",)
+            )
+            total_users = sum(active_instances.mapped("user_count"))
             included = rec.template_id.included_users if rec.template_id else 0
             extra = max(0, total_users - included)
             price = rec.template_id.price_per_extra_user if rec.template_id else 0.0
