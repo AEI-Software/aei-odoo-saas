@@ -321,7 +321,7 @@ spec:
             - name: BASE_DOMAIN
               value: aeisoftware.com
             - name: STORAGE_CLASS
-              value: local-path
+              value: ceph-rbd              # same cluster as prod — must use ceph-rbd
             - name: URL_SCHEME
               value: http
           livenessProbe:
