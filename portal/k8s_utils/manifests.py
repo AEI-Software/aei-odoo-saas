@@ -23,8 +23,8 @@ ODOO_IMAGE = os.getenv("ODOO_IMAGE", "odoo:18")
 # local-path para dev local K3s, ceph-rbd para producción Cloud
 STORAGE_CLASS = os.getenv("STORAGE_CLASS", "local-path")
 # Middleware namespace = namespace donde se despliegan los middlewares de Traefik
-# En dev = aeisoftware, en prod = aeisoftware (mismo namespace del portal)
-ODOO_HEADERS_MIDDLEWARE = os.getenv("ODOO_HEADERS_MIDDLEWARE", "aeisoftware-odoo-headers@kubernetescrd")
+# Los middlewares (odoo-headers, odoo-compress) están en kube-system (ver 02-traefik-config.yaml)
+ODOO_HEADERS_MIDDLEWARE = os.getenv("ODOO_HEADERS_MIDDLEWARE", "kube-system-odoo-headers@kubernetescrd")
 
 
 def namespace_manifest(tenant_id: str) -> dict[str, Any]:
@@ -311,16 +311,19 @@ def service_manifest(tenant_id: str) -> dict[str, Any]:
 def ingress_manifest(tenant_id: str) -> dict[str, Any]:
     """Standard K8s Ingress for Traefik."""
     subdomain = tenant_id  # e.g. demo → demo.aeisoftware.com
+    annotations = {
+        "traefik.ingress.kubernetes.io/router.entrypoints": "web",
+    }
+    if URL_SCHEME != "http":
+        annotations["traefik.ingress.kubernetes.io/router.middlewares"] = ODOO_HEADERS_MIDDLEWARE
+
     return {
         "apiVersion": "networking.k8s.io/v1",
         "kind": "Ingress",
         "metadata": {
             "name": "odoo-ingress",
             "namespace": _ns(tenant_id),
-            "annotations": {
-                "traefik.ingress.kubernetes.io/router.entrypoints": "web",
-                "traefik.ingress.kubernetes.io/router.middlewares": ODOO_HEADERS_MIDDLEWARE,
-            },
+            "annotations": annotations,
         },
         "spec": {
             "ingressClassName": "traefik",
