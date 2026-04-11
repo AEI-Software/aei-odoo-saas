@@ -28,3 +28,13 @@ class SaleSubscriptionTemplate(models.Model):
         default=0.0,
         help="Monthly price charged for each user beyond the included amount.",
     )
+    plan = fields.Selection([
+        ("starter", "Starter"),
+        ("pro", "Pro"),
+        ("enterprise", "Enterprise")
+    ], string="K8s Plan", default="starter",
+       help="Compute resources allocated to instances on this plan.")
+    storage_gi = fields.Integer(
+        string="Storage (GB)",
+        default=10,
+        help="Persistent storage allocated for instances on this plan.")
