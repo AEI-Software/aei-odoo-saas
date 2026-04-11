@@ -55,9 +55,9 @@ spec:
             - name: POSTGRES_HOST
               value: postgres.aeisoftware.svc.cluster.local
             - name: POSTGRES_PORT
-              value: "5002"                 # PgBouncer pooled → HTTP workers
+              value: "5000"                 # HAProxy primary directo
             - name: POSTGRES_PORT_PRIMARY
-              value: "5000"                 # Primary directo → operaciones admin
+              value: "5000"                 # Same (legacy compat)
             - name: POSTGRES_ADMIN_USER
               value: odoo
             - name: POSTGRES_ADMIN_PASSWORD

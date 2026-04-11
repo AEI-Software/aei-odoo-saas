@@ -2,10 +2,10 @@
 k8s_utils/manifests.py
 
 Generates Kubernetes manifest dicts for a tenant Odoo deployment.
-Fase 2 — K3s HA con Ceph RBD storage y PostgreSQL HA externo:
+Fase 3 — K3s HA con Ceph RBD storage y PostgreSQL HA externo:
   - PostgreSQL HA en 192.168.0.127/.186/.226 via HAProxy
-  - :5002 PgBouncer pooled (HTTP workers)
-  - :5000 HAProxy primary directo (init + longpoll)
+  - :5000 HAProxy primary directo (all traffic)
+  - LISTEN/NOTIFY nativo (longpolling sin bus_alt_connection)
   - ceph-rbd StorageClass (pool k3s-rbd)
   - Cilium NetworkPolicy con egress a 192.168.0.0/24
 """
@@ -16,8 +16,8 @@ from typing import Any
 BASE_DOMAIN = os.getenv("BASE_DOMAIN", "aeisoftware.com")
 URL_SCHEME = os.getenv("URL_SCHEME", "http")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres.aeisoftware.svc.cluster.local")
-POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5002"))          # PgBouncer pooled
-POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Primary directo
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5000"))          # HAProxy primary
+POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Same (legacy compat)
 POSTGRES_USER = os.getenv("POSTGRES_USER", "odoo")
 ODOO_IMAGE = os.getenv("ODOO_IMAGE", "odoo:18")
 # local-path para dev local K3s, ceph-rbd para producción Cloud
@@ -132,16 +132,16 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
         {"name": "DB_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         {"name": "APP_ADMIN_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "APP_ADMIN_PASSWORD"}}},
         {"name": "HOST",     "value": POSTGRES_HOST},
-        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5002 pooled
+        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
     ]
-    # Init env usa el primary directo (5000) para --init=base (evita PgBouncer transaction mode)
+    # Init env — same port since PgBouncer was removed
     _init_env = [
         {"name": "DB_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         {"name": "APP_ADMIN_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "APP_ADMIN_PASSWORD"}}},
         {"name": "HOST",     "value": POSTGRES_HOST},
-        {"name": "PORT",     "value": str(POSTGRES_PORT_PRIMARY)},  # 5000 primary directo
+        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
     ]
@@ -276,14 +276,12 @@ def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
                     "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}}],
                     "ports": [
                         {"protocol": "TCP", "port": POSTGRES_PORT},
-                        {"protocol": "TCP", "port": POSTGRES_PORT_PRIMARY},
                     ]
                 },
                 {   # Egress directo a red PG HA (192.168.0.0/24)
                     "to": [{"ipBlock": {"cidr": "192.168.0.0/24"}}],
                     "ports": [
                         {"protocol": "TCP", "port": POSTGRES_PORT},
-                        {"protocol": "TCP", "port": POSTGRES_PORT_PRIMARY},
                     ]
                 },
                 {   # DNS

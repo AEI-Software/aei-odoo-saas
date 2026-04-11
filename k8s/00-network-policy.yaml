@@ -85,10 +85,10 @@ spec:
       port: 443
 
 ---
-# ── FASE 2 ───────────────────────────────────────────────────────────────────
+# ── FASE 3 ───────────────────────────────────────────────────────────────────
 # Allow Egress al clúster PostgreSQL HA externo
 # HAProxy escucha en los 3 nodos: 192.168.0.127, .186, .226
-# :5000 Primary (RW directo) | :5001 Replicas (RO) | :5002 PgBouncer (pool)
+# :5000 Primary (RW directo) | :5001 Replicas (RO)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -107,5 +107,3 @@ spec:
       port: 5000
     - protocol: TCP
       port: 5001
-    - protocol: TCP
-      port: 5002

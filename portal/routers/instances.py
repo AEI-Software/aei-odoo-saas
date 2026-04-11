@@ -268,7 +268,7 @@ def get_instance_logs(tenant_id: str, lines: int = 200):
 # ── Postgres helpers ─────────────────────────────────────────────────────────
 
 def _pg_conn(dbname: str = "postgres"):
-    """Connect via PgBouncer (port 5002) — for read queries only."""
+    """Connect to PostgreSQL via HAProxy primary (port 5000)."""
     return psycopg2.connect(
         host=POSTGRES_HOST,
         port=POSTGRES_PORT,
@@ -279,14 +279,14 @@ def _pg_conn(dbname: str = "postgres"):
 
 
 def _pg_admin_conn(dbname: str = "postgres"):
-    """Connect to primary directly (port 5000) — for DDL: CREATE/DROP ROLE/DATABASE.
+    """Connect to PostgreSQL primary (port 5000) — for DDL: CREATE/DROP ROLE/DATABASE.
 
-    PgBouncer (5002) operates in transaction-pooling mode and blocks
-    SET ROLE, CREATE ROLE, CREATE DATABASE, and similar session-level commands.
+    Kept as separate function for clarity. Uses same port as _pg_conn()
+    since PgBouncer was removed from the architecture.
     """
     return psycopg2.connect(
         host=POSTGRES_HOST,
-        port=POSTGRES_PORT_PRIMARY,
+        port=POSTGRES_PORT,
         dbname=dbname,
         user=_PG_ADMIN_USER,
         password=_PG_ADMIN_PASSWORD,

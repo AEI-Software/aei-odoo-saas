@@ -27,17 +27,13 @@ spec:
   # Sin selector — el tráfico va a los Endpoints manuales
   clusterIP: None
   ports:
-    - name: primary      # HAProxy → Primary actual (RW directo, sin pool)
+    - name: primary      # HAProxy → Primary actual (RW directo)
       port: 5000
       targetPort: 5000
       protocol: TCP
     - name: replica      # HAProxy → Replicas (RO)
       port: 5001
       targetPort: 5001
-      protocol: TCP
-    - name: pgbouncer    # HAProxy → PgBouncer pool (HTTP workers Odoo)
-      port: 5002
-      targetPort: 5002
       protocol: TCP
 ---
 apiVersion: v1
@@ -58,7 +54,4 @@ subsets:
         protocol: TCP
       - name: replica
         port: 5001
-        protocol: TCP
-      - name: pgbouncer
-        port: 5002
         protocol: TCP

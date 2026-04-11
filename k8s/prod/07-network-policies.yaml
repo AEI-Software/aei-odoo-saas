@@ -65,7 +65,7 @@ spec:
         cidr: 0.0.0.0/0
 
 ---
-# 4. Allow PostgreSQL HA egress for all pods → 192.168.0.0/24 ports 5000-5002
+# 4. Allow PostgreSQL HA egress for all pods → 192.168.0.0/24 ports 5000-5001
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -80,8 +80,6 @@ spec:
     - port: 5000
       protocol: TCP
     - port: 5001
-      protocol: TCP
-    - port: 5002
       protocol: TCP
     to:
     - ipBlock:

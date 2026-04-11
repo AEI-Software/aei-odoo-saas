@@ -2,7 +2,7 @@
 # Only allows:
 #   - Ingress from Traefik (kube-system) on ports 8069/8072
 #   - Ingress from portal (aeisoftware) on port 8069
-#   - Egress to PostgreSQL (aeisoftware) on ports 5000/5002
+#   - Egress to PostgreSQL (aeisoftware) on port 5000
 #   - Egress to DNS (kube-system) on port 53
 #   - Egress to portal (aeisoftware) on port 8000
 ---
@@ -59,15 +59,13 @@ spec:
           protocol: UDP
         - port: 53
           protocol: TCP
-    # PostgreSQL (PgBouncer + primary)
+    # PostgreSQL (HAProxy primary)
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: aeisoftware
       ports:
         - port: 5000
-          protocol: TCP
-        - port: 5002
           protocol: TCP
     # Portal API
     - to:

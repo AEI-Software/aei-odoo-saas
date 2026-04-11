@@ -59,7 +59,7 @@ data:
   odoo.conf.tmpl: |
     [options]
     db_host = postgres.aeisoftware.svc.cluster.local
-    db_port = 5002
+    db_port = 5000
     db_user = odoo
     db_password = REPLACE_DB_PASSWORD
     admin_passwd = REPLACE_ADMIN_PASSWD
@@ -303,7 +303,7 @@ spec:
             - name: POSTGRES_HOST
               value: postgres.aeisoftware.svc.cluster.local
             - name: POSTGRES_PORT
-              value: "5002"
+              value: "5000"
             - name: POSTGRES_PORT_PRIMARY
               value: "5000"
             - name: POSTGRES_ADMIN_USER
