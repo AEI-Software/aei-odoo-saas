@@ -1,0 +1,24 @@
+# PodDisruptionBudgets — Prevent zero-replica scenarios during node drain
+# Apply: kubectl apply -f k8s/05b-pdb.yaml
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: portal-pdb
+  namespace: aeisoftware
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: portal
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: odoo-admin-pdb
+  namespace: odoo-admin
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: odoo

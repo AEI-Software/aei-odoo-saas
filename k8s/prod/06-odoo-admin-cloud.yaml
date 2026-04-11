@@ -40,12 +40,13 @@ data:
   odoo.conf.tmpl: |
     [options]
     db_host = postgres.aeisoftware.svc.cluster.local
-    db_port = 5002
+    db_port = 5000
     db_user = odoo
     db_password = REPLACE_DB_PASSWORD
     admin_passwd = REPLACE_ADMIN_PASSWD
+    db_name = admin
     dbfilter = ^admin$
-    list_db = True
+    list_db = False
     addons_path = /mnt/extra-addons,/usr/lib/python3/dist-packages/odoo/addons
     data_dir = /var/lib/odoo
     workers = 2
@@ -162,6 +163,13 @@ spec:
               mountPath: /var/lib/odoo
             - name: odoo-addons
               mountPath: /mnt/extra-addons
+          livenessProbe:
+            httpGet:
+              path: /web/health
+              port: 8069
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            failureThreshold: 3
           readinessProbe:
             tcpSocket:
               port: 8069
@@ -215,8 +223,8 @@ metadata:
   name: odoo-admin-ingress
   namespace: odoo-admin
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.middlewares: odoo-admin-odoo-headers@kubernetescrd
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-odoo-headers@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

@@ -7,8 +7,8 @@ metadata:
   name: portal-ingress
   namespace: aeisoftware
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.middlewares: aeisoftware-odoo-headers@kubernetescrd
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-odoo-headers@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
@@ -55,9 +55,9 @@ spec:
             - name: POSTGRES_HOST
               value: postgres.aeisoftware.svc.cluster.local
             - name: POSTGRES_PORT
-              value: "5002"                 # PgBouncer pooled → HTTP workers
+              value: "5000"                 # HAProxy primary directo
             - name: POSTGRES_PORT_PRIMARY
-              value: "5000"                 # Primary directo → operaciones admin
+              value: "5000"                 # Same (legacy compat)
             - name: POSTGRES_ADMIN_USER
               value: odoo
             - name: POSTGRES_ADMIN_PASSWORD
@@ -78,6 +78,13 @@ spec:
               value: aeisoftware-odoo-headers@kubernetescrd
             - name: URL_SCHEME
               value: https
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /healthz

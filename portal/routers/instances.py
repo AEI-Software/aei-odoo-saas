@@ -11,11 +11,12 @@ import secrets
 import string
 
 import psycopg2
+from psycopg2 import sql
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY
+from k8s_utils.manifests import all_manifests, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,7 @@ def create_instance(req: CreateInstanceRequest):
         addons_repos=req.addons_repos,
         odoo_version=req.odoo_version,
         custom_image=req.custom_image,
+        plan=req.plan,
     )
 
     for m in manifests:
@@ -204,6 +206,84 @@ def start_instance(tenant_id: str):
     return {"status": "starting"}
 
 
+class UpgradeRequest(BaseModel):
+    plan: str = "starter"       # starter | pro | enterprise
+    storage_gi: int | None = None  # Optional: expand PVC
+
+
+@router.patch("/{tenant_id}/upgrade")
+def upgrade_instance(tenant_id: str, req: UpgradeRequest):
+    """Upgrade a running tenant to a different plan tier.
+
+    Updates:
+    1. ConfigMap (odoo.conf) — workers, cron_threads
+    2. Deployment — CPU/RAM requests and limits
+    3. Restarts the pod so changes take effect
+    """
+    namespace = f"odoo-{tenant_id}"
+    from k8s_utils.client import (
+        namespace_exists, read_namespaced_config_map,
+        patch_namespaced_config_map, restart_deployment,
+    )
+    import re as _re
+
+    if not namespace_exists(namespace):
+        raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
+
+    if req.plan not in PLAN_RESOURCES:
+        raise HTTPException(status_code=400, detail=f"Invalid plan: {req.plan}")
+
+    res = PLAN_RESOURCES[req.plan]
+
+    # ── 1. Patch ConfigMap: update workers and cron_threads in odoo.conf ──
+    try:
+        cm_data = read_namespaced_config_map(namespace, "odoo-conf")
+        conf = cm_data.get("odoo.conf", "")
+        # Replace workers = N and max_cron_threads = N
+        conf = _re.sub(r'workers\s*=\s*\d+', f'workers = {res["workers"]}', conf)
+        conf = _re.sub(r'max_cron_threads\s*=\s*\d+', f'max_cron_threads = {res["cron_threads"]}', conf)
+        patch_namespaced_config_map(namespace, "odoo-conf", {"odoo.conf": conf})
+    except Exception as exc:
+        logger.exception("upgrade_instance: failed to patch ConfigMap for %s", tenant_id)
+        raise HTTPException(status_code=500, detail=f"ConfigMap patch failed: {exc}") from exc
+
+    # ── 2. Patch Deployment: update CPU/RAM resources ──
+    try:
+        from kubernetes import client as k8s_client
+        from k8s_utils.client import _apps, _load_config
+        _load_config()
+        patch_body = {
+            "spec": {
+                "template": {
+                    "spec": {
+                        "containers": [{
+                            "name": "odoo",
+                            "resources": {
+                                "requests": {"cpu": res["cpu_req"], "memory": res["mem_req"]},
+                                "limits":   {"cpu": res["cpu_lim"], "memory": res["mem_lim"]},
+                            },
+                        }]
+                    }
+                }
+            }
+        }
+        _apps().patch_namespaced_deployment(name="odoo", namespace=namespace, body=patch_body)
+    except Exception as exc:
+        logger.exception("upgrade_instance: failed to patch Deployment for %s", tenant_id)
+        raise HTTPException(status_code=500, detail=f"Deployment patch failed: {exc}") from exc
+
+    # ── 3. Restart to apply new odoo.conf ──
+    try:
+        restart_deployment(namespace, "odoo")
+    except Exception as exc:
+        logger.exception("upgrade_instance: failed to restart Deployment for %s", tenant_id)
+        raise HTTPException(status_code=500, detail=f"Restart failed: {exc}") from exc
+
+    logger.info("upgrade_instance: %s upgraded to plan '%s' (workers=%d, cpu=%s, mem=%s)",
+                tenant_id, req.plan, res["workers"], res["cpu_lim"], res["mem_lim"])
+    return {"status": "upgrading", "plan": req.plan}
+
+
 class ConfigUpdateRequest(BaseModel):
     odoo_conf: str = None
     addons_repos: list = None
@@ -267,7 +347,7 @@ def get_instance_logs(tenant_id: str, lines: int = 200):
 # ── Postgres helpers ─────────────────────────────────────────────────────────
 
 def _pg_conn(dbname: str = "postgres"):
-    """Connect via PgBouncer (port 5002) — for read queries only."""
+    """Connect to PostgreSQL via HAProxy primary (port 5000)."""
     return psycopg2.connect(
         host=POSTGRES_HOST,
         port=POSTGRES_PORT,
@@ -278,14 +358,14 @@ def _pg_conn(dbname: str = "postgres"):
 
 
 def _pg_admin_conn(dbname: str = "postgres"):
-    """Connect to primary directly (port 5000) — for DDL: CREATE/DROP ROLE/DATABASE.
+    """Connect to PostgreSQL primary (port 5000) — for DDL: CREATE/DROP ROLE/DATABASE.
 
-    PgBouncer (5002) operates in transaction-pooling mode and blocks
-    SET ROLE, CREATE ROLE, CREATE DATABASE, and similar session-level commands.
+    Kept as separate function for clarity. Uses same port as _pg_conn()
+    since PgBouncer was removed from the architecture.
     """
     return psycopg2.connect(
         host=POSTGRES_HOST,
-        port=POSTGRES_PORT_PRIMARY,
+        port=POSTGRES_PORT,
         dbname=dbname,
         user=_PG_ADMIN_USER,
         password=_PG_ADMIN_PASSWORD,
@@ -326,19 +406,33 @@ def _create_pg_user(pg_user: str, password: str, db_name: str) -> None:
             cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (pg_user,))
             if cur.fetchone():
                 # Role exists — always sync password so K8s secret stays consistent
-                cur.execute(f'ALTER ROLE "{pg_user}" PASSWORD %s', (password,))
+                cur.execute(
+                    sql.SQL('ALTER ROLE {} PASSWORD %s').format(sql.Identifier(pg_user)),
+                    (password,),
+                )
                 logger.info("Updated password for existing Postgres role %s", pg_user)
             else:
-                cur.execute(f'CREATE ROLE "{pg_user}" LOGIN PASSWORD %s', (password,))
+                cur.execute(
+                    sql.SQL('CREATE ROLE {} LOGIN PASSWORD %s').format(sql.Identifier(pg_user)),
+                    (password,),
+                )
                 logger.info("Created Postgres role %s", pg_user)
 
             # PG 16+ requires the admin user to hold membership in the target
             # role before it can CREATE DATABASE ... OWNER <role>.
-            cur.execute(f'GRANT "{pg_user}" TO "{_PG_ADMIN_USER}"')
+            cur.execute(
+                sql.SQL('GRANT {} TO {}').format(
+                    sql.Identifier(pg_user), sql.Identifier(_PG_ADMIN_USER)
+                )
+            )
 
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             if not cur.fetchone():
-                cur.execute(f'CREATE DATABASE "{db_name}" OWNER "{pg_user}"')
+                cur.execute(
+                    sql.SQL('CREATE DATABASE {} OWNER {}').format(
+                        sql.Identifier(db_name), sql.Identifier(pg_user)
+                    )
+                )
                 logger.info("Created Postgres database %s", db_name)
     finally:
         conn.close()
@@ -360,8 +454,8 @@ def _drop_pg_user(pg_user: str, db_name: str) -> None:
                 "FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
                 (db_name,),
             )
-            cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
-            cur.execute(f'DROP ROLE IF EXISTS "{pg_user}"')
+            cur.execute(sql.SQL('DROP DATABASE IF EXISTS {}').format(sql.Identifier(db_name)))
+            cur.execute(sql.SQL('DROP ROLE IF EXISTS {}').format(sql.Identifier(pg_user)))
             logger.info("Dropped Postgres role/db for %s", pg_user)
     finally:
         conn.close()

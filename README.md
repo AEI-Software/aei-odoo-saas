@@ -1,6 +1,8 @@
 # Odoo SaaS MVP
 
-Single-server Kubernetes SaaS provisioning for Odoo 18, running on **K3s + Cloudflare tunnels**.
+Multi-node Kubernetes SaaS provisioning for Odoo 18, running on **K3s + Ceph RBD + PostgreSQL HA + Cloudflare tunnels**.
+
+> 📖 Full documentation: [**Project Wiki**](https://github.com/jpvargassoruco/odoo-saas-mvp/wiki)
 
 ---
 
@@ -12,8 +14,12 @@ Internet → Cloudflare Tunnel → Traefik (K3s ingress)
                                     ├── portal.aeisoftware.com → portal FastAPI  (namespace: aeisoftware)
                                     └── <tenant>.aeisoftware.com → per-tenant Odoo pod (namespace: odoo-<tenant>)
                                               ↓
-                                    Shared PostgreSQL StatefulSet (namespace: aeisoftware)
+                                    PostgreSQL HA (HAProxy:5000 — primary directo)
 ```
+
+> **Nota:** PgBouncer fue eliminado de la arquitectura. Todo el tráfico (workers, admin, DDL)
+> va directamente a través de HAProxy en el puerto **5000**. Esto permite LISTEN/NOTIFY nativo
+> (longpolling sin `bus_alt_connection`) y evita problemas de compatibilidad con transacciones.
 
 **Init container flow (every pod restart):**
 1. `copy-addon` (alpine/git) — clona el repo `main` con `--depth=1` y copia los addons a `/mnt/extra-addons` (incluye `subscription_oca` desde un fork OCA externo)
@@ -30,6 +36,43 @@ Internet → Cloudflare Tunnel → Traefik (K3s ingress)
 | `odoo_k8s_saas` | UI admin de instancias SaaS (kanban, estados, acciones K8s) |
 | `odoo_k8s_saas_subscription` | Bridge de suscripciones OCA ↔ SaaS instances |
 | `subscription_oca` | Contratos de suscripción recurrentes — clonado desde [jpvargassoruco/odoo18-oca-contract](https://github.com/jpvargassoruco/odoo18-oca-contract) (OCA fork 18.0) |
+
+---
+
+## Security Features
+
+| Feature | Implementation |
+|:--------|:-------------|
+| SQL Injection Protection | DDL queries use `psycopg2.sql.Identifier()` — no f-strings |
+| NetworkPolicy | Default-deny + whitelist for `odoo-admin`; per-tenant isolation |
+| PodDisruptionBudgets | `minAvailable: 1` for portal and odoo-admin |
+| Liveness Probes | All services: portal (`/healthz`), odoo-admin (`/web/health`), tenants |
+| Tenant ID Validation | `@api.constrains` regex + min 2 chars + SQL `UNIQUE` |
+| Secrets Management | K8s Secrets + ConfigMap (passwords embedded at provision time) |
+| Image Pinning | `cloudflared:2026.3.0`, no `:latest` |
+| Data Protection on Close | Subscription "Closed" → `action_stop()` suspends pods, preserves PVC+DB |
+
+---
+
+## Branch Strategy & Namespace Topology
+
+| Branch | Ambiente | Namespace K8s | Pod / Deploy | Dominio |
+|:-------|:---------|:-------------|:------------|:--------|
+| `main` | **Staging** | `staging` | `odoo-stg` | `staging.aeisoftware.com` |
+| `18.0` | **Producción** | `odoo-admin` | `odoo-admin` | `admin.aeisoftware.com` / `www.aeisoftware.com` |
+
+> **Regla:** Todos los cambios van a `main` primero, se prueban en Staging, y luego se promueven a `18.0`.
+
+> [!CAUTION]
+> **Para reiniciar Staging** usar siempre:
+> ```bash
+> kubectl rollout restart deployment/odoo-stg -n staging
+> ```
+> **Para reiniciar Producción** (solo en ventanas de mantenimiento):
+> ```bash
+> kubectl rollout restart deployment/odoo-admin -n odoo-admin
+> ```
+> ⚠️ `odoo-admin` es **PRODUCCIÓN**. `odoo-stg` es **STAGING**.
 
 ---
 
@@ -187,18 +230,73 @@ kubectl logs -n odoo-admin $POD -f
 
 ```bash
 # Crear instancia
-curl -X POST http://portal.aeisoftware.com/api/v1/instances \
+curl -X POST https://portal.aeisoftware.com/api/v1/instances \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"tenant_id": "demo", "plan": "starter", "storage_gi": 10}'
 
-# Verificar estado (poll hasta "running")
-curl -H "X-API-Key: $API_KEY" http://portal.aeisoftware.com/api/v1/instances/demo
+# Verificar estado (poll hasta "ready")
+curl -H "X-API-Key: $API_KEY" https://portal.aeisoftware.com/api/v1/instances/demo
 ```
 
 La instancia queda disponible en `https://demo.aeisoftware.com`.
 
+Each tenant gets:
+- Dedicated K8s namespace (`odoo-<tenant_id>`)
+- Dedicated PostgreSQL database + role
+- PVC with `local-path` (dev) or `ceph-rbd` (prod) StorageClass
+- NetworkPolicy (tenant isolation)
+- Liveness probe (`/web/health`)
+- Ingress via Traefik → Cloudflare tunnel
+- **Plan-specific resources** (workers, CPU, RAM) — see table below
+
 ---
+
+## Plan de Recursos por Tier
+
+Cada plan SaaS provisiona instancias con recursos de cómputo diferenciados:
+
+| Plan | Workers Odoo | CPU Request | CPU Limit | RAM Request | RAM Limit | Almacenamiento |
+|:-----|:------------:|:-----------:|:---------:|:-----------:|:---------:|:--------------:|
+| **Starter** | 2 | 100m | 500m | 512Mi | 1Gi | 10 GB |
+| **Pro** | 4 | 250m | 1 core | 1Gi | 2Gi | 50 GB |
+| **Enterprise** | 8 | 500m | 2 cores | 2Gi | 4Gi | 100 GB |
+
+Definidos en `portal/k8s_utils/manifests.py` → `PLAN_RESOURCES`.
+
+### Upgrade de Plan (sin pérdida de datos)
+
+```bash
+# Cambiar un tenant existente de starter a pro (en vivo, sin borrar datos)
+curl -X PATCH https://portal.aeisoftware.com/api/v1/instances/demo/upgrade \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"plan": "pro", "storage_gi": 50}'
+```
+
+El endpoint:
+1. Actualiza el `ConfigMap` odoo.conf (`workers`, `max_cron_threads`)
+2. Parchea el `Deployment` con nuevos limits de CPU/RAM
+3. Reinicia el pod para que tome los cambios (rolling restart)
+
+> **Regla operativa:** Los upgrades de plan se hacen **editando la plantilla (template) en la suscripción OCA**,
+> no creando una nueva suscripción. Crear una nueva suscripción generará una instancia nueva en blanco.
+
+---
+
+## Ciclo de vida de Suscripciones y Instancias
+
+| Evento | Acción en Odoo | Resultado en K8s |
+|:-------|:--------------|:----------------|
+| Confirmar venta + Activar suscripción | Stage → *In Progress* | Pod aprovisionado, DB creada |
+| Cambiar plantilla (Upgrade/Downgrade) | Template → Pro/Enterprise | ConfigMap actualizado, Deployment re-aplicado |
+| Suscripción vence (cron) | `_cron_suspend_overdue` | Pod escalado a 0 réplicas (datos preservados) |
+| Cerrar suscripción | Stage → *Closed* | Pod suspendido (`action_stop()`) — **datos preservados** |
+| Borrado manual por Sysadmin | `action_request_delete()` desde `saas.instance` | Namespace + DB eliminados definitivamente |
+
+> ⚠️ **IMPORTANTE:** Cerrar una suscripción **suspende** la instancia, no la borra.
+> El borrado definitivo debe ser ejecutado manualmente por el administrador del sistema
+> desde la vista **SaaS → Instancias** usando el botón **"Eliminar instancia"**.
 
 ## Estructura del repositorio
 
@@ -206,23 +304,33 @@ La instancia queda disponible en `https://demo.aeisoftware.com`.
 odoo-saas-mvp/
 ├── k8s/                              # Kubernetes manifests
 │   ├── 00-namespace.yaml             # Namespaces (aeisoftware, odoo-admin)
+│   ├── 00-network-policy.yaml        # Base network policies
 │   ├── 01-secrets.yaml               # Placeholder — secretos se aplican vía .secrets.env
 │   ├── 01-traefik.yaml               # Traefik CRDs / IngressRoutes
-│   ├── 02-postgres.yaml              # PostgreSQL StatefulSet compartido
-│   ├── 02-cloudflare-tunnel.yaml     # Cloudflare tunnel deployment
-│   ├── 03-cloudflared.yaml           # cloudflared DaemonSet
+│   ├── 02-postgres.yaml              # PostgreSQL service
+│   ├── 02-postgres-external.yaml     # PostgreSQL HA external endpoints
+│   ├── 02-postgres-config.yaml       # PostgreSQL config
+│   ├── 02-cloudflare-tunnel.yaml     # Cloudflare tunnel (pinned v2026.3.0)
+│   ├── 03-cloudflared.yaml           # cloudflared DaemonSet (pinned v2026.3.0)
 │   ├── 03-traefik-middleware.yaml    # Traefik middlewares
-│   ├── 04-rbac.yaml                  # ServiceAccount + ClusterRole para portal
-│   ├── 05-portal.yaml                # Portal FastAPI (Deployment + Service + Ingress)
+│   ├── 04-rbac.yaml                  # ServiceAccount + ClusterRole + Binding (aeisoftware + staging)
+│   ├── 05-portal.yaml                # Portal FastAPI (4 workers, liveness probe)
+│   ├── 05b-pdb.yaml                  # PodDisruptionBudgets (portal + odoo-admin)
 │   ├── 06-odoo-admin.yaml            # Odoo admin (Deployment + PVC + ConfigMap + Service + Ingress)
-│   └── 07-cloudflare-tunnel.yaml     # Cloudflare tunnel alternativo
+│   ├── 06b-odoo-admin-netpol.yaml    # NetworkPolicy for odoo-admin (default-deny + whitelist)
+│   ├── 07-staging.yaml               # Complete staging environment
+│   ├── 07-cloudflare-tunnel.yaml     # Cloudflare tunnel alternativo
+│   ├── 08-backup-cronjob.yaml        # Backup CronJob
+│   ├── dev/                          # Dev environment manifests
+│   └── prod/
+│       └── 06-odoo-admin-cloud.yaml  # Production odoo-admin (liveness probe)
 ├── portal/                           # FastAPI portal API
 │   ├── main.py
-│   ├── routers/instances.py          # POST/GET/DELETE /api/v1/instances
+│   ├── routers/instances.py          # Lifecycle API: POST create, PATCH upgrade, DELETE, stop/start
 │   ├── k8s_utils/
-│   │   ├── manifests.py              # Generador de manifests por tenant
-│   │   └── client.py                 # Wrapper kubernetes SDK
-│   ├── Dockerfile
+│   │   ├── manifests.py              # PLAN_RESOURCES + manifest generators per tenant
+│   │   └── client.py                 # K8s SDK wrapper (apply, patch, scale, restart)
+│   ├── Dockerfile                    # uvicorn --workers 4
 │   └── requirements.txt
 ├── payment_qr_mercantil/             # Odoo addon — pago por QR Banco Mercantil
 │   ├── models/
@@ -236,22 +344,23 @@ odoo-saas-mvp/
 │   │   └── payment_provider_views.xml # Formulario de configuración (tabs nativos Odoo 18)
 │   └── data/payment_method.xml       # Registro del método de pago
 ├── odoo_k8s_saas/                    # Odoo addon — UI admin SaaS instances
-│   ├── models/saas_instance.py       # Modelo saas.instance (estados, cron, K8s sync)
+│   ├── models/saas_instance.py       # saas.instance: action_provision, action_upgrade, action_stop/resume
 │   ├── views/saas_instance_views.xml # Kanban, form, list, menú, acciones
 │   ├── data/ir_cron.xml              # Cron: refresh estado cada 2 min
 │   └── security/ir.model.access.csv
-├── odoo_k8s_saas_subscription/       # Odoo addon — bridge de suscripciones
-│   ├── models/saas_instance.py       # Extiende saas.instance con plan/subscription
+├── odoo_k8s_saas_subscription/       # Odoo addon — bridge de suscripciones OCA ↔ K8s
+│   ├── models/sale_subscription.py   # Hooks: stage_id + template_id; cron override (try/except guard)
 │   ├── views/                        # Kanban extendido, menús de suscripción, portal
 │   ├── data/ir_cron.xml              # Cron: suspender instancias vencidas diariamente
 │   └── security/ir.model.access.csv
+├── scripts/
+│   ├── reset_transactional_data.sql  # SQL para limpiar datos transaccionales
+│   └── backup-odoo-admin.sh         # Full backup (DB + filestore)
 ├── infra/
 │   ├── install-k3s.sh               # Instala K3s sin Traefik integrado
 │   ├── install-traefik.sh           # Instala Traefik via Helm
 │   ├── apply-manifests.sh           # Aplica todos los manifests (lee .secrets.env)
 │   └── create-cf-route.sh           # Helper para rutas Cloudflare
-├── scripts/
-│   └── reset_transactional_data.sql # SQL para limpiar datos transaccionales
 ├── k8s/dev/
 │   └── 00-dev-secrets.yaml          # Secretos para entorno local de desarrollo
 ├── dev-setup.sh                      # Bootstrap automático K3s local (WSL / Linux)
@@ -297,20 +406,23 @@ En cada push a `main`:
 # Ver todos los pods en namespaces relevantes
 kubectl get pods -n aeisoftware
 kubectl get pods -n odoo-admin
+kubectl get pods -n staging
 
 # Logs del pod Odoo admin
-POD=$(kubectl get pod -n odoo-admin -l app=odoo-admin -o jsonpath='{.items[0].metadata.name}')
+POD=$(kubectl get pod -n odoo-admin -l app=odoo -o jsonpath='{.items[0].metadata.name}')
 kubectl logs -n odoo-admin $POD -f --tail=100
 
 # Logs del portal
 kubectl logs -n aeisoftware deployment/portal -f --tail=100
 
-# Estado del PostgreSQL
-kubectl exec -n aeisoftware postgres-0 -- psql -U odoo -d postgres -c "\l"
+# NetworkPolicies
+kubectl get netpol -A
 
-# Reiniciar odoo-admin
-kubectl rollout restart deployment/odoo-admin -n odoo-admin
-kubectl rollout status deployment/odoo-admin -n odoo-admin
+# PDBs
+kubectl get pdb -A
+
+# Liveness probes status
+kubectl get deploy -A -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,PROBE:.spec.template.spec.containers[0].livenessProbe.httpGet.path'
 ```
 
 ### Reset completo (Eliminar SaaS + Tenant DBs + PVCs)
@@ -348,7 +460,7 @@ La plataforma soporta la creación de instancias con versiones específicas de O
 2. **Acceso al Sistema:** Navegar a la URL autogenerada para el Tenant (vía Traefik ingress) e ingresar con las credenciales exactas del email.
 3. **Verificación de Módulos Base:** Confirmar que el Wizard de inicialización cargó el Odoo básico en blanco sin romper dependencias de Python.
 4. **Verificación de Addons Custom (Si aplica):** Comprobar que los addons inyectados a nivel de la imagen Docker en `/opt/custom-addons` aparecen correctamente en la lista de Aplicaciones listas para instalar sin arrojar exclusiones de `FileNotFoundError` en logs.
-5. **Persistencia Volumétrica:** Crear un registro transaccional cualquiera (ej. un Cliente). Solicitar al Admin simular una Suspensión temporal y posterior Reactivación de la instancia. Retornar al sistema y validar que la base de datos Postgres y el volumen NFS conservaron la integridad del registro intacta.
+5. **Persistencia Volumétrica:** Crear un registro transaccional cualquiera (ej. un Cliente). Solicitar al Admin simular una Suspensión temporal y posterior Reactivación de la instancia. Retornar al sistema y validar que la base de datos Postgres y el volumen Ceph RBD conservaron la integridad del registro intacta.
 
 ---
 
@@ -377,9 +489,12 @@ Acceso en `https://admin.aeisoftware.com`
 
 Los addons proveen:
 - **App SaaS** en el menú principal (kanban de instancias)
-- Estados: `draft → provisioning → running → suspended → terminated`
+- Estados: `draft → provisioning → ready → suspended → pending_delete → deleted`
+- Validación de `tenant_id`: mínimo 2 chars, regex `[a-z0-9\-]`, SQL `UNIQUE`
 - Edición On-The-Fly de `odoo.conf` y Repositorios Extra (vía K8s ConfigMap)
 - Extracción de **Logs** del pod directamente desde la UI de Odoo
 - Botones Suspender / Reanudar con scale-down/up en K8s a 0 o 1 réplicas
-- Pago QR nativo integrado (flujo SO → Factura → QR Mercantil → SaaS provisioning)
+- Hook automático: Upgrade de plantilla de suscripción → actualiza workers/CPU/RAM en K8s
 - Cron jobs: sync de estado e inquilinos cada 2 min, suspensión de instancias vencidas diariamente
+- Per-tenant NetworkPolicy: aislamiento automático de cada namespace
+- Cron de facturación OCA con `try/except` por subscripción — un registro corrupto no detiene el proceso

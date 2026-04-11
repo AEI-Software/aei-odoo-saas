@@ -11,7 +11,7 @@ import os
 import requests
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ class SaasInstance(models.Model):
             ("provisioning", "Provisioning"),
             ("ready", "Ready"),
             ("suspended", "Suspended"),
+            ("pending_delete", "Pending Delete"),
             ("error", "Error"),
             ("deleted", "Deleted"),
         ],
@@ -82,6 +83,28 @@ class SaasInstance(models.Model):
         help='JSON array of {"url": "...", "branch": "..."} objects. '
              'These repos are git-cloned into the tenant pod on provision.',
     )
+
+    _sql_constraints = [
+        ("tenant_id_unique", "UNIQUE(tenant_id)", "Tenant ID must be unique."),
+    ]
+
+    @api.constrains("tenant_id")
+    def _check_tenant_id(self):
+        import re
+        pattern = re.compile(r"^[a-z0-9][a-z0-9\-]{0,46}[a-z0-9]$")
+        for rec in self:
+            tid = rec.tenant_id
+            if not tid:
+                continue
+            if len(tid) < 2:
+                raise ValidationError(
+                    _("Tenant ID must be at least 2 characters long (got '%s').") % tid
+                )
+            if not pattern.match(tid):
+                raise ValidationError(
+                    _("Tenant ID '%s' is invalid. Use only lowercase letters, "
+                      "digits, and hyphens. Must start and end with alphanumeric.") % tid
+                )
 
     # ── actions ───────────────────────────────────────────────────────────────
 
@@ -211,6 +234,41 @@ class SaasInstance(models.Model):
             self.write({"state": "error", "error_msg": str(exc)})
             raise UserError(f"Provisioning failed: {exc}") from exc
 
+    def action_upgrade(self):
+        """Upgrade compute resources for a running instance (plan change).
+
+        Unlike action_provision() which only works on draft/error instances,
+        this method works on 'ready' instances and sends a PATCH to the portal
+        to update ConfigMap (workers) and Deployment (CPU/RAM) in-place.
+        """
+        self.ensure_one()
+        if self.state not in ("ready",):
+            logger.warning(
+                "action_upgrade(%s): skipping — instance state is '%s', not 'ready'.",
+                self.tenant_id, self.state,
+            )
+            return
+
+        try:
+            body = {
+                "plan": self.plan,
+                "storage_gi": self.storage_gi,
+            }
+            resp = requests.patch(
+                f"{PORTAL_URL}/api/v1/instances/{self.tenant_id}/upgrade",
+                json=body,
+                headers={"X-API-Key": PORTAL_KEY},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            logger.info(
+                "action_upgrade(%s): upgraded to plan '%s' (storage=%dGi).",
+                self.tenant_id, self.plan, self.storage_gi,
+            )
+        except Exception as exc:
+            self.write({"error_msg": f"Upgrade failed: {exc}"})
+            logger.exception("action_upgrade(%s): failed", self.tenant_id)
+
     def action_check_status(self):
         """Refresh state from portal — useful from buttons or cron."""
         for rec in self.filtered(lambda r: r.state in ("provisioning",)):
@@ -238,7 +296,23 @@ class SaasInstance(models.Model):
             template.send_mail(self.id, force_send=True)
             self.message_post(body=_("Credentials email dispatched to %s") % self.partner_id.email)
 
+    def action_request_delete(self):
+        """Mark instance for async deletion (instant for the user).
+
+        The actual K8s namespace + DB deletion is done by the
+        _cron_process_pending_deletes() cron, avoiding blocking the UI.
+        """
+        for rec in self:
+            if rec.state not in ("deleted",):
+                logger.info("Instance %s marked for async deletion.", rec.tenant_id)
+                rec.write({"state": "pending_delete", "error_msg": False})
+
     def action_delete(self):
+        """Synchronous delete — calls the portal API to destroy K8s resources.
+
+        Prefer action_request_delete() for UI actions (non-blocking).
+        This method is still used by crons and direct API calls.
+        """
         self.ensure_one()
         try:
             resp = requests.delete(
@@ -252,6 +326,42 @@ class SaasInstance(models.Model):
         except Exception as exc:
             self.write({"state": "error", "error_msg": str(exc)})
             raise UserError(f"Delete failed: {exc}") from exc
+
+    @api.model
+    def _cron_process_pending_deletes(self):
+        """Cron: process instances in 'pending_delete' state.
+
+        Calls the portal DELETE API for each, then marks as 'deleted'.
+        Runs every 2 minutes so cleanup is near-instant after user closes.
+        """
+        pending = self.search([("state", "=", "pending_delete")])
+        if not pending:
+            return
+        logger.info(
+            "_cron_process_pending_deletes: processing %d instances", len(pending)
+        )
+        for inst in pending:
+            try:
+                resp = requests.delete(
+                    f"{PORTAL_URL}/api/v1/instances/{inst.tenant_id}",
+                    headers={"X-API-Key": PORTAL_KEY},
+                    timeout=30,
+                )
+                if resp.status_code not in (204, 404):
+                    resp.raise_for_status()
+                inst.write({"state": "deleted", "error_msg": False})
+                logger.info(
+                    "_cron_process_pending_deletes: deleted %s", inst.tenant_id
+                )
+                # Commit after each successful delete so partial progress is saved
+                self.env.cr.commit()  # pylint: disable=invalid-commit
+            except Exception:
+                logger.exception(
+                    "_cron_process_pending_deletes: failed to delete %s",
+                    inst.tenant_id,
+                )
+                inst.write({"error_msg": "Async delete failed — will retry next cron run."})
+                self.env.cr.commit()  # pylint: disable=invalid-commit
 
     def action_stop(self):
         """Suspend the instance (scale to 0 replicas in K8s).

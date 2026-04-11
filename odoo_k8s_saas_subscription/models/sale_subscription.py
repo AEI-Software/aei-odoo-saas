@@ -149,16 +149,9 @@ class SaleSubscription(models.Model):
         sub_code = (self.name or "").lower().replace("/", "-")
         tenant_id = self._generate_saas_tenant_id(self.partner_id, sub_code)
 
-        # Determine plan from subscription template name
-        plan = "starter"
-        if self.template_id:
-            tmpl_name = (self.template_id.name or "").lower()
-            if "enterprise" in tmpl_name:
-                plan = "enterprise"
-            elif "pro" in tmpl_name:
-                plan = "pro"
-
-        storage_map = {"starter": 10, "pro": 50, "enterprise": 100}
+        # Determine plan from subscription template
+        plan = self.template_id.plan if self.template_id else "starter"
+        storage_gi = self.template_id.storage_gi if self.template_id else 10
 
         # Determine saas product to copy configuration
         saas_product = False
@@ -176,7 +169,7 @@ class SaleSubscription(models.Model):
             "name": f"{self.partner_id.name} — Re-provision ({self.display_name})",
             "tenant_id": tenant_id,
             "plan": plan,
-            "storage_gi": storage_map.get(plan, 10),
+            "storage_gi": storage_gi,
             "partner_id": self.partner_id.id,
             "sale_order_id": self.sale_order_id.id if self.sale_order_id else False,
             "subscription_id": self.id,
@@ -208,10 +201,41 @@ class SaleSubscription(models.Model):
         }
 
     # ── Stage-change hooks ──────────────────────────────────────
+    # ── Stage-change and Template-change hooks ────────────────────────────────
     def write(self, vals):
-        """Detect stage_id changes and trigger SaaS actions."""
+        """Detect stage_id and template_id changes and trigger SaaS actions."""
         old_stages = {rec.id: rec.stage_id.id for rec in self}
+        old_templates = {rec.id: rec.template_id.id for rec in self}
         res = super().write(vals)
+
+        # Handle template_id change (Upgrades)
+        if "template_id" in vals:
+            for rec in self:
+                if old_templates.get(rec.id) == rec.template_id.id:
+                    continue
+                
+                instances = self.env["saas.instance"].search([
+                    ("subscription_id", "=", rec.id),
+                    ("state", "not in", ["deleted"]),
+                ])
+                if not instances:
+                    continue
+                plan = rec.template_id.plan or "starter"
+                new_storage = rec.template_id.storage_gi or 10
+                
+                for inst in instances:
+                    if inst.plan != plan or inst.storage_gi != new_storage:
+                        logger.info("Upgrade/Downgrade: Subscription %s changed from template_id %s to %s. Updating instance %s.", rec.display_name, old_templates.get(rec.id), rec.template_id.id, inst.tenant_id)
+                        inst.write({
+                            "plan": plan,
+                            "storage_gi": new_storage,
+                        })
+                        try:
+                            # action_upgrade() patches ConfigMap + Deployment in-place
+                            # (action_provision would fail here because state is 'ready')
+                            inst.action_upgrade()
+                        except Exception:
+                            logger.exception("Failed to apply upgraded resource limits for %s", inst.tenant_id)
 
         if "stage_id" not in vals:
             return res
@@ -244,7 +268,7 @@ class SaleSubscription(models.Model):
             if stage_in_progress and new_stage_id == stage_in_progress.id:
                 # Guard: only provision if the template is marked as a SaaS plan
                 if (not instances and rec.sale_order_id
-                        and rec.template_id and rec.template_id.is_saas_plan):
+                        and rec.template_id and getattr(rec.template_id, 'is_saas_plan', False)):
                     # Collect ALL SaaS order lines (one instance per line)
                     saas_category = self.env.ref(
                         "odoo_k8s_saas.product_category_odoo_saas",
@@ -345,22 +369,17 @@ class SaleSubscription(models.Model):
                             inst.tenant_id, rec.display_name,
                         )
 
-            # → Closed: delete all non-deleted instances (incl. suspended)
+            # → Closed: suspend all non-deleted instances safely instead of deleting
             elif stage_closed and new_stage_id == stage_closed.id:
-                for inst in instances.filtered(
+                to_delete = instances.filtered(
                     lambda i: i.state in ("draft", "provisioning", "ready", "suspended")
-                ):
+                )
+                if to_delete:
                     logger.info(
-                        "Subscription %s → Closed: deleting instance %s (state=%s)",
-                        rec.display_name, inst.tenant_id, inst.state,
+                        "Subscription %s → Closed: marking %d instance(s) FOR SUSPENSION to prevent data loss",
+                        rec.display_name, len(to_delete),
                     )
-                    try:
-                        inst.action_delete()
-                    except Exception:
-                        logger.exception(
-                            "Failed to delete %s from subscription %s",
-                            inst.tenant_id, rec.display_name,
-                        )
+                    to_delete.action_stop()
 
         return res
 
@@ -445,21 +464,15 @@ class SaleSubscription(models.Model):
         for sub in closed_subs:
             instances = self.env["saas.instance"].search([
                 ("subscription_id", "=", sub.id),
-                ("state", "not in", ["deleted"]),
+                ("state", "not in", ["deleted", "pending_delete"]),
             ])
-            for inst in instances:
+            if instances:
                 logger.warning(
-                    "_cron_sync_closed: active instance %s (state=%s) found on "
-                    "closed subscription %s — deleting now.",
-                    inst.tenant_id, inst.state, sub.display_name,
+                    "_cron_sync_closed: %d active instance(s) found on "
+                    "closed subscription %s — marking for deletion.",
+                    len(instances), sub.display_name,
                 )
-                try:
-                    inst.action_delete()
-                except Exception:
-                    logger.exception(
-                        "_cron_sync_closed: failed to delete instance %s",
-                        inst.tenant_id,
-                    )
+                instances.action_request_delete()
 
     @api.model
     def _cron_sync_user_count(self):
@@ -581,4 +594,41 @@ class SaleSubscription(models.Model):
                     "%s → %d extra users × %.2f Bs.",
                     sub.display_name, extra, price,
                 )
+
+    @api.model
+    def cron_subscription_management(self):
+        """Override to prevent TypeError if recurring_next_date is False on dirty data"""
+        today = fields.Date.today()
+        # Fallback filter just in case
+        for subscription in self.search([], order="recurring_next_date asc"):
+            try:
+                subscription = subscription.with_company(subscription.company_id)
+                if subscription.in_progress:
+                    if (
+                        subscription.recurring_next_date
+                        and subscription.recurring_next_date <= today
+                        and subscription.sale_subscription_line_ids
+                    ):
+                        try:
+                            subscription.generate_invoice()
+                        except Exception:
+                            logger.exception("Error on subscription invoice generate (Tenant: %s)", subscription.display_name)
+                    if (
+                        not subscription.recurring_rule_boundary
+                        and subscription.date 
+                        and subscription.date <= today
+                    ):
+                        subscription.close_subscription()
+                elif (
+                    subscription.date_start 
+                    and subscription.date_start <= today 
+                    and subscription.stage_id.type == "pre"
+                ):
+                    subscription.action_start_subscription()
+                    try:
+                        subscription.generate_invoice()
+                    except Exception:
+                        logger.exception("Error on subscription invoice generate (Tenant: %s)", subscription.display_name)
+            except Exception:
+                logger.exception("Fatal error processing subscription %s in cron", subscription.id)
 

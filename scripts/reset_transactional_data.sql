@@ -1,18 +1,19 @@
 -- ============================================================
--- ODOO SAAS MVP — RESET DE DATOS TRANSACCIONALES v2
+-- ODOO SAAS MVP — RESET DE DATOS TRANSACCIONALES v3
 -- Conserva: usuarios, empresa, productos, proveedores de pago,
 --            plan de cuentas, secuencias, journals, configuración.
 -- Elimina:   pedidos, facturas, pagos, suscripciones, instancias K8s.
 -- ============================================================
--- MODO DE USO:
---   kubectl exec -n aeisoftware postgres-0 -- \
---     psql -U odoo -d admin -f /tmp/reset_transactional_data.sql
+-- MODO DE USO (staging):
+--   kubectl -n staging run db-reset --rm -i --restart=Never \
+--     --image=postgres:16-alpine --env="PGPASSWORD=<pw>" -- \
+--     psql -h postgres.aeisoftware.svc.cluster.local -p 5000 \
+--     -U odoo -d staging < scripts/reset_transactional_data.sql
+--
+-- NOTA: No requiere superusuario. El orden de DELETE respeta FK.
 -- ============================================================
 
 BEGIN;
-
--- Bypass FK constraints temporalmente para evitar problemas de orden
-SET session_replication_role = 'replica';
 
 -- ─────────────────────────────────────────────────────────────
 -- 1. MÓDULOS SAAS CUSTOM (sin CASCADE — tabla hoja)
@@ -103,7 +104,7 @@ WHERE res_model IN (
 -- ─────────────────────────────────────────────────────────────
 -- 7. RESETEAR SECUENCIAS DE ODOO (numeración de documentos)
 -- ─────────────────────────────────────────────────────────────
-UPDATE ir_sequence SET number_next_actual = 1
+UPDATE ir_sequence SET number_next = 1
 WHERE code IN (
     'sale.order',
     'account.payment.customer.invoice',
@@ -113,9 +114,6 @@ WHERE code IN (
     'sale.subscription',
     'saas.tenant.id'
 );
-
--- Restaurar FK
-SET session_replication_role = 'origin';
 
 COMMIT;
 

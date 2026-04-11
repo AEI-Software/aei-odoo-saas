@@ -2,10 +2,10 @@
 k8s_utils/manifests.py
 
 Generates Kubernetes manifest dicts for a tenant Odoo deployment.
-Fase 2 — K3s HA con Ceph RBD storage y PostgreSQL HA externo:
+Fase 3 — K3s HA con Ceph RBD storage y PostgreSQL HA externo:
   - PostgreSQL HA en 192.168.0.127/.186/.226 via HAProxy
-  - :5002 PgBouncer pooled (HTTP workers)
-  - :5000 HAProxy primary directo (init + longpoll)
+  - :5000 HAProxy primary directo (all traffic)
+  - LISTEN/NOTIFY nativo (longpolling sin bus_alt_connection)
   - ceph-rbd StorageClass (pool k3s-rbd)
   - Cilium NetworkPolicy con egress a 192.168.0.0/24
 """
@@ -16,8 +16,8 @@ from typing import Any
 BASE_DOMAIN = os.getenv("BASE_DOMAIN", "aeisoftware.com")
 URL_SCHEME = os.getenv("URL_SCHEME", "http")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres.aeisoftware.svc.cluster.local")
-POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5002"))          # PgBouncer pooled
-POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Primary directo
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5000"))          # HAProxy primary
+POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Same (legacy compat)
 POSTGRES_USER = os.getenv("POSTGRES_USER", "odoo")
 ODOO_IMAGE = os.getenv("ODOO_IMAGE", "odoo:18")
 # local-path para dev local K3s, ceph-rbd para producción Cloud
@@ -25,6 +25,27 @@ STORAGE_CLASS = os.getenv("STORAGE_CLASS", "local-path")
 # Middleware namespace = namespace donde se despliegan los middlewares de Traefik
 # Los middlewares (odoo-headers, odoo-compress) están en kube-system (ver 02-traefik-config.yaml)
 ODOO_HEADERS_MIDDLEWARE = os.getenv("ODOO_HEADERS_MIDDLEWARE", "kube-system-odoo-headers@kubernetescrd")
+
+# ── Per-plan compute resources ───────────────────────────────────────────────
+# Each plan tier gets different Odoo workers, CPU, and RAM limits.
+# These values are injected into the ConfigMap (odoo.conf) and Deployment.
+PLAN_RESOURCES = {
+    "starter": {
+        "workers": 2, "cron_threads": 1,
+        "cpu_req": "100m", "cpu_lim": "500m",
+        "mem_req": "512Mi", "mem_lim": "1Gi",
+    },
+    "pro": {
+        "workers": 4, "cron_threads": 1,
+        "cpu_req": "250m", "cpu_lim": "1",
+        "mem_req": "1Gi", "mem_lim": "2Gi",
+    },
+    "enterprise": {
+        "workers": 8, "cron_threads": 1,
+        "cpu_req": "500m", "cpu_lim": "2",
+        "mem_req": "2Gi", "mem_lim": "4Gi",
+    },
+}
 
 
 def namespace_manifest(tenant_id: str) -> dict[str, Any]:
@@ -80,12 +101,14 @@ def secret_manifest(tenant_id: str, db_password: str, admin_password: str, app_a
     }
 
 
-def configmap_manifest(tenant_id: str, db_password: str, admin_password: str, addons_repos: list = None) -> dict[str, Any]:
+def configmap_manifest(tenant_id: str, db_password: str, admin_password: str, addons_repos: list = None, plan: str = "starter") -> dict[str, Any]:
     """Odoo config file per tenant — passwords are embedded at provision time."""
     db_name = _dbname(tenant_id)
     addons_repos = addons_repos or []
     import json
     addons_json_str = json.dumps(addons_repos)
+
+    res = PLAN_RESOURCES.get(plan, PLAN_RESOURCES["starter"])
 
     conf = f"""[options]
 db_host = {POSTGRES_HOST}
@@ -98,8 +121,8 @@ dbfilter = ^{db_name}$
 list_db = False
 addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons
 data_dir = /var/lib/odoo
-workers = 2
-max_cron_threads = 1
+workers = {res["workers"]}
+max_cron_threads = {res["cron_threads"]}
 gevent_port = 8072
 proxy_mode = True
 without_demo = True
@@ -119,9 +142,10 @@ without_demo = True
 
 
 
-def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image: str | None = None) -> dict[str, Any]:
+def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image: str | None = None, plan: str = "starter") -> dict[str, Any]:
     pg_user = f"odoo-{tenant_id}"
     active_image = custom_image if custom_image else f"odoo:{odoo_version}"
+    res = PLAN_RESOURCES.get(plan, PLAN_RESOURCES["starter"])
     # Shared volume mounts and env used by both init and main containers
     _vol_mounts = [
         {"name": "odoo-conf", "mountPath": "/etc/odoo"},
@@ -132,16 +156,16 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
         {"name": "DB_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         {"name": "APP_ADMIN_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "APP_ADMIN_PASSWORD"}}},
         {"name": "HOST",     "value": POSTGRES_HOST},
-        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5002 pooled
+        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
     ]
-    # Init env usa el primary directo (5000) para --init=base (evita PgBouncer transaction mode)
+    # Init env — same port since PgBouncer was removed
     _init_env = [
         {"name": "DB_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         {"name": "APP_ADMIN_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "APP_ADMIN_PASSWORD"}}},
         {"name": "HOST",     "value": POSTGRES_HOST},
-        {"name": "PORT",     "value": str(POSTGRES_PORT_PRIMARY)},  # 5000 primary directo
+        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
     ]
@@ -226,6 +250,12 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                             ],
                             "env": _env,
                             "volumeMounts": _vol_mounts,
+                            "livenessProbe": {
+                                "httpGet": {"path": "/web/health", "port": 8069},
+                                "initialDelaySeconds": 120,
+                                "periodSeconds": 30,
+                                "failureThreshold": 3,
+                            },
                             "readinessProbe": {
                                 "httpGet": {"path": "/web/health", "port": 8069},
                                 "initialDelaySeconds": 30,
@@ -233,8 +263,8 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "failureThreshold": 40,
                             },
                             "resources": {
-                                "requests": {"cpu": "100m", "memory": "512Mi"},
-                                "limits":   {"cpu": "1",    "memory": "2Gi"},
+                                "requests": {"cpu": res["cpu_req"], "memory": res["mem_req"]},
+                                "limits":   {"cpu": res["cpu_lim"], "memory": res["mem_lim"]},
                             },
                         }
                     ],
@@ -270,14 +300,12 @@ def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
                     "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}}],
                     "ports": [
                         {"protocol": "TCP", "port": POSTGRES_PORT},
-                        {"protocol": "TCP", "port": POSTGRES_PORT_PRIMARY},
                     ]
                 },
                 {   # Egress directo a red PG HA (192.168.0.0/24)
                     "to": [{"ipBlock": {"cidr": "192.168.0.0/24"}}],
                     "ports": [
                         {"protocol": "TCP", "port": POSTGRES_PORT},
-                        {"protocol": "TCP", "port": POSTGRES_PORT_PRIMARY},
                     ]
                 },
                 {   # DNS
@@ -312,10 +340,9 @@ def ingress_manifest(tenant_id: str) -> dict[str, Any]:
     """Standard K8s Ingress for Traefik."""
     subdomain = tenant_id  # e.g. demo → demo.aeisoftware.com
     annotations = {
-        "traefik.ingress.kubernetes.io/router.entrypoints": "web",
+        "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure",
+        "traefik.ingress.kubernetes.io/router.middlewares": ODOO_HEADERS_MIDDLEWARE,
     }
-    if URL_SCHEME != "http":
-        annotations["traefik.ingress.kubernetes.io/router.middlewares"] = ODOO_HEADERS_MIDDLEWARE
 
     return {
         "apiVersion": "networking.k8s.io/v1",
@@ -359,6 +386,7 @@ def all_manifests(
     addons_repos: list | None = None,
     odoo_version: str = "18.0",
     custom_image: str | None = None,
+    plan: str = "starter",
 ) -> list[dict]:
     """Return all manifests in apply-order."""
     return [
@@ -366,8 +394,8 @@ def all_manifests(
         network_policy_manifest(tenant_id),
         pvc_manifest(tenant_id, storage_gi),
         secret_manifest(tenant_id, db_password, admin_password, app_admin_password),
-        configmap_manifest(tenant_id, db_password, admin_password, addons_repos),
-        deployment_manifest(tenant_id, odoo_version, custom_image),
+        configmap_manifest(tenant_id, db_password, admin_password, addons_repos, plan=plan),
+        deployment_manifest(tenant_id, odoo_version, custom_image, plan=plan),
         service_manifest(tenant_id),
         ingress_manifest(tenant_id),
     ]

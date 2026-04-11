@@ -11,6 +11,8 @@
                 <xpath expr="//sheet" position="inside">
                     <group string="SaaS Configuration">
                         <field name="is_saas_plan" widget="boolean_toggle"/>
+                        <field name="plan" invisible="not is_saas_plan"/>
+                        <field name="storage_gi" invisible="not is_saas_plan"/>
                     </group>
                     <group string="Per-User Pricing" col="4"
                            invisible="not is_saas_plan">
