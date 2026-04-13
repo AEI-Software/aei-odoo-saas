@@ -150,8 +150,8 @@ class SaleSubscription(models.Model):
         tenant_id = self._generate_saas_tenant_id(self.partner_id, sub_code)
 
         # Determine plan from subscription template
-        plan = self.template_id.plan if self.template_id else "starter"
-        storage_gi = self.template_id.storage_gi if self.template_id else 10
+        plan = self.template_id.plan or "starter" if self.template_id else "starter"
+        storage_gi = self.template_id.storage_gi or 10 if self.template_id else 10
 
         # Determine saas product to copy configuration
         saas_product = False
@@ -325,21 +325,14 @@ class SaleSubscription(models.Model):
                             continue
 
                         # ── Create instance ───────────────────────────────────
-                        plan = "starter"
-                        if rec.template_id:
-                            tmpl_name = (rec.template_id.name or "").lower()
-                            if "enterprise" in tmpl_name:
-                                plan = "enterprise"
-                            elif "pro" in tmpl_name:
-                                plan = "pro"
-
-                        storage_map = {"starter": 10, "pro": 50, "enterprise": 100}
+                        plan = rec.template_id.plan or "starter" if rec.template_id else "starter"
+                        storage_gi = rec.template_id.storage_gi or 10 if rec.template_id else 10
 
                         inst = self.env["saas.instance"].create({
                             "name": f"{rec.partner_id.name} — {rec.display_name}",
                             "tenant_id": tenant_id,
                             "plan": plan,
-                            "storage_gi": storage_map.get(plan, 10),
+                            "storage_gi": storage_gi,
                             "partner_id": rec.partner_id.id,
                             "sale_order_id": rec.sale_order_id.id,
                             "sale_order_line_id": sol.id,
