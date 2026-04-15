@@ -4,6 +4,18 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
+  name: traefik-pdb
+  namespace: kube-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+      app.kubernetes.io/instance: traefik-kube-system
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
   name: portal-pdb
   namespace: aeisoftware
 spec:

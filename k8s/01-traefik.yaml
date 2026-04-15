@@ -27,3 +27,28 @@ spec:
     logs:
       general:
         level: INFO
+---
+# HelmChartConfig — K3s overlay que se fusiona con el HelmChart de arriba.
+# Añade HA: 2 réplicas distribuidas en nodos distintos.
+# TLS termina en Cloudflare (Full mode) → no se necesita almacenamiento
+# compartido de certificados ACME entre réplicas.
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    deployment:
+      replicas: 2
+    affinity:
+      podAntiAffinity:
+        # Garantiza una réplica por nodo físico.
+        # Con 3 nodos y 2 réplicas siempre es satisfacible;
+        # si un nodo cae, el pod migra al nodo vacío restante.
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: traefik
+                app.kubernetes.io/instance: traefik-kube-system
+            topologyKey: kubernetes.io/hostname
