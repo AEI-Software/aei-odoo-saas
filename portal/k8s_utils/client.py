@@ -241,3 +241,48 @@ def restart_deployment(namespace: str, name: str = "odoo") -> None:
 def scale_deployment(namespace: str, name: str, replicas: int) -> None:
     body = {"spec": {"replicas": replicas}}
     _apps().patch_namespaced_deployment_scale(name=name, namespace=namespace, body=body)
+
+
+def list_released_pvs() -> list[dict]:
+    """Return PVs in 'Released' phase whose claimRef points to an odoo-* namespace.
+
+    These are orphaned volumes left behind after a tenant namespace is deleted.
+    Safe to delete: the namespace (and its PVC) no longer exists.
+    """
+    pvs = _core().list_persistent_volume()
+    result = []
+    for pv in pvs.items:
+        if pv.status.phase != "Released":
+            continue
+        claim_ref = pv.spec.claim_ref
+        if claim_ref is None:
+            continue
+        ns = claim_ref.namespace or ""
+        if not ns.startswith("odoo-"):
+            continue
+        # Double-check the namespace is truly gone
+        try:
+            _core().read_namespace(name=ns)
+            # Namespace still exists — skip (PVC deleted inside a live namespace)
+            continue
+        except client.exceptions.ApiException as e:
+            if e.status != 404:
+                raise
+        result.append({
+            "name": pv.metadata.name,
+            "claim_namespace": ns,
+            "claim_name": claim_ref.name or "",
+            "capacity": pv.spec.capacity or {},
+            "storage_class": pv.spec.storage_class_name or "",
+            "reclaim_policy": pv.spec.persistent_volume_reclaim_policy or "",
+        })
+    return result
+
+
+def delete_pv(name: str) -> None:
+    """Delete a PersistentVolume by name."""
+    try:
+        _core().delete_persistent_volume(name=name)
+    except client.exceptions.ApiException as e:
+        if e.status != 404:
+            raise

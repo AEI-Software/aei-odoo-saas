@@ -14,7 +14,7 @@ from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
 from contextlib import asynccontextmanager
 
-from routers import instances
+from routers import instances, gc
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +42,13 @@ app.include_router(
     instances.router,
     prefix="/api/v1/instances",
     tags=["instances"],
+    dependencies=[Depends(verify_key)],
+)
+
+app.include_router(
+    gc.router,
+    prefix="/api/v1/gc",
+    tags=["gc"],
     dependencies=[Depends(verify_key)],
 )
 

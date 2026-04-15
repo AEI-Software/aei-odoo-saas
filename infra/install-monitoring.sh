@@ -80,7 +80,10 @@ helm upgrade --install loki grafana/loki-stack \
   --set promtail.enabled=true \
   --set loki.persistence.enabled=true \
   --set loki.persistence.storageClassName=ceph-rbd \
-  --set loki.persistence.size=10Gi \
+  --set loki.persistence.size=50Gi \
+  --set "loki.config.table_manager.retention_deletes_enabled=true" \
+  --set "loki.config.table_manager.retention_period=744h" \
+  --set "loki.config.chunk_store_config.max_look_back_period=744h" \
   --wait --timeout 3m
 
 # ─── Add Loki datasource to Grafana ─────────────────────────────────────────
@@ -128,7 +131,7 @@ echo "  Components:"
 echo "    Prometheus     → 20Gi storage, 15d retention"
 echo "    Grafana        → 5Gi storage, persistent dashboards"
 echo "    AlertManager   → 2Gi storage"
-echo "    Loki           → 10Gi storage (log aggregation)"
+echo "    Loki           → 50Gi storage, 31d retention (log aggregation)"
 echo "    Promtail       → DaemonSet on all nodes"
 echo ""
 echo "  Scrape Targets:"

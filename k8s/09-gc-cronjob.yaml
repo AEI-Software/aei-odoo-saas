@@ -1,0 +1,50 @@
+---
+# CronJob: garbage-collect Released PVs for deleted tenant namespaces.
+# Runs daily at 03:00 UTC. Calls DELETE /api/v1/gc/pvs on the portal.
+# Requires API_KEY secret (same as portal).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pv-gc
+  namespace: aeisoftware
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: saas-portal
+          containers:
+            - name: gc
+              image: curlimages/curl:8.7.1
+              command:
+                - sh
+                - -c
+                - |
+                  set -e
+                  PORTAL="http://portal.aeisoftware.svc.cluster.local:8000"
+                  echo "=== PV GC: listing Released PVs ==="
+                  curl -sf -H "X-API-Key: ${API_KEY}" "${PORTAL}/api/v1/gc/pvs"
+                  echo ""
+                  echo "=== PV GC: deleting Released PVs ==="
+                  curl -sf -X DELETE -H "X-API-Key: ${API_KEY}" "${PORTAL}/api/v1/gc/pvs"
+                  echo ""
+                  echo "=== PV GC: done ==="
+              env:
+                - name: API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: portal-secret
+                      key: API_KEY
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 50m
+                  memory: 32Mi

@@ -262,6 +262,26 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                             "volumeMounts": _vol_mounts,
                         },
                     ],
+                    "affinity": {
+                        "nodeAffinity": {
+                            # Prefer worker nodes (labelled workload=tenant by 07-join-k3s-workers.sh).
+                            # Soft preference — falls back to control-plane if workers are full.
+                            "preferredDuringSchedulingIgnoredDuringExecution": [
+                                {
+                                    "weight": 100,
+                                    "preference": {
+                                        "matchExpressions": [
+                                            {
+                                                "key": "workload",
+                                                "operator": "In",
+                                                "values": ["tenant"],
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    },
                     "securityContext": {
                         "runAsNonRoot": True,
                         "runAsUser": 101,
