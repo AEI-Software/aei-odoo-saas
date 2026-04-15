@@ -412,6 +412,102 @@ def ingress_manifest(tenant_id: str) -> dict[str, Any]:
     }
 
 
+def limitrange_manifest(tenant_id: str) -> dict[str, Any]:
+    """Default resource limits for containers that don't declare them explicitly.
+
+    Primarily protects against runaway init containers (clone-addons, wait-for-postgres,
+    odoo-init) which have no explicit resources in the Deployment spec.
+    The main odoo container has explicit limits and is not affected by these defaults.
+    """
+    return {
+        "apiVersion": "v1",
+        "kind": "LimitRange",
+        "metadata": {
+            "name": "tenant-limits",
+            "namespace": _ns(tenant_id),
+        },
+        "spec": {
+            "limits": [
+                {
+                    "type": "Container",
+                    "default": {
+                        "cpu": "500m",
+                        "memory": "512Mi",
+                    },
+                    "defaultRequest": {
+                        "cpu": "50m",
+                        "memory": "128Mi",
+                    },
+                }
+            ]
+        },
+    }
+
+
+def resourcequota_manifest(tenant_id: str, plan: str = "starter") -> dict[str, Any]:
+    """Namespace-level resource cap per plan tier.
+
+    Prevents a misconfigured operator or portal bug from creating additional
+    pods or PVCs beyond what the plan allows. Values are sized to fit exactly
+    1 running Odoo pod (with its init containers) + 1 data PVC.
+    """
+    # Per-plan namespace caps: generous enough for the workload, tight enough
+    # to catch runaway resource creation (extra pods, duplicate PVCs, etc.)
+    _quotas = {
+        "starter":    {"cpu": "2",   "memory": "4Gi"},
+        "pro":        {"cpu": "4",   "memory": "8Gi"},
+        "enterprise": {"cpu": "8",   "memory": "16Gi"},
+    }
+    q = _quotas.get(plan, _quotas["starter"])
+    return {
+        "apiVersion": "v1",
+        "kind": "ResourceQuota",
+        "metadata": {
+            "name": "tenant-quota",
+            "namespace": _ns(tenant_id),
+        },
+        "spec": {
+            "hard": {
+                # Compute — 4× plan limits to allow init containers + headroom
+                "limits.cpu":    q["cpu"],
+                "limits.memory": q["memory"],
+                # Storage — 1 data PVC + 1 spare for edge cases
+                "persistentvolumeclaims": "2",
+                # Object count — prevents runaway pod/service creation
+                "pods": "5",
+                "services": "3",
+                "secrets": "10",
+                "configmaps": "5",
+            }
+        },
+    }
+
+
+def pdb_manifest(tenant_id: str) -> dict[str, Any]:
+    """PodDisruptionBudget for the tenant Odoo pod.
+
+    minAvailable: 1 means kubectl drain cannot voluntarily evict this pod
+    unless a replacement is already running. With replicas=1, this results in
+    ALLOWED DISRUPTIONS=0 — the pod is protected from accidental eviction
+    during node maintenance. The admin must explicitly scale=0 or delete the
+    PDB before draining a node that hosts this tenant.
+    """
+    return {
+        "apiVersion": "policy/v1",
+        "kind": "PodDisruptionBudget",
+        "metadata": {
+            "name": "odoo-pdb",
+            "namespace": _ns(tenant_id),
+        },
+        "spec": {
+            "minAvailable": 1,
+            "selector": {
+                "matchLabels": {"app": "odoo"},
+            },
+        },
+    }
+
+
 def all_manifests(
     tenant_id: str,
     db_password: str,
@@ -426,6 +522,8 @@ def all_manifests(
     """Return all manifests in apply-order."""
     return [
         namespace_manifest(tenant_id),
+        limitrange_manifest(tenant_id),
+        resourcequota_manifest(tenant_id, plan=plan),
         network_policy_manifest(tenant_id),
         pvc_manifest(tenant_id, storage_gi),
         secret_manifest(tenant_id, db_password, admin_password, app_admin_password),
@@ -433,6 +531,7 @@ def all_manifests(
         deployment_manifest(tenant_id, odoo_version, custom_image, plan=plan),
         service_manifest(tenant_id),
         ingress_manifest(tenant_id),
+        pdb_manifest(tenant_id),
     ]
 
 

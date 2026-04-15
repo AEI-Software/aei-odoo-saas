@@ -133,6 +133,26 @@ def apply_manifest(manifest: dict) -> None:
             else:
                 raise
 
+    elif kind == "LimitRange":
+        try:
+            _core().create_namespaced_limit_range(namespace=ns, body=manifest)
+        except client.exceptions.ApiException as e:
+            if e.status == 409:
+                name = manifest.get("metadata", {}).get("name")
+                _core().replace_namespaced_limit_range(name=name, namespace=ns, body=manifest)
+            else:
+                raise
+
+    elif kind == "ResourceQuota":
+        try:
+            _core().create_namespaced_resource_quota(namespace=ns, body=manifest)
+        except client.exceptions.ApiException as e:
+            if e.status == 409:
+                name = manifest.get("metadata", {}).get("name")
+                _core().replace_namespaced_resource_quota(name=name, namespace=ns, body=manifest)
+            else:
+                raise
+
     elif kind == "PodDisruptionBudget":
         try:
             _policy().create_namespaced_pod_disruption_budget(namespace=ns, body=manifest)
