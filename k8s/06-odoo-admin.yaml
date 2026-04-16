@@ -163,6 +163,15 @@ spec:
                   name: portal-secret
                   key: API_KEY
                   optional: true
+            # TCP keepalives — prevent HAProxy from dropping idle connections (30min default).
+            - name: PGKEEPALIVES
+              value: "1"
+            - name: PGKEEPALIVES_IDLE
+              value: "60"
+            - name: PGKEEPALIVES_INTERVAL
+              value: "10"
+            - name: PGKEEPALIVES_COUNT
+              value: "5"
           volumeMounts:
             - name: odoo-conf-rendered
               mountPath: /etc/odoo

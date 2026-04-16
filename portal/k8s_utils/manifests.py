@@ -179,6 +179,12 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
         {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
+        # TCP keepalives — prevent HAProxy from dropping idle connections (default 30min timeout).
+        # psycopg2/libpq reads PGKEEPALIVES* automatically without any Odoo config changes.
+        {"name": "PGKEEPALIVES",          "value": "1"},
+        {"name": "PGKEEPALIVES_IDLE",     "value": "60"},   # send keepalive after 60s idle
+        {"name": "PGKEEPALIVES_INTERVAL", "value": "10"},   # retry every 10s
+        {"name": "PGKEEPALIVES_COUNT",    "value": "5"},    # fail after 5 missed keepalives
     ]
     # Init env — same port since PgBouncer was removed
     _init_env = [
