@@ -108,20 +108,27 @@ spec:
                 configMapKeyRef:
                   name: odoo-stg-conf
                   key: addon-git-branch
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: git-credentials
+                  key: GIT_TOKEN
+                  optional: true
           command:
             - sh
             - -c
             - |
               echo "==> [STAGING] Cloning branch: $ADDON_GIT_BRANCH"
-              git clone --depth=1 -b "$ADDON_GIT_BRANCH" https://github.com/jpvargassoruco/odoo-saas-mvp.git /tmp/repo
+              AUTH="${GIT_TOKEN:+${GIT_TOKEN}@}"
+              git clone --depth=1 -b "$ADDON_GIT_BRANCH" "https://${AUTH}github.com/jpvargassoruco/odoo-saas-mvp.git" /tmp/repo
               cp -r /tmp/repo/odoo_k8s_saas /mnt/extra-addons/
               cp -r /tmp/repo/odoo_k8s_saas_subscription /mnt/extra-addons/
               cp -r /tmp/repo/payment_qr_mercantil /mnt/extra-addons/
               # OCA subscription
-              git clone --depth=1 -b 18.0 https://github.com/jpvargassoruco/odoo18-oca-contract.git /tmp/oca-contract
+              git clone --depth=1 -b 18.0 "https://${AUTH}github.com/jpvargassoruco/odoo18-oca-contract.git" /tmp/oca-contract
               cp -r /tmp/oca-contract/subscription_oca /mnt/extra-addons/
               # MUK modules
-              git clone --depth=1 -b 19.0 https://github.com/muk-it/muk_base.git /tmp/muk-base
+              git clone --depth=1 -b 19.0 "https://${AUTH}github.com/muk-it/muk_base.git" /tmp/muk-base
               for d in /tmp/muk-base/muk_*/; do
                 cp -r "$d" /mnt/extra-addons/
               done
@@ -174,6 +181,15 @@ spec:
                   name: portal-secret
                   key: API_KEY
                   optional: true
+            # TCP keepalives — prevent HAProxy from dropping idle connections (30min default).
+            - name: PGKEEPALIVES
+              value: "1"
+            - name: PGKEEPALIVES_IDLE
+              value: "60"
+            - name: PGKEEPALIVES_INTERVAL
+              value: "10"
+            - name: PGKEEPALIVES_COUNT
+              value: "5"
           volumeMounts:
             - name: odoo-conf-rendered
               mountPath: /etc/odoo
@@ -324,6 +340,12 @@ spec:
               value: ceph-rbd              # same cluster as prod — must use ceph-rbd
             - name: URL_SCHEME
               value: http
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: git-credentials
+                  key: GIT_TOKEN
+                  optional: true
           livenessProbe:
             httpGet:
               path: /healthz

@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY
+from k8s_utils.manifests import all_manifests, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status
 from metrics import record_operation, record_error
 
@@ -163,6 +163,7 @@ def create_instance(req: CreateInstanceRequest):
         odoo_version=req.odoo_version,
         custom_image=req.custom_image,
         plan=req.plan,
+        git_token=GIT_TOKEN,
     )
 
     for m in manifests:

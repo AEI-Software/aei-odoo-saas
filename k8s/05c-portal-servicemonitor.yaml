@@ -18,6 +18,6 @@ spec:
       app: portal
   endpoints:
     - port: http-metrics
-      path: /metrics
+      path: /metrics/tenants
       interval: 30s
       scheme: http

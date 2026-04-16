@@ -66,6 +66,28 @@ spec:
       port: 53
 
 ---
+# Allow Prometheus (monitoring ns) to scrape portal metrics on :8000
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: aeisoftware
+spec:
+  podSelector:
+    matchLabels:
+      app: portal
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: monitoring
+    ports:
+    - protocol: TCP
+      port: 8000
+
+---
 # Allow Egress HTTPS externo (GitHub addons, Cloudflare, etc.)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
