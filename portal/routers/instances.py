@@ -243,7 +243,16 @@ def create_instance(req: CreateInstanceRequest, background_tasks: BackgroundTask
         try:
             apply_manifest(m)
         except Exception as exc:
-            logger.exception("Error applying manifest %s", m.get("kind"))
+            logger.exception("Error applying manifest %s — rolling back", m.get("kind"))
+            # Best-effort cleanup: don't let orphaned resources accumulate
+            try:
+                delete_namespace(namespace)
+            except Exception:
+                logger.warning("Rollback: could not delete namespace %s", namespace)
+            try:
+                _drop_pg_user(pg_user, db_name)
+            except Exception:
+                logger.warning("Rollback: could not drop pg user %s", pg_user)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     record_operation("provision")

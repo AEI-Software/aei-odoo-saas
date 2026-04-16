@@ -388,6 +388,13 @@ def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
                 {   # Allow Ingress Controller (Traefik)
                     "from": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}}],
                     "ports": [{"protocol": "TCP", "port": 8069}, {"protocol": "TCP", "port": 8072}]
+                },
+                {   # Allow Portal FastAPI → backup endpoint (prod: aeisoftware, staging: staging)
+                    "from": [
+                        {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}},
+                        {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "staging"}}},
+                    ],
+                    "ports": [{"protocol": "TCP", "port": 8069}]
                 }
             ],
             "egress": [

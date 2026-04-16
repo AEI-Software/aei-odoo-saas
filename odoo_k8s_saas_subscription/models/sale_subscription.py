@@ -813,7 +813,7 @@ class SaleSubscription(models.Model):
             else:
                 # Create new extra-user line
                 self.env["sale.subscription.line"].create({
-                    "subscription_id": sub.id,
+                    "sale_subscription_id": sub.id,
                     "product_id": extra_user_product.id,
                     "name": f"Extra Users ({extra} × {price} Bs./user/month)",
                     "product_uom_qty": extra,
