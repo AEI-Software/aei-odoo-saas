@@ -331,6 +331,12 @@ spec:
               value: ceph-rbd              # same cluster as prod — must use ceph-rbd
             - name: URL_SCHEME
               value: http
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: git-credentials
+                  key: GIT_TOKEN
+                  optional: true
           livenessProbe:
             httpGet:
               path: /healthz
