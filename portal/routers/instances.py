@@ -18,6 +18,7 @@ import re
 
 from k8s_utils.manifests import all_manifests, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status
+from metrics import record_operation, record_error
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -133,6 +134,7 @@ def create_instance(req: CreateInstanceRequest):
             logger.exception("Error applying manifest %s", m.get("kind"))
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+    record_operation("provision")
     return InstanceResponse(
         tenant_id=req.tenant_id,
         namespace=f"odoo-{req.tenant_id}",
@@ -175,6 +177,7 @@ def delete_instance(tenant_id: str):
         logger.exception("Failed to delete namespace %s", namespace)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
+    record_operation("delete")
     # Drop Postgres user and database (best-effort; don't block the response)
     pg_user = f"odoo-{tenant_id}"
     db_name = f"odoo_{tenant_id}"
@@ -191,7 +194,9 @@ def stop_instance(tenant_id: str):
     try:
         scale_deployment(namespace, "odoo", 0)
     except Exception as exc:
+        record_error("stop", "k8s_error")
         raise HTTPException(status_code=500, detail=str(exc))
+    record_operation("stop")
     return {"status": "suspended"}
 
 @router.post("/{tenant_id}/start")
@@ -202,7 +207,9 @@ def start_instance(tenant_id: str):
     try:
         scale_deployment(namespace, "odoo", 1)
     except Exception as exc:
+        record_error("start", "k8s_error")
         raise HTTPException(status_code=500, detail=str(exc))
+    record_operation("start")
     return {"status": "starting"}
 
 
@@ -281,6 +288,7 @@ def upgrade_instance(tenant_id: str, req: UpgradeRequest):
 
     logger.info("upgrade_instance: %s upgraded to plan '%s' (workers=%d, cpu=%s, mem=%s)",
                 tenant_id, req.plan, res["workers"], res["cpu_lim"], res["mem_lim"])
+    record_operation("upgrade")
     return {"status": "upgrading", "plan": req.plan}
 
 

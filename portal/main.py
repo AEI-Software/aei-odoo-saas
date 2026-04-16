@@ -12,9 +12,13 @@ import os
 
 from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security.api_key import APIKeyHeader
+from fastapi.responses import Response
 from contextlib import asynccontextmanager
+from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 from routers import instances, gc
+from metrics import refresh_tenant_gauges
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -32,11 +36,26 @@ def verify_key(key: str = Security(api_key_header)):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("SaaS portal starting …")
+    refresh_tenant_gauges()
     yield
     logger.info("SaaS portal shutting down …")
 
 
 app = FastAPI(title="Odoo SaaS Portal", lifespan=lifespan)
+
+# ── Prometheus metrics ─────────────────────────────────────────────────────────
+Instrumentator(
+    should_group_status_codes=True,
+    should_ignore_untemplated=True,
+    excluded_handlers=["/healthz", "/metrics"],
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+
+@app.get("/metrics/tenants", include_in_schema=False)
+def metrics_tenants():
+    """Re-fresh tenant state gauges and return all metrics."""
+    refresh_tenant_gauges()
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 app.include_router(
     instances.router,

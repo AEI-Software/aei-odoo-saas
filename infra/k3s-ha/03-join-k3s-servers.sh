@@ -53,7 +53,8 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --flannel-backend=none \
   --disable-network-policy \
   --disable-kube-proxy \
-  --write-kubeconfig-mode=644" sh -
+  --write-kubeconfig-mode=644 \
+  --etcd-expose-metrics=true" sh -
 
 # ── Verificar que el nodo se unió ─────────────────────────────────────────────
 echo "→ Verificando estado del nodo..."
