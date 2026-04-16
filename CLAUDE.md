@@ -38,6 +38,11 @@ Enterprise: 8 workers, 500m-2 CPU, 2Gi-4Gi RAM
 
 ## Key Deployment Commands
 
+> **IMPORTANTE — Entornos distintos:**
+> - **Staging** (`main` branch): namespace `staging`, deployment `odoo-stg`, DB `staging`, portal `portal-stg`
+> - **Producción** (`18.0` branch): namespace `odoo-admin`, deployment `odoo-admin`, DB `admin`, portal `portal`
+> - NUNCA usar comandos de `odoo-admin` para staging ni viceversa.
+
 ```bash
 # Deploy infrastructure (first time)
 bash infra/install-k3s.sh
@@ -48,16 +53,35 @@ bash infra/apply-manifests.sh
 # Local dev setup (WSL/Linux)
 DB_PASSWORD="..." API_KEY="..." ./dev-setup.sh
 
-# Day-N: restart after code changes (init container re-clones repo)
+# ── STAGING (namespace: staging, branch: main) ──────────────────────────────
+# Restart Odoo staging after code changes
+kubectl rollout restart deployment/odoo-stg -n staging
+kubectl rollout status deployment/odoo-stg -n staging
+
+# Update Odoo module schema on staging
+POD=$(kubectl get pod -n staging -l app=odoo-stg -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n staging $POD -- odoo -u <module_name> -d staging --stop-after-init
+
+# Tail staging logs
+kubectl logs -n staging -l app=odoo-stg -f
+
+# Restart portal staging
+kubectl rollout restart deployment/portal-stg -n staging
+
+# ── PRODUCCIÓN (namespace: odoo-admin, branch: 18.0) ────────────────────────
+# Restart Odoo production after code changes
 kubectl rollout restart deployment/odoo-admin -n odoo-admin
 kubectl rollout status deployment/odoo-admin -n odoo-admin
 
-# Update Odoo module schema
+# Update Odoo module schema on production
 POD=$(kubectl get pod -n odoo-admin -l app=odoo-admin -o jsonpath='{.items[0].metadata.name}')
 kubectl exec -n odoo-admin $POD -- odoo -u <module_name> -d admin --stop-after-init
 
-# Tail logs
+# Tail production logs
 kubectl logs -n odoo-admin -l app=odoo-admin -f
+
+# Restart portal production
+kubectl rollout restart deployment/portal -n aeisoftware
 
 # Portal: build and deploy
 docker build -t ghcr.io/jpvargassoruco/portal:main portal/
