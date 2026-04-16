@@ -1,0 +1,23 @@
+# ServiceMonitor — Prometheus scrapes portal /metrics every 30s
+# Requires: kube-prometheus-stack installed in namespace "monitoring"
+# The prometheus operator selects ServiceMonitors with label release=kube-prom
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: portal
+  namespace: monitoring
+  labels:
+    release: kube-prom          # must match Helm release name used in install-monitoring.sh
+    app: portal
+spec:
+  namespaceSelector:
+    matchNames:
+      - aeisoftware
+  selector:
+    matchLabels:
+      app: portal
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
+      scheme: http

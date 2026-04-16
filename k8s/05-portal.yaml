@@ -110,5 +110,6 @@ spec:
   selector:
     app: portal
   ports:
-    - port: 8000
+    - name: http-metrics
+      port: 8000
       targetPort: 8000
