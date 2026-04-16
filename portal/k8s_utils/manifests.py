@@ -25,6 +25,8 @@ STORAGE_CLASS = os.getenv("STORAGE_CLASS", "local-path")
 # Middleware namespace = namespace donde se despliegan los middlewares de Traefik
 # Los middlewares (odoo-headers, odoo-compress) están en kube-system (ver 02-traefik-config.yaml)
 ODOO_HEADERS_MIDDLEWARE = os.getenv("ODOO_HEADERS_MIDDLEWARE", "kube-system-odoo-headers@kubernetescrd")
+# GitHub PAT for cloning private tenant addon repos (optional — public repos work without it)
+GIT_TOKEN = os.getenv("GIT_TOKEN", "")
 
 # ── Per-plan compute resources ───────────────────────────────────────────────
 # Each plan tier gets different Odoo workers, CPU, and RAM limits.
@@ -97,6 +99,23 @@ def secret_manifest(tenant_id: str, db_password: str, admin_password: str, app_a
             "DB_PASSWORD": b64(db_password),
             "ADMIN_PASSWD": b64(admin_password),
             "APP_ADMIN_PASSWORD": b64(app_admin_password),
+        },
+    }
+
+
+def git_secret_manifest(tenant_id: str, git_token: str) -> dict[str, Any]:
+    """Per-tenant secret with GitHub PAT for cloning private addon repos."""
+    import base64
+    return {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {
+            "name": "git-credentials",
+            "namespace": _ns(tenant_id),
+        },
+        "type": "Opaque",
+        "data": {
+            "GIT_TOKEN": base64.b64encode(git_token.encode()).decode(),
         },
     }
 
@@ -194,6 +213,7 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                             "args": [
                                 "apk add --no-cache git && python3 -c '\n"
                                 "import json, os, subprocess\n"
+                                "git_token = os.environ.get(\"GIT_TOKEN\", \"\")\n"
                                 "try:\n"
                                 "    with open(\"/etc/odoo/addons.json\") as f:\n"
                                 "        addons = json.load(f)\n"
@@ -203,6 +223,8 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "    url = repo.get(\"url\")\n"
                                 "    branch = repo.get(\"branch\", \"\")\n"
                                 "    if not url: continue\n"
+                                "    if git_token and url.startswith(\"https://github.com/\"):\n"
+                                "        url = url.replace(\"https://\", f\"https://{git_token}@\", 1)\n"
                                 "    repo_name = url.rstrip(\"/\").rsplit(\"/\", 1)[-1]\n"
                                 "    if repo_name.endswith(\".git\"): repo_name = repo_name[:-4]\n"
                                 "    dest = f\"/mnt/extra-addons/{repo_name}\"\n"
@@ -210,10 +232,22 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "    if branch:\n"
                                 "        cmd.extend([\"-b\", branch])\n"
                                 "    cmd.extend([url, dest])\n"
-                                "    print(f\"Cloning {url} branch {branch} into {dest}...\")\n"
+                                "    print(f\"Cloning repo branch {branch} into {dest}...\")\n"
                                 "    if not os.path.exists(dest):\n"
                                 "        subprocess.run(cmd, check=True)\n"
                                 "' && chown -R 101:101 /mnt/extra-addons"
+                            ],
+                            "env": [
+                                {
+                                    "name": "GIT_TOKEN",
+                                    "valueFrom": {
+                                        "secretKeyRef": {
+                                            "name": "git-credentials",
+                                            "key": "GIT_TOKEN",
+                                            "optional": True,
+                                        }
+                                    },
+                                }
                             ],
                             "volumeMounts": _vol_mounts,
                             "securityContext": {
@@ -538,9 +572,10 @@ def all_manifests(
     odoo_version: str = "18.0",
     custom_image: str | None = None,
     plan: str = "starter",
+    git_token: str = "",
 ) -> list[dict]:
     """Return all manifests in apply-order."""
-    return [
+    manifests = [
         namespace_manifest(tenant_id),
         limitrange_manifest(tenant_id),
         resourcequota_manifest(tenant_id, plan=plan),
@@ -548,11 +583,16 @@ def all_manifests(
         pvc_manifest(tenant_id, storage_gi),
         secret_manifest(tenant_id, db_password, admin_password, app_admin_password),
         configmap_manifest(tenant_id, db_password, admin_password, addons_repos, plan=plan),
+    ]
+    if git_token:
+        manifests.append(git_secret_manifest(tenant_id, git_token))
+    manifests += [
         deployment_manifest(tenant_id, odoo_version, custom_image, plan=plan),
         service_manifest(tenant_id),
         ingress_manifest(tenant_id),
         pdb_manifest(tenant_id),
     ]
+    return manifests
 
 
 

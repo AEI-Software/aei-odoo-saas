@@ -78,6 +78,12 @@ spec:
               value: aeisoftware-odoo-headers@kubernetescrd
             - name: URL_SCHEME
               value: https
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: git-credentials
+                  key: GIT_TOKEN
+                  optional: true
           livenessProbe:
             httpGet:
               path: /healthz
