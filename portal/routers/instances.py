@@ -611,7 +611,8 @@ async def download_backup(tenant_id: str):
     regardless of list_db setting. Returns a streaming ZIP to the caller
     (typically the Odoo admin portal acting as a proxy for the customer).
     """
-    _validate_tenant_id(tenant_id)
+    if not re.match(r"^[a-z0-9][a-z0-9\-]{0,46}[a-z0-9]$", tenant_id):
+        raise HTTPException(status_code=422, detail="Invalid tenant_id format")
     namespace = f"odoo-{tenant_id}"
 
     # ── Retrieve admin_passwd from K8s Secret ─────────────────────────────
