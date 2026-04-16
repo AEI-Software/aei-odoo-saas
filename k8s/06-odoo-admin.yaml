@@ -172,6 +172,12 @@ spec:
               value: "10"
             - name: PGKEEPALIVES_COUNT
               value: "5"
+            - name: SAAS_WEBHOOK_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: portal-secret
+                  key: SAAS_WEBHOOK_KEY
+                  optional: true
           volumeMounts:
             - name: odoo-conf-rendered
               mountPath: /etc/odoo

@@ -84,6 +84,13 @@ spec:
                   name: git-credentials
                   key: GIT_TOKEN
                   optional: true
+            - name: ODOO_WEBHOOK_URL
+              value: "http://odoo-admin-svc.odoo-admin.svc.cluster.local:8069/saas/webhook/instance-status"
+            - name: ODOO_WEBHOOK_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: portal-secret
+                  key: SAAS_WEBHOOK_KEY
           livenessProbe:
             httpGet:
               path: /healthz
