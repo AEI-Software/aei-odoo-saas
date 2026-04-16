@@ -13,6 +13,11 @@
                         <field name="is_saas_plan" widget="boolean_toggle"/>
                         <field name="plan" invisible="not is_saas_plan"/>
                         <field name="storage_gi" invisible="not is_saas_plan"/>
+                        <field name="product_id" invisible="not is_saas_plan"
+                               domain="[('type', 'in', ['service', 'consu'])]"
+                               help="Product placed on the recurring billing line. Required for automatic billing updates on plan changes."/>
+                        <field name="recurring_price" invisible="not is_saas_plan"
+                               help="Monthly price for this plan. Leave 0 to use the product's list price."/>
                     </group>
                     <group string="Per-User Pricing" col="4"
                            invisible="not is_saas_plan">
