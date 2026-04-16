@@ -56,7 +56,7 @@ class InstanceResponse(BaseModel):
 
 # ── endpoints ────────────────────────────────────────────────────────────────
 
-@router.get("", response_model=list[InstanceResponse])
+@router.get("/list", response_model=list[InstanceResponse])
 def list_instances(user_count: bool = False):
     """List all active tenant instances by querying K8s namespaces.
 

@@ -495,7 +495,7 @@ class SaasInstance(models.Model):
         """
         try:
             resp = requests.get(
-                f"{PORTAL_URL}/api/v1/instances",
+                f"{PORTAL_URL}/api/v1/instances/list",
                 headers={"X-API-Key": PORTAL_KEY},
                 timeout=15,
             )
