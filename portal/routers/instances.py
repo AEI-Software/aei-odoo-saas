@@ -110,8 +110,11 @@ def check_availability(tenant_id: str):
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             db_taken = cur.fetchone() is not None
         conn.close()
-    except Exception:
-        pass  # If PG is unreachable, just check namespace
+    except psycopg2.OperationalError as e:
+        logger.warning("check_availability: PG connectivity failed for %s: %s", tenant_id, e)
+        # Cannot confirm DB state — assume not taken so provisioning can proceed
+    except Exception as e:
+        logger.error("check_availability: unexpected error checking DB for %s: %s", tenant_id, e)
 
     available = not ns_taken and not db_taken
     return {
@@ -439,8 +442,15 @@ def _get_user_count(tenant_id: str) -> int:
             count = cur.fetchone()[0]
         conn.close()
         return count
+    except psycopg2.OperationalError as e:
+        logger.error("_get_user_count: DB connectivity failure for tenant %s: %s", tenant_id, e)
+        return -1  # -1 signals connectivity error (distinct from 0 users)
+    except psycopg2.ProgrammingError as e:
+        # Table may not exist yet during provisioning — not a connectivity issue
+        logger.warning("_get_user_count: schema not ready for %s: %s", tenant_id, e)
+        return 0
     except Exception as e:
-        logger.warning("Could not fetch user count for %s: %s", tenant_id, e)
+        logger.warning("_get_user_count: unexpected error for %s: %s", tenant_id, e)
         return 0
 
 
