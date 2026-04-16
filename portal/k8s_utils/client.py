@@ -243,6 +243,20 @@ def scale_deployment(namespace: str, name: str, replicas: int) -> None:
     _apps().patch_namespaced_deployment_scale(name=name, namespace=namespace, body=body)
 
 
+_EXCLUDED_NAMESPACES = {"odoo-admin", "odoo-stg"}
+
+
+def list_tenant_namespaces() -> list[str]:
+    """Return all odoo-* namespace names that belong to real tenants."""
+    ns_list = _core().list_namespace()
+    return [
+        ns.metadata.name
+        for ns in ns_list.items
+        if ns.metadata.name.startswith("odoo-")
+        and ns.metadata.name not in _EXCLUDED_NAMESPACES
+    ]
+
+
 def list_released_pvs() -> list[dict]:
     """Return PVs in 'Released' phase whose claimRef points to an odoo-* namespace.
 
