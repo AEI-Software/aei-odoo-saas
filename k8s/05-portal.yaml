@@ -113,6 +113,8 @@ kind: Service
 metadata:
   name: portal
   namespace: aeisoftware
+  labels:
+    app: portal          # required for Prometheus ServiceMonitor keep rule
 spec:
   selector:
     app: portal
