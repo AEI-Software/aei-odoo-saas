@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- ── Renewal Invoice Notification ─────────────────────────────────── -->
+        <!-- Sent automatically when a recurring SaaS invoice is generated.      -->
+        <!-- Applied to account.move (customer invoice) records.                 -->
+        <record id="email_template_renewal_invoice" model="mail.template">
+            <field name="name">SaaS: Factura de Renovación — Link de Pago</field>
+            <field name="model_id" ref="account.model_account_move"/>
+            <field name="subject">Tu factura de renovación está lista — {{ object.name }}</field>
+            <field name="email_from">{{ object.company_id.email_formatted }}</field>
+            <field name="email_to">{{ object.partner_id.email_formatted }}</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div style="margin: 0; padding: 0;">
+    <table width="600" style="margin: 20px auto; font-family: Arial, sans-serif; border-collapse: collapse;">
+        <tr>
+            <td style="background-color: #875A7B; padding: 20px; color: #fff; text-align: center; border-radius: 8px 8px 0 0;">
+                <h1 style="margin: 0; font-size: 22px;">Factura de Renovación Disponible</h1>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 30px; background-color: #f9f9f9; border: 1px solid #ddd;">
+                <p>Hola <strong><t t-out="object.partner_id.name or 'Cliente'"/></strong>,</p>
+
+                <p>Tu factura de renovación para el servicio Odoo SaaS está disponible.
+                Por favor, realiza el pago para mantener tu servicio sin interrupciones.</p>
+
+                <table style="width: 100%; margin: 20px 0; border-collapse: collapse; border: 1px solid #ddd;">
+                    <tr style="background-color: #875A7B; color: #fff;">
+                        <td style="padding: 10px; font-weight: bold;" colspan="2">Detalle de la Factura</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold; width: 45%;">Número:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;"><t t-out="object.name"/></td>
+                    </tr>
+                    <tr style="background-color: #f9f9f9;">
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Fecha de emisión:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;"><t t-out="object.invoice_date"/></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Fecha límite de pago:</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                            <strong><t t-out="object.invoice_date_due"/></strong>
+                        </td>
+                    </tr>
+                    <tr style="background-color: #f9f9f9;">
+                        <td style="padding: 8px; font-weight: bold;">Total a pagar:</td>
+                        <td style="padding: 8px;">
+                            <strong style="font-size: 18px; color: #875A7B;">
+                                <t t-out="object.amount_total"/> <t t-out="object.currency_id.symbol"/>
+                            </strong>
+                        </td>
+                    </tr>
+                </table>
+
+                <div style="background-color: #fff3cd; border: 1px solid #ffc107;
+                             border-radius: 4px; padding: 15px; margin: 20px 0;">
+                    <strong>&#128337; Plazo de pago</strong><br/>
+                    Si el pago no se recibe dentro de 5 días hábiles, el servicio podría ser
+                    suspendido temporalmente hasta regularizar el pago.
+                </div>
+
+                <p style="text-align: center; margin: 30px 0;">
+                    <a t-attf-href="{{ object.get_portal_url() }}"
+                       style="background-color: #875A7B; color: #fff; padding: 14px 36px;
+                              border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 16px;">
+                        Pagar Ahora
+                    </a>
+                </p>
+
+                <p style="color: #666; font-size: 13px;">
+                    Si ya realizaste el pago por otro medio, por favor envíanos el comprobante
+                    respondiendo a este correo para actualizar tu cuenta.
+                </p>
+
+                <p>Gracias por confiar en AEI Software.<br/>
+                <strong>Equipo AEI Software</strong></p>
+            </td>
+        </tr>
+        <tr>
+            <td style="background-color: #555; padding: 12px; color: #aaa; text-align: center;
+                        font-size: 12px; border-radius: 0 0 8px 8px;">
+                Este es un mensaje automático de la plataforma SaaS. No respondas directamente a esta dirección.
+            </td>
+        </tr>
+    </table>
+</div>
+            </field>
+        </record>
+
+    </data>
+</odoo>
