@@ -56,6 +56,44 @@ class InstanceResponse(BaseModel):
 
 # ── endpoints ────────────────────────────────────────────────────────────────
 
+@router.get("", response_model=list[InstanceResponse])
+def list_instances(user_count: bool = False):
+    """List all active tenant instances by querying K8s namespaces.
+
+    Returns one entry per odoo-* namespace (excluding odoo-admin, odoo-stg).
+    Pass ?user_count=true to include live user counts (slower — one DB query per tenant).
+    """
+    from k8s_utils.client import list_tenant_namespaces
+
+    namespaces = list_tenant_namespaces()
+    result = []
+
+    for namespace in namespaces:
+        tenant_id = namespace.removeprefix("odoo-")
+        info = get_deployment_status(namespace)
+
+        if info["phase"] == "NotFound":
+            status = "not_ready"
+        elif info.get("ready"):
+            status = "ready"
+        else:
+            status = "provisioning" if info["phase"] == "Pending" else "not_ready"
+
+        count = 0
+        if user_count and status == "ready":
+            count = _get_user_count(tenant_id)
+
+        result.append(InstanceResponse(
+            tenant_id=tenant_id,
+            namespace=namespace,
+            url=f"{URL_SCHEME}://{tenant_id}.{BASE_DOMAIN}",
+            status=status,
+            user_count=count,
+        ))
+
+    return result
+
+
 @router.get("/check/{tenant_id}")
 def check_availability(tenant_id: str):
     """Check whether a tenant_id is available (namespace + DB don't exist)."""

@@ -481,6 +481,68 @@ class SaasInstance(models.Model):
         except Exception as exc:
             raise UserError(_("Failed to fetch logs: %s") % exc) from exc
 
+    @api.model
+    def _cron_reconcile_all(self):
+        """Cron: full reconciliation between K8s and Odoo records.
+
+        Calls GET /api/v1/instances (list all) and:
+        - provisioning → ready:   K8s reports ready, Odoo still says provisioning
+        - ready → error:          K8s reports not_ready, Odoo says ready (drift)
+        - ready/suspended → error: namespace missing from K8s entirely
+        - orphan detection:       namespace exists in K8s but no Odoo record (logs warning)
+
+        Runs every 2 minutes. Complements _cron_process_pending_deletes.
+        """
+        try:
+            resp = requests.get(
+                f"{PORTAL_URL}/api/v1/instances",
+                headers={"X-API-Key": PORTAL_KEY},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            k8s_tenants = {t["tenant_id"]: t for t in resp.json()}
+        except Exception as exc:
+            logger.warning("_cron_reconcile_all: could not fetch instance list: %s", exc)
+            return
+
+        # ── 1. Reconcile K8s → Odoo ──────────────────────────────────────────
+        for tenant_id, info in k8s_tenants.items():
+            k8s_status = info.get("status", "unknown")
+            rec = self.search([("tenant_id", "=", tenant_id)], limit=1)
+
+            if not rec:
+                logger.warning(
+                    "_cron_reconcile_all: orphan namespace odoo-%s exists in K8s "
+                    "but has no Odoo record — manual review required.", tenant_id
+                )
+                continue
+
+            if rec.state == "provisioning" and k8s_status == "ready":
+                rec.write({"state": "ready", "error_msg": False})
+                rec.action_send_credentials_email()
+                logger.info("_cron_reconcile_all: %s provisioning→ready", tenant_id)
+
+            elif rec.state == "ready" and k8s_status == "not_ready":
+                rec.write({
+                    "state": "error",
+                    "error_msg": "Pod not ready in K8s — check logs in the portal.",
+                })
+                logger.warning("_cron_reconcile_all: %s ready→error (pod not ready)", tenant_id)
+
+        # ── 2. Detect Odoo records whose namespace no longer exists in K8s ────
+        live_states = ("provisioning", "ready", "suspended")
+        active_recs = self.search([("state", "in", list(live_states))])
+        for rec in active_recs:
+            if rec.tenant_id not in k8s_tenants:
+                rec.write({
+                    "state": "error",
+                    "error_msg": "Namespace not found in K8s — may have been deleted externally.",
+                })
+                logger.warning(
+                    "_cron_reconcile_all: %s marked error — namespace missing from K8s",
+                    rec.tenant_id,
+                )
+
     def action_patch_addons(self):
         """PATCH /api/v1/instances/{tenant_id}/config with addons_repos."""
         self.ensure_one()
