@@ -51,7 +51,7 @@ set +o allexport
 
 # Validate required variables are set and not placeholders
 missing=()
-for var in DB_PASSWORD ADMIN_PASSWD API_KEY CLOUDFLARE_TUNNEL_TOKEN BACKUP_S3_ACCESS_KEY BACKUP_S3_SECRET_KEY BACKUP_PG_SUPERUSER_PASSWORD; do
+for var in DB_PASSWORD ADMIN_PASSWD API_KEY CLOUDFLARE_TUNNEL_TOKEN BACKUP_S3_ACCESS_KEY BACKUP_S3_SECRET_KEY BACKUP_PG_SUPERUSER_PASSWORD SAAS_WEBHOOK_KEY; do
   val="${!var:-}"
   if [[ -z "$val" || "$val" == "change_me" ]]; then
     missing+=("$var")
@@ -108,6 +108,7 @@ metadata:
 type: Opaque
 stringData:
   API_KEY: "${API_KEY}"
+  SAAS_WEBHOOK_KEY: "${SAAS_WEBHOOK_KEY}"
 ---
 apiVersion: v1
 kind: Secret
@@ -117,6 +118,7 @@ metadata:
 type: Opaque
 stringData:
   API_KEY: "${API_KEY}"
+  SAAS_WEBHOOK_KEY: "${SAAS_WEBHOOK_KEY}"
 ---
 apiVersion: v1
 kind: Secret

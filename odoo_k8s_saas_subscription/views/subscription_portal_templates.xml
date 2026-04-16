@@ -472,7 +472,7 @@
 
                 <!-- Action buttons (only for active subscriptions) -->
                 <t t-set="stage_name" t-value="subscription.stage_id.name or ''"/>
-                <t t-if="'progress' in stage_name.lower() or 'activ' in stage_name.lower() or 'curso' in stage_name.lower()">
+                <t t-if="'progress' in stage_name.lower() or 'progreso' in stage_name.lower() or 'activ' in stage_name.lower() or 'curso' in stage_name.lower()">
                     <div class="d-flex gap-2 flex-wrap">
 
                         <!-- Upgrade/Downgrade plan -->
@@ -482,6 +482,18 @@
                                 <i class="fa fa-arrow-up me-1"/>
                                 Cambiar plan
                             </a>
+                        </t>
+
+                        <!-- Backup download — only when instance is ready -->
+                        <t t-foreach="saas_instances" t-as="inst">
+                            <t t-if="inst.state == 'ready'">
+                                <a t-attf-href="/my/subscriptions/{{ subscription.id }}/backup"
+                                   class="btn btn-outline-secondary"
+                                   title="Descarga un ZIP con la base de datos y el filestore de tu instancia">
+                                    <i class="fa fa-download me-1"/>
+                                    Descargar backup
+                                </a>
+                            </t>
                         </t>
 
                         <!-- Cancel subscription — opens confirmation modal -->
@@ -533,16 +545,6 @@
                 </t>
             </div>
 
-            <!-- Chatter / Communication -->
-            <div id="subscription_communication" class="mt-4">
-                <h2>Communication</h2>
-                <t t-call="portal.message_thread">
-                    <t t-set="object" t-value="subscription" />
-                    <t t-set="token" t-value="subscription.access_token" />
-                    <t t-set="pid" t-value="pid" />
-                    <t t-set="hash" t-value="hash" />
-                </t>
-            </div>
         </t>
     </template>
 

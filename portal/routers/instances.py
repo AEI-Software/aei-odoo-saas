@@ -5,16 +5,20 @@ REST API for tenant lifecycle.
 Avoids any S3/boto3/Ceph — state is embedded in K8s objects.
 """
 from __future__ import annotations
+import asyncio
+import base64
 import logging
 import os
 import secrets
 import string
 import threading
+from datetime import datetime
 
 import httpx
 import psycopg2
 from psycopg2 import sql
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 import re
 
@@ -239,7 +243,16 @@ def create_instance(req: CreateInstanceRequest, background_tasks: BackgroundTask
         try:
             apply_manifest(m)
         except Exception as exc:
-            logger.exception("Error applying manifest %s", m.get("kind"))
+            logger.exception("Error applying manifest %s — rolling back", m.get("kind"))
+            # Best-effort cleanup: don't let orphaned resources accumulate
+            try:
+                delete_namespace(namespace)
+            except Exception:
+                logger.warning("Rollback: could not delete namespace %s", namespace)
+            try:
+                _drop_pg_user(pg_user, db_name)
+            except Exception:
+                logger.warning("Rollback: could not drop pg user %s", pg_user)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     record_operation("provision")
@@ -597,6 +610,120 @@ def _drop_pg_user(pg_user: str, db_name: str) -> None:
             logger.info("Dropped Postgres role/db for %s", pg_user)
     finally:
         conn.close()
+
+
+@router.get("/{tenant_id}/backup")
+async def download_backup(tenant_id: str):
+    """Stream a complete Odoo backup (DB + filestore ZIP) for a tenant.
+
+    Uses kubectl exec to run dump_db directly inside the tenant pod,
+    bypassing the list_db=False restriction that blocks the HTTP and
+    XML-RPC backup endpoints in Odoo 18. Outputs base64-encoded ZIP
+    via stdout, decoded and streamed back to the caller.
+    """
+    if not re.match(r"^[a-z0-9][a-z0-9\-]{0,46}[a-z0-9]$", tenant_id):
+        raise HTTPException(status_code=422, detail="Invalid tenant_id format")
+    namespace = f"odoo-{tenant_id}"
+
+    # ── Retrieve secret (for validation only — exec uses pod's own config) ─
+    from k8s_utils.client import _core
+    try:
+        secret = _core().read_namespaced_secret("odoo-secret", namespace)
+    except Exception as exc:
+        status = getattr(exc, "status", None)
+        if status == 404:
+            raise HTTPException(status_code=404, detail=f"Instance '{tenant_id}' not found")
+        raise HTTPException(status_code=500, detail=f"Cannot read K8s secret: {exc}")
+
+    if not secret.data.get("ADMIN_PASSWD"):
+        raise HTTPException(status_code=500, detail="admin_passwd not found in secret")
+
+    # ── Find a running pod ────────────────────────────────────────────────
+    try:
+        pods = _core().list_namespaced_pod(namespace, label_selector="app=odoo")
+        running = [p for p in pods.items if p.status.phase == "Running"]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Cannot list pods: {exc}")
+    if not running:
+        raise HTTPException(status_code=503, detail=f"Instance '{tenant_id}' has no running pods (may be suspended)")
+    pod_name = running[0].metadata.name
+
+    db_name = f"odoo_{tenant_id}"
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"{tenant_id}-backup-{date_str}.zip"
+
+    # ── Build the Python one-liner to exec inside the pod ─────────────────
+    # Patches list_db=True in-process (no config file change) so that
+    # dump_db's @if_db_mgt_enabled decorator allows the call.
+    python_cmd = (
+        "import sys,base64,io;"
+        "sys.path.insert(0,'/opt/odoo');"
+        "import odoo;"
+        "from odoo.tools import config;"
+        "config.parse_config(['--config=/etc/odoo/odoo.conf']);"
+        "config['list_db']=True;"
+        "from odoo.service.db import dump_db;"
+        "buf=io.BytesIO();"
+        f"dump_db('{db_name}',buf,'zip');"
+        "sys.stdout.buffer.write(base64.b64encode(buf.getvalue()));"
+        "sys.stdout.buffer.flush()"
+    )
+
+    # ── Execute inside pod via kubernetes stream (synchronous — run in thread)
+    def _exec_backup() -> tuple[bytes, str]:
+        from kubernetes.stream import stream as k8s_stream
+        resp = k8s_stream(
+            _core().connect_get_namespaced_pod_exec,
+            pod_name, namespace,
+            command=["python3", "-c", python_cmd],
+            container="odoo",
+            stderr=True, stdin=False, stdout=True, tty=False,
+            _preload_content=False,
+        )
+        stdout_chunks: list[bytes] = []
+        stderr_chunks: list[str] = []
+        while resp.is_open():
+            resp.update(timeout=600)
+            if resp.peek_stdout():
+                chunk = resp.read_stdout()
+                stdout_chunks.append(chunk if isinstance(chunk, bytes) else chunk.encode())
+            if resp.peek_stderr():
+                stderr_chunks.append(resp.read_stderr())
+        resp.close()
+        return b"".join(stdout_chunks), "".join(stderr_chunks)
+
+    try:
+        b64_bytes, stderr_out = await asyncio.to_thread(_exec_backup)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Backup exec failed: {exc}")
+
+    if not b64_bytes:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backup produced no output. stderr: {stderr_out[:400]}",
+        )
+
+    try:
+        zip_data = base64.b64decode(b64_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Backup output is not valid base64: {exc}")
+
+    if zip_data[:4] != b"PK\x03\x04":
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backup produced invalid ZIP (magic={zip_data[:4]!r}). stderr: {stderr_out[:200]}",
+        )
+
+    async def stream_zip():
+        chunk_size = 1024 * 1024  # 1 MB chunks
+        for i in range(0, len(zip_data), chunk_size):
+            yield zip_data[i : i + chunk_size]
+
+    return StreamingResponse(
+        stream_zip(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

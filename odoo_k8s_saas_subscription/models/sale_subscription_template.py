@@ -38,3 +38,17 @@ class SaleSubscriptionTemplate(models.Model):
         string="Storage (GB)",
         default=10,
         help="Persistent storage allocated for instances on this plan.")
+    product_id = fields.Many2one(
+        "product.product",
+        string="Recurring Product",
+        help="Product used on the subscription billing line for this plan. "
+             "When a customer upgrades/downgrades, the billing line is replaced "
+             "with this product at its list price.",
+    )
+    recurring_price = fields.Float(
+        string="Recurring Price",
+        digits="Product Price",
+        default=0.0,
+        help="Monthly price for this plan. Overrides the product list price on "
+             "the billing line when set. Leave 0 to use the product's list price.",
+    )

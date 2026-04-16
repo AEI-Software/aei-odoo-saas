@@ -277,29 +277,98 @@ class SaleSubscription(models.Model):
             for rec in self:
                 if old_templates.get(rec.id) == rec.template_id.id:
                     continue
-                
+
+                old_template = self.env["sale.subscription.template"].browse(
+                    old_templates.get(rec.id)
+                )
+                new_template = rec.template_id
+
+                # ── 1. Update K8s resources ───────────────────────────────
                 instances = self.env["saas.instance"].search([
                     ("subscription_id", "=", rec.id),
                     ("state", "not in", ["deleted"]),
                 ])
-                if not instances:
-                    continue
-                plan = rec.template_id.plan or "starter"
-                new_storage = rec.template_id.storage_gi or 10
-                
+                plan = new_template.plan or "starter"
+                new_storage = new_template.storage_gi or 10
+
                 for inst in instances:
                     if inst.plan != plan or inst.storage_gi != new_storage:
-                        logger.info("Upgrade/Downgrade: Subscription %s changed from template_id %s to %s. Updating instance %s.", rec.display_name, old_templates.get(rec.id), rec.template_id.id, inst.tenant_id)
-                        inst.write({
-                            "plan": plan,
-                            "storage_gi": new_storage,
-                        })
+                        logger.info(
+                            "Upgrade/Downgrade: Subscription %s template %s→%s. "
+                            "Updating instance %s.",
+                            rec.display_name, old_template.id, new_template.id,
+                            inst.tenant_id,
+                        )
+                        inst.write({"plan": plan, "storage_gi": new_storage})
                         try:
-                            # action_upgrade() patches ConfigMap + Deployment in-place
-                            # (action_provision would fail here because state is 'ready')
                             inst.action_upgrade()
                         except Exception:
-                            logger.exception("Failed to apply upgraded resource limits for %s", inst.tenant_id)
+                            logger.exception(
+                                "Failed to apply upgraded resource limits for %s",
+                                inst.tenant_id,
+                            )
+
+                # ── 2. Update billing lines ───────────────────────────────
+                if new_template.product_id:
+                    new_price = (
+                        new_template.recurring_price
+                        if new_template.recurring_price
+                        else new_template.product_id.list_price
+                    )
+                    new_name = new_template.name or new_template.product_id.display_name
+
+                    if old_template and old_template.product_id:
+                        # Replace lines that match the old template's product
+                        old_lines = rec.sale_subscription_line_ids.filtered(
+                            lambda l: l.product_id == old_template.product_id
+                        )
+                    else:
+                        # Fallback: replace lines that are SaaS plan products
+                        # (identified by being in the SaaS category or having "saas" in name)
+                        saas_categ = self.env.ref(
+                            "odoo_k8s_saas.product_category_odoo_saas",
+                            raise_if_not_found=False,
+                        )
+                        old_lines = rec.sale_subscription_line_ids.filtered(
+                            lambda l: (
+                                (saas_categ and self._is_saas_category(
+                                    l.product_id.categ_id, saas_categ))
+                                or "saas" in (l.product_id.name or "").lower()
+                            )
+                        )
+
+                    if old_lines:
+                        old_lines.write({
+                            "product_id": new_template.product_id.id,
+                            "name": new_name,
+                            "price_unit": new_price,
+                        })
+                        logger.info(
+                            "Billing line updated for subscription %s: "
+                            "%s → %s at %.2f",
+                            rec.display_name,
+                            old_template.name if old_template else "?",
+                            new_name, new_price,
+                        )
+                    else:
+                        # No matching line found — create one
+                        self.env["sale.subscription.line"].create({
+                            "sale_subscription_id": rec.id,
+                            "product_id": new_template.product_id.id,
+                            "name": new_name,
+                            "product_uom_qty": 1.0,
+                            "price_unit": new_price,
+                        })
+                        logger.info(
+                            "Created new billing line for subscription %s: %s at %.2f",
+                            rec.display_name, new_name, new_price,
+                        )
+                else:
+                    logger.warning(
+                        "Template %s has no product_id — billing lines NOT updated "
+                        "for subscription %s. Set 'Recurring Product' on the template.",
+                        new_template.name, rec.display_name,
+                    )
 
         if "stage_id" not in vals:
             return res
@@ -744,7 +813,7 @@ class SaleSubscription(models.Model):
             else:
                 # Create new extra-user line
                 self.env["sale.subscription.line"].create({
-                    "subscription_id": sub.id,
+                    "sale_subscription_id": sub.id,
                     "product_id": extra_user_product.id,
                     "name": f"Extra Users ({extra} × {price} Bs./user/month)",
                     "product_uom_qty": extra,
