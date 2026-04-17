@@ -93,7 +93,7 @@ def _poll_until_ready_then_notify(tenant_id: str) -> None:
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Postgres superuser used only by the portal to create/drop tenant users
+# Portal DB role — non-superuser (CREATEROLE + CREATEDB only, NOT superuser)
 _PG_ADMIN_USER = os.getenv("POSTGRES_ADMIN_USER", "postgres")
 _PG_ADMIN_PASSWORD = os.getenv("POSTGRES_ADMIN_PASSWORD", "")
 
@@ -599,10 +599,13 @@ def _drop_pg_user(pg_user: str, db_name: str) -> None:
     conn.autocommit = True
     try:
         with conn.cursor() as cur:
-            # Kick everyone off the database first
+            # Kick non-superuser connections off the database first.
+            # pg_terminate_backend requires SUPERUSER to terminate other superuser
+            # processes (e.g. pg_exporter), so we skip those to avoid permission errors.
             cur.execute(
-                "SELECT pg_terminate_backend(pid) "
-                "FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                "WHERE datname = %s AND pid <> pg_backend_pid() "
+                "AND NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = usename AND rolsuper)",
                 (db_name,),
             )
             cur.execute(sql.SQL('DROP DATABASE IF EXISTS {}').format(sql.Identifier(db_name)))
