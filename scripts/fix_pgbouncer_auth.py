@@ -3,7 +3,7 @@
 import psycopg2, os
 
 host = os.environ.get("POSTGRES_HOST", "postgres.aeisoftware.svc.cluster.local")
-pwd  = os.environ.get("POSTGRES_ADMIN_PASSWORD", "VMzDSrRBOunSx2U0yy2Pzsr8PS5BOQ")
+pwd  = os.environ["POSTGRES_ADMIN_PASSWORD"]  # fail fast; no hardcoded fallback
 port = 5000
 
 FUNC_SQL = """
