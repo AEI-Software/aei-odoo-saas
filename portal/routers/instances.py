@@ -22,8 +22,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN
-from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status
+from k8s_utils.manifests import all_manifests, pdb_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN
+from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb
 from metrics import record_operation, record_error
 
 # ── Odoo webhook push config ──────────────────────────────────────────────────
@@ -322,11 +322,12 @@ def delete_instance(tenant_id: str):
 
 @router.post("/{tenant_id}/stop")
 def stop_instance(tenant_id: str):
-    """Suspend a tenant instance (scale to 0)."""
+    """Suspend a tenant instance (scale to 0 and remove PDB to silence false alerts)."""
     namespace = f"odoo-{tenant_id}"
     from k8s_utils.client import scale_deployment
     try:
         scale_deployment(namespace, "odoo", 0)
+        delete_pdb(namespace, "odoo-pdb")
     except Exception as exc:
         record_error("stop", "k8s_error")
         raise HTTPException(status_code=500, detail=str(exc))
@@ -336,11 +337,12 @@ def stop_instance(tenant_id: str):
 
 @router.post("/{tenant_id}/start")
 def start_instance(tenant_id: str):
-    """Resume a tenant instance (scale to 1)."""
+    """Resume a tenant instance (scale to 1 and restore PDB protection)."""
     namespace = f"odoo-{tenant_id}"
     from k8s_utils.client import scale_deployment
     try:
         scale_deployment(namespace, "odoo", 1)
+        apply_manifest(pdb_manifest(tenant_id))
     except Exception as exc:
         record_error("start", "k8s_error")
         raise HTTPException(status_code=500, detail=str(exc))
