@@ -49,7 +49,7 @@
             <attribute name="style">display:none</attribute>
         </xpath>
         <xpath expr="//input[@name='zip']" position="attributes">
-            <attribute name="t-att-value">partner_sudo.zip or '-'</attribute>
+            <attribute name="t-att-value">partner_sudo.zip or '0000'</attribute>
         </xpath>
 
         <!-- State: hidden (Bolivia has no state_required) -->
