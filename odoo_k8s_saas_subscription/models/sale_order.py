@@ -38,16 +38,25 @@ class SaleOrder(models.Model):
         # Detect whether there is already a SaaS product in the cart
         warning = False
         if _is_saas(product):
+            # Warn guest users that they need an account to complete the purchase
+            if self.env.user._is_public():
+                warning = _(
+                    "Necesitas iniciar sesión o crear una cuenta para "
+                    "completar la compra de un plan SaaS."
+                )
+
+            # Also warn if cart already has a different SaaS product
             for line in self.order_line:
                 # Ignore qty changes on the same line
                 if line.product_id.id == product_id and line.id == line_id:
                     continue
                 if _is_saas(line.product_id):
-                    warning = _(
+                    multi_warn = _(
                         "Ya tienes un plan SaaS en tu carrito. "
                         "Cada compra generará una suscripción independiente "
                         "con su propio número de contrato."
                     )
+                    warning = (warning + " " + multi_warn) if warning else multi_warn
                     break
 
         # Always let the purchase proceed
