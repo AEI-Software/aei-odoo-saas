@@ -102,3 +102,42 @@
     }
     new MutationObserver(_scan).observe(document.body, { childList: true, subtree: true });
 })();
+
+// Remove `required` from optional address fields regardless of what Odoo's address.js sets.
+// Odoo 18 reads the hidden `required_fields` input and dynamically calls input.required = true.
+// We counter that by observing each optional input for `required` attribute changes.
+(function () {
+    "use strict";
+    var OPTIONAL = ["street", "street2", "city", "zip", "state_id"];
+
+    function _clean(el) {
+        if (el && el.hasAttribute("required")) {
+            el.removeAttribute("required");
+        }
+    }
+
+    function _attachObservers() {
+        OPTIONAL.forEach(function (name) {
+            var el = document.querySelector('[name="' + name + '"]');
+            if (!el || el._saasOptWatched) return;
+            el._saasOptWatched = true;
+            _clean(el);
+            // Fire every time Odoo re-sets `required` on this element
+            new MutationObserver(function () { _clean(el); }).observe(el, {
+                attributes: true,
+                attributeFilter: ["required"],
+            });
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", _attachObservers);
+    } else {
+        _attachObservers();
+    }
+    // Re-run when the form re-renders (page change, XHR reload)
+    new MutationObserver(_attachObservers).observe(document.body, {
+        childList: true,
+        subtree: true,
+    });
+})();
