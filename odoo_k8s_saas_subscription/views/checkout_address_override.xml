@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Override website_sale.address to:
+        - Require: Nombre completo, Correo, Teléfono, Empresa, NIT
+        - Optional: Calle, Ciudad, Código postal, Estado
+        - Bolivia pre-selected by cart_warning.js
+    -->
+    <template id="address_saas_fields" inherit_id="website_sale.address" name="SaaS Address — campos requeridos AEI">
+
+        <!-- Company name: remove label-optional → visually required -->
+        <xpath expr="//div[@id='company_name_div']//label" position="attributes">
+            <attribute name="class">col-form-label fw-normal</attribute>
+        </xpath>
+
+        <!-- VAT: remove label-optional → visually required -->
+        <xpath expr="//div[@id='div_vat']//label[1]" position="attributes">
+            <attribute name="class">col-form-label fw-normal</attribute>
+        </xpath>
+
+        <!-- Street: add label-optional → visually optional -->
+        <xpath expr="//div[@id='div_street']//label" position="attributes">
+            <attribute name="class">col-form-label label-optional</attribute>
+        </xpath>
+
+        <!-- City: add label-optional → visually optional -->
+        <xpath expr="//div[@id='div_city']//label" position="attributes">
+            <attribute name="class">col-form-label label-optional</attribute>
+        </xpath>
+
+        <!-- required_fields drives client-side JS highlighting -->
+        <xpath expr="//input[@name='required_fields']" position="replace">
+            <input type="hidden" name="required_fields"
+                   t-att-value="'name,email,phone,company_name,vat,country_id'"/>
+        </xpath>
+
+    </template>
+</odoo>

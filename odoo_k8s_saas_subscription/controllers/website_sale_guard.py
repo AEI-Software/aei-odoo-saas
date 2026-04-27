@@ -1,10 +1,11 @@
 """
 controllers/website_sale_guard.py
 
-Defense-in-depth: redirect unauthenticated users to the login page when
-their cart contains SaaS subscription products.  The native Odoo config
-(account_on_checkout = mandatory) handles the normal flow, but this guard
-catches edge cases such as direct URL access.
+Two concerns handled here:
+1. Defense-in-depth: redirect unauthenticated users to login when their cart
+   contains SaaS subscription products.
+2. Address form: restrict required fields to name/email/phone/company/NIT only;
+   street, city, zip are optional for SaaS (digital product, no shipping).
 """
 import logging
 from odoo import http
@@ -29,6 +30,23 @@ class WebsiteSaleSaaSGuard(WebsiteSale):
                 return request.redirect("/web/login?redirect=/shop/checkout")
 
         return super().checkout(**post)
+
+    @http.route()
+    def shop_address_submit(self, **kw):
+        """Pass-through — mandatory field overrides apply via helper methods below."""
+        return super().shop_address_submit(**kw)
+
+    # ── Mandatory field overrides ────────────────────────────────────────────
+
+    def _get_mandatory_fields(self):
+        """Required billing fields (portal layer): name, email, phone, company, NIT."""
+        return ["name", "email", "phone", "company_name", "vat"]
+
+    def _get_mandatory_address_fields(self, country_sudo):
+        """Required address fields: only name/phone/email + country (always Bolivia)."""
+        return {"name", "phone", "email", "country_id"}
+
+    # ── Internal helpers ─────────────────────────────────────────────────────
 
     def _cart_has_saas(self, order):
         """Return True if any order line is a SaaS subscription product."""

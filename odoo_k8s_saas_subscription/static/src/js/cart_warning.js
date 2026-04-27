@@ -55,7 +55,7 @@
 
         var colorClass = isLoginWarning ? "text-bg-primary" : "text-bg-warning";
         var icon = isLoginWarning ? "fa-user-circle" : "fa-exclamation-triangle";
-        var delay = isLoginWarning ? 12000 : 8000;
+        var delay = 30000;
 
         var html =
             '<div id="' + id + '" ' +
@@ -77,5 +77,26 @@
             toast.show();
             el.addEventListener("hidden.bs.toast", function () { el.remove(); });
         }
+    }
+})();
+
+// Pre-select Bolivia on the address form if no country is chosen yet.
+(function () {
+    "use strict";
+    function _setBoliviaDefault() {
+        var sel = document.getElementById("o_country_id");
+        if (!sel) return;
+        if (sel.value) return; // already has a value
+        var opt = sel.querySelector('option[code="BO"]');
+        if (opt) {
+            opt.selected = true;
+            // Trigger change so Odoo updates state/zip visibility
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+    }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", _setBoliviaDefault);
+    } else {
+        _setBoliviaDefault();
     }
 })();
