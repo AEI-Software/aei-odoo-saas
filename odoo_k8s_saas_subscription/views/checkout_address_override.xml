@@ -2,9 +2,14 @@
 <odoo>
     <!--
         Override website_sale.address to:
-        - Require: Nombre completo, Correo, Teléfono, Empresa, NIT
-        - Optional: Calle, Ciudad, Código postal, Estado
+        - Require: Nombre completo, Correo, Teléfono, Empresa, NIT, País
+        - Hidden (pre-filled with placeholder): Calle, Ciudad, Código postal, Estado
         - Bolivia pre-selected by cart_warning.js
+
+        Strategy: hide street/city/zip/state and pre-fill with partner value or '-'.
+        This ensures server-side validation always passes regardless of the required_fields
+        chain. The controller also overrides shop_country_info to remove these from
+        `fields` so address.js does not re-show them via _showInput.
     -->
     <template id="address_saas_fields" inherit_id="website_sale.address" name="SaaS Address — campos requeridos AEI">
 
@@ -18,20 +23,42 @@
             <attribute name="class">col-form-label fw-normal</attribute>
         </xpath>
 
-        <!-- Street: add label-optional → visually optional -->
-        <xpath expr="//div[@id='div_street']//label" position="attributes">
-            <attribute name="class">col-form-label label-optional</attribute>
+        <!-- Street: hidden div + pre-fill value so server validation passes -->
+        <xpath expr="//div[@id='div_street']" position="attributes">
+            <attribute name="style">display:none</attribute>
+        </xpath>
+        <xpath expr="//input[@name='street']" position="attributes">
+            <attribute name="t-att-value">partner_sudo.street or '-'</attribute>
         </xpath>
 
-        <!-- City: add label-optional → visually optional -->
-        <xpath expr="//div[@id='div_city']//label" position="attributes">
-            <attribute name="class">col-form-label label-optional</attribute>
+        <!-- Street2: hidden -->
+        <xpath expr="//div[@id='div_street2']" position="attributes">
+            <attribute name="style">display:none</attribute>
         </xpath>
 
-        <!-- required_fields drives client-side JS + server-side validation.
-             Use [1] to match only the first occurrence (a second exists in
-             address_on_payment) and attributes instead of replace to avoid
-             removing the node entirely. -->
+        <!-- City: hidden div + pre-fill value -->
+        <xpath expr="//div[@id='div_city']" position="attributes">
+            <attribute name="style">display:none</attribute>
+        </xpath>
+        <xpath expr="//input[@name='city']" position="attributes">
+            <attribute name="t-att-value">partner_sudo.city or '-'</attribute>
+        </xpath>
+
+        <!-- Zip: hidden div + pre-fill value (Bolivia has zip_required=True) -->
+        <xpath expr="//div[@id='div_zip']" position="attributes">
+            <attribute name="style">display:none</attribute>
+        </xpath>
+        <xpath expr="//input[@name='zip']" position="attributes">
+            <attribute name="t-att-value">partner_sudo.zip or '-'</attribute>
+        </xpath>
+
+        <!-- State: hidden (Bolivia has no state_required) -->
+        <xpath expr="//select[@name='state_id']/.." position="attributes">
+            <attribute name="style">display:none</attribute>
+        </xpath>
+
+        <!-- required_fields: only the 5 fields we want the user to fill.
+             [1] scopes to the first occurrence (avoids address_on_payment match). -->
         <xpath expr="(//input[@name='required_fields'])[1]" position="attributes">
             <attribute name="t-att-value">'name,email,phone,company_name,vat,country_id'</attribute>
         </xpath>

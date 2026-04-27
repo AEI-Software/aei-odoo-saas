@@ -51,6 +51,18 @@ class WebsiteSaleSaaSGuard(WebsiteSale):
         Override directly so the exact set is enforced regardless of chain changes."""
         return {"name", "email", "phone", "company_name", "vat", "country_id"}
 
+    @http.route()
+    def shop_country_info(self, country, address_type, **kw):
+        """Remove street/city/zip/state from visible fields so address.js
+        calls _hideInput() on them — keeps them invisible even after country change."""
+        result = super().shop_country_info(country, address_type, **kw)
+        hidden = {'street', 'city', 'zip', 'state_id'}
+        result['fields'] = [f for f in (result.get('fields') or []) if f not in hidden]
+        result['required_fields'] = [
+            f for f in (result.get('required_fields') or []) if f not in hidden
+        ]
+        return result
+
     # ── Internal helpers ─────────────────────────────────────────────────────
 
     def _cart_has_saas(self, order):
