@@ -5,6 +5,7 @@ on:
     branches: [main, "18.0", "feature/*"]
   pull_request:
     branches: [main, "18.0", "feature/*"]
+  workflow_dispatch:
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
