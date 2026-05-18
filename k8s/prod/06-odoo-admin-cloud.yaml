@@ -99,11 +99,6 @@ spec:
               if [ -d /tmp/repo/external_addons ]; then
                 cp -r /tmp/repo/external_addons/* /mnt/extra-addons/
               fi
-              # Clone MUK modules (v19.0)
-              git clone --depth=1 -b 19.0 https://github.com/muk-it/muk_base.git /tmp/muk-base
-              for d in /tmp/muk-base/muk_*/; do
-                cp -r "$d" /mnt/extra-addons/
-              done
               echo "All addons copied OK"
               ls -la /mnt/extra-addons/
           volumeMounts:
