@@ -24,7 +24,7 @@
                     <group string="Credenciales API — Banco Mercantil Bolivia">
                         <field name="qr_mercantil_base_url"
                                string="URL Base API"
-                               placeholder="https://sip.mc4.com.bo:8443"/>
+                               placeholder="https://dev-sip.mc4.com.bo:8443"/>
                         <field name="qr_mercantil_api_key"
                                string="API Key (Login)"
                                password="True"
@@ -62,7 +62,7 @@
                         <field
                             name="qr_mercantil_webhook_url"
                             string="Webhook URL (Callback)"
-                            placeholder="https://admin.aeisoftware.com/payment/qr_mercantil/webhook"
+                            placeholder="https://staging.aeisoftware.com/payment/qr_mercantil/webhook"
                         />
                         <div class="text-muted small ps-2">
                             Esta URL se env&#237;a al banco como campo <strong>callback</strong> en

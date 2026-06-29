@@ -17,7 +17,7 @@ _TOKEN_REFRESH_MARGIN_S = 300
 # Assume token lives 55 minutes if the bank doesn't advertise expiry
 _TOKEN_TTL_S = 55 * 60
 
-_DEFAULT_BASE_URL = 'https://sip.mc4.com.bo:8443'
+_DEFAULT_BASE_URL = 'https://dev-sip.mc4.com.bo:8443'
 
 # Fake QR image used in demo mode — a minimal SVG QR-looking grid encoded as base64 PNG.
 # In practice we just render a labelled SVG so it's obvious it's a demo.
@@ -215,14 +215,29 @@ class PaymentProvider(models.Model):
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, dict):
+                # MC4 returns HTTP 200 even on auth failure — check their own status code
+                codigo = data.get('codigo', '')
+                if codigo and codigo not in ('OK', '0000', '200'):
+                    mensaje = data.get('mensaje', 'Error desconocido')
+                    raise ValidationError(
+                        _("QR Mercantil: autenticación rechazada por el banco: %s (%s). "
+                          "Verifica la URL Base API, el apikey y las credenciales.") % (mensaje, codigo)
+                    )
+                objeto = data.get('objeto')
                 token = (
                     data.get('token')
                     or data.get('accessToken')
                     or data.get('access_token')
-                    or (data.get('objeto') or {}).get('token')
-                    or (data.get('objeto') or {}).get('accessToken')
+                    or (objeto.get('token') if isinstance(objeto, dict) else None)
+                    or (objeto.get('accessToken') if isinstance(objeto, dict) else None)
+                    or (objeto if isinstance(objeto, str) else None)
                     or ''
                 )
+                if not token:
+                    raise ValidationError(
+                        _("QR Mercantil: el banco no devolvió un token JWT. "
+                          "Respuesta recibida: %s") % str(data)[:300]
+                    )
                 _logger.info(
                     "QR Mercantil: token obtenido → keys=%s token_len=%d",
                     list(data.keys()),
@@ -304,7 +319,17 @@ class PaymentProvider(models.Model):
                 resp.text[:500],
             )
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+            # MC4 may return HTTP 200 with an error code in 'codigo'
+            if isinstance(data, dict):
+                codigo = data.get('codigo', '')
+                if codigo and codigo not in ('OK', '0000', '200'):
+                    mensaje = data.get('mensaje', 'Error desconocido')
+                    raise ValidationError(
+                        _("QR Mercantil: el banco rechazó la generación del QR: %s (%s)")
+                        % (mensaje, codigo)
+                    )
+            return data
         except requests.exceptions.RequestException as exc:
             _logger.error(
                 "QR Mercantil: error al generar QR (alias=%s): %s body=%s",
