@@ -56,12 +56,12 @@ POD=$(kubectl get pod -n odoo-admin -l app=odoo-admin -o jsonpath='{.items[0].me
 
 # 2. Actualizar el módulo afectado
 kubectl exec -n odoo-admin $POD -- \
-  odoo -u payment_qr_mercantil -d admin --stop-after-init
+  odoo -u payment_qr_mercantil -d admin --stop-after-init --no-http
 
 # 3. Para actualizar TODOS los módulos del repo:
 kubectl exec -n odoo-admin $POD -- \
   odoo -u payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,subscription_oca \
-  -d admin --stop-after-init
+  -d admin --stop-after-init --no-http
 
 # 4. Restart limpio tras el update
 kubectl rollout restart deployment/odoo-admin -n odoo-admin
@@ -277,7 +277,8 @@ kubectl logs -n backup-system -l app=pg-logical-dump -f
 - El initContainer `copy-addon` clona `main` con `--depth=1` en **cada restart** del pod.
   Siempre hacer `push` **antes** de `rollout restart`.
 - **Ningún módulo se auto-actualiza.** El container Odoo inicia sin flag `-u`.
-  Correr el comando `odoo -u <módulo> --stop-after-init` manualmente tras cambios de esquema.
+  Correr el comando `odoo -u <módulo> --stop-after-init --no-http` manualmente tras cambios de esquema.
+  El flag `--no-http` es obligatorio: sin él falla con `[Errno 98] Address already in use` porque el proceso principal ya ocupa el puerto 8069.
 - La BD `postgres` es la instancia admin. Las BDs de clientes SaaS son dinámicas (creadas por el portal).
 - El campo `odoo.conf` se renderiza en runtime vía `sed` (placeholders `REPLACE_*`) — **no hay secretos en git**.
 - En modo `state=test` (Prueba) el proveedor QR Mercantil **no llama al banco** y usa QRs demo SVG.
