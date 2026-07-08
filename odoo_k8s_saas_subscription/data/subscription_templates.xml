@@ -13,6 +13,25 @@
             <field name="support_hours_included">2.0</field>
             <field name="plan">starter</field>
             <field name="storage_gi">10</field>
+            <field name="description">TÉRMINOS Y CONDICIONES — PLAN STARTER (AEI Software)
+
+1. OBJETO. Servicio SaaS de Odoo 18 Community gestionado por AEI Software: instancia dedicada, subdominio propio (cliente.aeisoftware.com), 10 GB de almacenamiento y facturación electrónica SIAT incluida.
+
+2. USUARIOS. El plan incluye 3 usuarios activos. Cada usuario adicional activo se factura mensualmente según la tarifa vigente de usuario extra.
+
+3. SOPORTE. Incluye 2 horas de soporte técnico por mes por instancia, gestionadas vía portal de tickets, en horario hábil de Bolivia. Las horas no consumidas expiran cada mes y no son acumulables ni transferibles. Pueden contratarse paquetes de horas adicionales de facturación mensual.
+
+4. DATOS Y RESPALDOS. Los datos pertenecen al cliente. AEI realiza respaldos diarios automáticos; el cliente puede descargar un respaldo completo (base de datos + archivos) desde el portal una vez cada 24 horas.
+
+5. PAGOS Y MORA. Facturación mensual anticipada, pagadera por QR (Banco Mercantil) u otros medios habilitados. Ante falta de pago: recordatorios al día +1 y +3; suspensión del servicio al día +5. Tras el cierre de la suscripción, los datos se conservan 7 días y luego se eliminan de forma definitiva e irrecuperable.
+
+6. NIVEL DE ACCESO. El cliente recibe acceso de administrador a su instancia y puede instalar los módulos oficiales de Odoo Community disponibles. AEI mantiene un usuario técnico de soporte en la instancia. Configuraciones realizadas por el cliente que requieran reparación se atienden con cargo a las horas de soporte.
+
+7. VERSIONES. El servicio se presta sobre Odoo 18 Community. Las migraciones a versiones mayores no están incluidas y se cotizan como servicio aparte.
+
+8. DISPONIBILIDAD. Objetivo de disponibilidad del 99% mensual, excluyendo mantenimientos programados notificados con al menos 24 horas de anticipación.
+
+9. CANCELACIÓN. El cliente puede cancelar desde el portal en cualquier momento; el servicio permanece activo hasta el fin del período pagado. No hay reembolsos por períodos parciales.</field>
         </record>
 
 
@@ -26,6 +45,25 @@
             <field name="support_hours_included">5.0</field>
             <field name="plan">pro</field>
             <field name="storage_gi">20</field>
+            <field name="description">TÉRMINOS Y CONDICIONES — PLAN PRO (AEI Software)
+
+1. OBJETO. Servicio SaaS de Odoo 18 Community gestionado por AEI Software: instancia dedicada, subdominio propio (cliente.aeisoftware.com), 20 GB de almacenamiento y facturación electrónica SIAT incluida.
+
+2. USUARIOS. El plan incluye 10 usuarios activos. Cada usuario adicional activo se factura mensualmente según la tarifa vigente de usuario extra.
+
+3. SOPORTE. Incluye 5 horas de soporte técnico por mes por instancia, gestionadas vía portal de tickets, en horario hábil de Bolivia. Las horas no consumidas expiran cada mes y no son acumulables ni transferibles. Pueden contratarse paquetes de horas adicionales de facturación mensual.
+
+4. DATOS Y RESPALDOS. Los datos pertenecen al cliente. AEI realiza respaldos diarios automáticos; el cliente puede descargar un respaldo completo (base de datos + archivos) desde el portal una vez cada 24 horas.
+
+5. PAGOS Y MORA. Facturación mensual anticipada, pagadera por QR (Banco Mercantil) u otros medios habilitados. Ante falta de pago: recordatorios al día +1 y +3; suspensión del servicio al día +5. Tras el cierre de la suscripción, los datos se conservan 7 días y luego se eliminan de forma definitiva e irrecuperable.
+
+6. NIVEL DE ACCESO. El cliente recibe acceso de administrador a su instancia y puede instalar los módulos oficiales de Odoo Community disponibles. AEI mantiene un usuario técnico de soporte en la instancia. Configuraciones realizadas por el cliente que requieran reparación se atienden con cargo a las horas de soporte.
+
+7. VERSIONES. El servicio se presta sobre Odoo 18 Community. Las migraciones a versiones mayores no están incluidas y se cotizan como servicio aparte.
+
+8. DISPONIBILIDAD. Objetivo de disponibilidad del 99% mensual, excluyendo mantenimientos programados notificados con al menos 24 horas de anticipación.
+
+9. CANCELACIÓN. El cliente puede cancelar desde el portal en cualquier momento; el servicio permanece activo hasta el fin del período pagado. No hay reembolsos por períodos parciales.</field>
         </record>
 
         <record id="subscription_template_saas_enterprise" model="sale.subscription.template">
@@ -38,6 +76,25 @@
             <field name="support_hours_included">10.0</field>
             <field name="plan">enterprise</field>
             <field name="storage_gi">50</field>
+            <field name="description">TÉRMINOS Y CONDICIONES — PLAN ENTERPRISE (AEI Software)
+
+1. OBJETO. Servicio SaaS de Odoo 18 Community gestionado por AEI Software: instancia dedicada, subdominio propio (cliente.aeisoftware.com), 50 GB de almacenamiento y facturación electrónica SIAT incluida.
+
+2. USUARIOS. El plan incluye 50 usuarios activos. Cada usuario adicional activo se factura mensualmente según la tarifa vigente de usuario extra.
+
+3. SOPORTE. Incluye 10 horas de soporte técnico por mes por instancia, gestionadas vía portal de tickets, en horario hábil de Bolivia. Las horas no consumidas expiran cada mes y no son acumulables ni transferibles. Pueden contratarse paquetes de horas adicionales de facturación mensual.
+
+4. DATOS Y RESPALDOS. Los datos pertenecen al cliente. AEI realiza respaldos diarios automáticos; el cliente puede descargar un respaldo completo (base de datos + archivos) desde el portal una vez cada 24 horas.
+
+5. PAGOS Y MORA. Facturación mensual anticipada, pagadera por QR (Banco Mercantil) u otros medios habilitados. Ante falta de pago: recordatorios al día +1 y +3; suspensión del servicio al día +5. Tras el cierre de la suscripción, los datos se conservan 7 días y luego se eliminan de forma definitiva e irrecuperable.
+
+6. NIVEL DE ACCESO. El cliente recibe acceso de administrador a su instancia y puede instalar los módulos oficiales de Odoo Community disponibles. AEI mantiene un usuario técnico de soporte en la instancia. Configuraciones realizadas por el cliente que requieran reparación se atienden con cargo a las horas de soporte.
+
+7. VERSIONES. El servicio se presta sobre Odoo 18 Community. Las migraciones a versiones mayores no están incluidas y se cotizan como servicio aparte.
+
+8. DISPONIBILIDAD. Objetivo de disponibilidad del 99% mensual, excluyendo mantenimientos programados notificados con al menos 24 horas de anticipación.
+
+9. CANCELACIÓN. El cliente puede cancelar desde el portal en cualquier momento; el servicio permanece activo hasta el fin del período pagado. No hay reembolsos por períodos parciales.</field>
         </record>
 
     </data>
