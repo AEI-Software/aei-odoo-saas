@@ -168,8 +168,15 @@ def delete_orphaned_dbs(dry_run: bool = Query(False, description="Preview withou
                         "AND NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = usename AND rolsuper)",
                         (db_name,),
                     )
+                    # FORCE (PG 13+) terminates any remaining terminatable session in
+                    # one shot. Caveat: if a SUPERUSER session is attached (the PG-node
+                    # monitoring exporter connects to every DB as postgres), this still
+                    # fails for the non-superuser portal role — reconfigure the exporter
+                    # with a non-superuser monitoring role or exclude odoo_* databases.
                     cur.execute(
-                        sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(db_name))
+                        sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(
+                            sql.Identifier(db_name)
+                        )
                     )
                     if role_name:
                         cur.execute(
