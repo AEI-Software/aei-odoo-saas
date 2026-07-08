@@ -132,6 +132,28 @@ La wiki vive en `https://github.com/Ribentek/aei-odoo-saas/wiki` (23 páginas: H
 6. **Precios reales** en templates + ToS/SLA
 7. Histórico diario de user_count + facturación por máximo del período
 8. Actualizar wiki (página Payment-QR-Mercantil con ssl_verify) y publicar este reporte
+9. **Separación física de ambientes staging / producción** — ver diseño abajo
+
+### Diseño: Separación de ambientes staging vs producción (paso 9)
+
+**Motivación (incidente 2026-07-08):** hoy staging y producción comparten el mismo clúster K3s y el mismo PostgreSQL HA. Los tenants de ambos entornos viven mezclados en namespaces `odoo-*` indistinguibles, y una operación de limpieza "de staging" alcanzó instancias referenciadas por la BD de producción. El aislamiento por namespace no es suficiente para operaciones destructivas.
+
+**Diseño objetivo:**
+
+| Recurso | Staging (separado) | Producción (actual) |
+|---|---|---|
+| Clúster K3s | 1 VM single-node (K3s todo-en-uno, 8vCPU/16GB) | 3 control + 3 workers actuales |
+| PostgreSQL | 1 VM (sin HA — es staging, 4vCPU/8GB) o Postgres in-cluster | Clúster HA Patroni actual (3 VMs) |
+| Dominio | `*.stg.aeisoftware.com` (nuevo wildcard tunnel CF) | `*.aeisoftware.com` |
+| Portal | portal-stg en el clúster staging | portal en clúster prod |
+| Secrets/API keys | Propios, nunca compartidos con prod | Propios |
+| Tenants de prueba | Solo aquí | Solo clientes reales |
+
+**Beneficios:** blast radius cero hacia prod, pruebas destructivas libres (borrar TODO staging sin miedo), upgrade de K3s/Postgres ensayable en staging antes de prod, y el clúster prod recupera los recursos que hoy consume staging.
+
+**Costo:** +2 VMs (~$110–145/mes a precios de mercado; ~gratis en el hardware propio actual). Esfuerzo: ~1 día usando los scripts existentes de `infra/` (install-k3s, wildcard tunnel vía `setup_cloudflare_wildcard_tunnel.py`, apply-manifests con `.secrets.env` propio).
+
+**Regla operativa desde hoy (aún en clúster compartido):** ninguna operación destructiva sobre tenants sin clasificar antes cada recurso contra AMBAS BDs (`staging` y `admin`), y nunca tocar recursos de producción sin permiso explícito.
 
 ### Diseño: Custom domains por cliente (paso 5)
 
