@@ -38,6 +38,19 @@
     <!-- ═══════════════════════════════════════════════════════════
          /my Homepage entry
          ═══════════════════════════════════════════════════════════ -->
+    <!-- Variante primary de portal_docs_entry con force_show=True:
+         la tarjeta se muestra aunque el contador sea 0 (mismo patrón
+         que helpdesk_mgmt.portal_docs_entry). -->
+    <template
+        id="portal_docs_entry_force"
+        inherit_id="portal.portal_docs_entry"
+        primary="True"
+    >
+        <xpath expr="//t[@t-set='force_show']" position="attributes">
+            <attribute name="t-value">True</attribute>
+        </xpath>
+    </template>
+
     <template
         id="portal_my_home_subscription"
         name="Show Subscriptions"
@@ -45,12 +58,12 @@
         priority="30"
     >
         <div id="portal_client_category" position="inside">
-            <t t-call="portal.portal_docs_entry">
+            <t t-call="odoo_k8s_saas_subscription.portal_docs_entry_force">
                 <t t-set="icon" t-value="'/odoo_k8s_saas_subscription/static/src/img/subscription_icon.svg'" />
-                <t t-set="title">Mis Suscripciones</t>
+                <t t-set="title">Suscripciones</t>
                 <t t-set="url" t-value="'/my/subscriptions'" />
+                <t t-set="text">Gestiona tu plan, sistema Odoo y horas de soporte</t>
                 <t t-set="placeholder_count" t-value="'subscription_count'" />
-                <t t-set="show_count" t-value="True" />
             </t>
         </div>
     </template>
