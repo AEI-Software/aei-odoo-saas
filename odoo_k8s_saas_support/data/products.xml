@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- ── Paquete de soporte adicional (5h/mes) ─────────────────────
+             Se agrega como línea a la suscripción existente del cliente
+             (misma factura mensual). No crea suscripción propia ni se
+             publica en e-commerce por ahora — el botón "Agregar soporte"
+             del portal llega en una iteración posterior.
+        -->
+        <record id="product_support_pack_5h" model="product.product">
+            <field name="name">Paquete Soporte Adicional 5h (Mensual)</field>
+            <field name="type">service</field>
+            <field name="list_price">450.0</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="website_published" eval="False"/>
+            <field name="support_pack_hours">5.0</field>
+            <field name="description_sale">5 horas de soporte técnico adicionales por mes. Se facturan mensualmente junto a la suscripción. Las horas no consumidas expiran cada mes.</field>
+        </record>
+    </data>
+</odoo>

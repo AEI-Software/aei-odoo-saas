@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+
+        <!-- ── Ticket form: subscription link + support time logs ────── -->
+        <record id="ticket_view_form_saas_support" model="ir.ui.view">
+            <field name="name">helpdesk.ticket.form.saas.support</field>
+            <field name="model">helpdesk.ticket</field>
+            <field name="inherit_id" ref="helpdesk_mgmt.ticket_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//group[@name='main']/group[1]" position="inside">
+                    <field name="subscription_id"
+                           domain="partner_id and ['|', ('partner_id', 'child_of', partner_id), ('partner_id', '=', partner_id)] or []"
+                           options="{'no_create': True}"/>
+                    <field name="hours_spent" widget="float_time"/>
+                </xpath>
+                <xpath expr="//sheet" position="inside">
+                    <notebook>
+                        <page string="Support Time" name="support_time">
+                            <field name="support_log_ids">
+                                <list editable="bottom">
+                                    <field name="date"/>
+                                    <field name="name"/>
+                                    <field name="hours" widget="float_time" sum="Total"/>
+                                    <field name="user_id" widget="many2one_avatar_user"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- ── Ticket list: show hours ───────────────────────────────── -->
+        <record id="ticket_view_tree_saas_support" model="ir.ui.view">
+            <field name="name">helpdesk.ticket.tree.saas.support</field>
+            <field name="model">helpdesk.ticket</field>
+            <field name="inherit_id" ref="helpdesk_mgmt.ticket_view_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='partner_id']" position="after">
+                    <field name="subscription_id" optional="hide"/>
+                    <field name="hours_spent" widget="float_time" optional="show"/>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>

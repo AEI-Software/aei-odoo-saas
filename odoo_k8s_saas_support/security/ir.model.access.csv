@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_saas_support_log_helpdesk_user,saas.support.log helpdesk user,model_saas_support_log,helpdesk_mgmt.group_helpdesk_user_own,1,1,1,0
+access_saas_support_log_manager,saas.support.log helpdesk manager,model_saas_support_log,helpdesk_mgmt.group_helpdesk_manager,1,1,1,1
+access_sale_subscription_helpdesk_user,sale.subscription helpdesk read,subscription_oca.model_sale_subscription,helpdesk_mgmt.group_helpdesk_user_own,1,0,0,0

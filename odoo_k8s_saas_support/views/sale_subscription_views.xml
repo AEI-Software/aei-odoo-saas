@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+
+        <!-- ── Subscription form: support hours balance + ticket button ── -->
+        <record id="view_sale_subscription_form_support" model="ir.ui.view">
+            <field name="name">sale.subscription.form.saas.support</field>
+            <field name="model">sale.subscription</field>
+            <field name="inherit_id" ref="odoo_k8s_saas_subscription.view_sale_subscription_form_saas"/>
+            <field name="arch" type="xml">
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button
+                        name="action_view_support_tickets"
+                        type="object"
+                        class="oe_stat_button"
+                        icon="fa-life-ring"
+                    >
+                        <field name="ticket_count" widget="statinfo" string="Tickets"/>
+                    </button>
+                </xpath>
+                <xpath expr="//group[@string='User Billing']" position="after">
+                    <group string="Support Hours (This Month)" col="4">
+                        <field name="support_hours_total" widget="float_time"/>
+                        <field name="support_hours_consumed" widget="float_time"/>
+                        <field name="support_hours_available" widget="float_time"/>
+                        <field name="support_pack_hours" widget="float_time"/>
+                    </group>
+                </xpath>
+            </field>
+        </record>
+
+    </data>
+</odoo>
