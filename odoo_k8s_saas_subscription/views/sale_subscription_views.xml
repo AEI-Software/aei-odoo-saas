@@ -45,6 +45,7 @@
                         <field name="current_user_count"/>
                         <field name="extra_users"/>
                         <field name="extra_users_amount" widget="monetary"/>
+                        <field name="support_hours_included"/>
                     </group>
                 </xpath>
 

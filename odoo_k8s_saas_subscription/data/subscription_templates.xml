@@ -10,6 +10,7 @@
             <field name="recurring_rule_type">months</field>
             <field name="included_users">3</field>
             <field name="price_per_extra_user">5.0</field>
+            <field name="support_hours_included">2.0</field>
             <field name="plan">starter</field>
             <field name="storage_gi">10</field>
         </record>
@@ -22,6 +23,7 @@
             <field name="recurring_rule_type">months</field>
             <field name="included_users">10</field>
             <field name="price_per_extra_user">3.0</field>
+            <field name="support_hours_included">5.0</field>
             <field name="plan">pro</field>
             <field name="storage_gi">20</field>
         </record>
@@ -33,6 +35,7 @@
             <field name="recurring_rule_type">months</field>
             <field name="included_users">50</field>
             <field name="price_per_extra_user">2.0</field>
+            <field name="support_hours_included">10.0</field>
             <field name="plan">enterprise</field>
             <field name="storage_gi">50</field>
         </record>

@@ -52,3 +52,10 @@ class SaleSubscriptionTemplate(models.Model):
         help="Monthly price for this plan. Overrides the product list price on "
              "the billing line when set. Leave 0 to use the product's list price.",
     )
+    support_hours_included = fields.Float(
+        string="Support Hours / Month",
+        default=0.0,
+        help="Monthly support hours included per instance on this plan. "
+             "Hours are pooled per instance (not per user), expire monthly, "
+             "and additional hours are sold as separate support packages.",
+    )

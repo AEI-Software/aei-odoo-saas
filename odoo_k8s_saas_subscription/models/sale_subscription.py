@@ -65,6 +65,12 @@ class SaleSubscription(models.Model):
         digits="Product Price",
         help="Monthly charge for extra users (extra_users × price_per_extra_user).",
     )
+    support_hours_included = fields.Float(
+        string="Support Hours / Month",
+        related="template_id.support_hours_included",
+        help="Monthly support hours included per instance (pooled, expire monthly). "
+             "Consumption tracking arrives with the helpdesk integration.",
+    )
     @api.depends("saas_instance_ids", "saas_instance_ids.state")
     def _compute_saas_instance_count(self):
         for rec in self:

@@ -24,6 +24,10 @@
                         <field name="included_users"/>
                         <field name="price_per_extra_user"/>
                     </group>
+                    <group string="Support" invisible="not is_saas_plan">
+                        <field name="support_hours_included"
+                               help="Pooled hours per instance per month. Expire monthly."/>
+                    </group>
                 </xpath>
             </field>
         </record>
