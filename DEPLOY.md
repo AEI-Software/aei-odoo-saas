@@ -346,6 +346,65 @@ kubectl logs -n backup-system -l app=pg-logical-dump -f
 
 ---
 
+## Caché de assets frontend (ir.attachment) y Cloudflare
+
+> **Incidente (2026-07-09):** error `OwlError: Missing template: "portal.Chatter"` al abrir tickets de
+> soporte en el portal de cliente (staging y latente en producción). La causa fue una cadena de **tres cachés**:
+>
+> 1. **Odoo cachea los bundles compilados en `ir.attachment`** (URLs `/web/assets/...`). Sobreviven a los
+>    redeploys, y como el deployment usa el tag flotante `odoo:18` (cada nodo tiene cacheado un digest
+>    distinto), la BD acumula bundles compilados por builds de Odoo de épocas diferentes. Si
+>    `web.assets_frontend_lazy` y `portal.assets_chatter` registran el mismo template (ej. `mail.Thread`)
+>    con contenido distinto, `registerTemplate` lanza `Template already exists` y **todas** las
+>    registraciones del bundle chatter mueren juntas (van en un solo `odoo.define`) → "Missing template".
+> 2. **El hash de la URL del asset NO cambia** aunque el contenido recompilado cambie, y se sirve con
+>    `Cache-Control: max-age=31536000, immutable` → los navegadores retienen copias rotas.
+> 3. **Cloudflare** (proxy de `aeisoftware.com`) cachea `/web/assets/*` en el edge → purgar el servidor
+>    no basta; las peticiones ni siquiera llegan a Odoo (`cf-cache-status: HIT`).
+
+### Procedimiento de saneamiento
+
+Ejecutarlo **siempre que cambie la imagen de Odoo** (nuevo digest del tag) y ante cualquier error de
+templates/assets inconsistentes:
+
+```bash
+# 1. Purgar bundles cacheados — STAGING (para producción: -n odoo-admin, app=odoo-admin, -d admin)
+POD=$(kubectl get pod -n staging -l app=odoo-stg --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -i -n staging $POD -- odoo shell -d staging --no-http --stop-after-init <<'EOF'
+env['ir.attachment'].search([('url', '=like', '/web/assets/%')]).unlink()
+env.cr.commit()
+EOF
+
+# 2. Purgar caché de Cloudflare: dashboard → zona aeisoftware.com → Caching → Purge Cache
+#    (imprescindible — el paso 1 no invalida el edge)
+
+# 3. Verificar consistencia entre bundles (el conflicto típico es mail.Thread):
+curl -s 'https://staging.aeisoftware.com/web/bundle/portal.assets_chatter?lang=es_BO'
+```
+
+- Regla Cloudflare recomendada: **bypass de caché para `staging.aeisoftware.com`** (un entorno de pruebas
+  no debe cachearse en CDN).
+- Pendiente estructural: fijar la imagen por digest (`odoo:18@sha256:...`) en `k8s/06-odoo-admin.yaml`,
+  `k8s/07-staging.yaml` y `portal/k8s_utils/manifests.py`, con bump deliberado + este procedimiento como
+  parte del runbook de actualización.
+
+---
+
+## Reparación de tenants — siempre vía portal API
+
+Los arreglos directos con `kubectl` sobre recursos de un tenant (ej. `kubectl set image deployment/odoo -n odoo-<tenant> ...`)
+dejan el `saas.instance` desincronizado: una instancia en estado `error` **no vuelve sola a `ready`**
+aunque el pod quede sano. Las reparaciones deben hacerse a través del portal API o de las acciones del
+módulo SaaS para que el estado se actualice. (Incidente SUB00218, 2026-07-09.)
+
+**Configuración de productos SaaS:** `odoo_version = 'custom'` exige tener `custom_image` configurada
+(ej. `ghcr.io/jpvargassoruco/custom-odoo-images:18.0`). Si queda vacía, el portal genera la imagen
+inexistente `odoo:custom` → `Init:ImagePullBackOff` y la instancia queda en `error`. (Incidente SUB00218:
+producto "Odoo SaaS Enterprise (Mensual)". Pendiente: validación en código que rechace la venta con
+mensaje claro.)
+
+---
+
 ## Notas importantes
 
 - El initContainer `copy-addon` clona el branch del pod (`main` en staging, `18.0` en producción)
