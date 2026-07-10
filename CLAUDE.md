@@ -153,7 +153,11 @@ módulo SaaS.
 
 ## Documentation Wiki
 
-Full documentation (HLD, LLD, runbooks, API reference, QA battery) lives in the GitHub wiki: `https://github.com/Ribentek/aei-odoo-saas/wiki`. Business analysis reports live in `docs/`.
+Full documentation (HLD, LLD, runbooks, API reference, QA battery) lives in **`docs/wiki/`** (start at
+`docs/wiki/Home.md`) — migrated from the GitHub wiki on 2026-07-10 because private-repo wikis require a
+paid GitHub plan to view in the browser (the `aei-odoo-saas.wiki.git` repo still exists but nobody could
+read it from the UI). Keep documenting there as plain `.md` files, not on the GitHub wiki. Business
+analysis reports live in `docs/` directly.
 
 ## Security Patterns
 
