@@ -410,6 +410,35 @@ curl -s 'https://staging.aeisoftware.com/web/bundle/portal.assets_chatter?lang=e
 
 ---
 
+## Email de credenciales roto desde el webhook anónimo (2026-07-10)
+
+> **Incidente:** el email "¡Tu sistema Odoo está listo!" no llegaba al cliente al aprovisionar una
+> instancia nueva vía compra real (`SUB00219`), aunque el mismo envío funcionaba al probarlo manualmente
+> desde `odoo shell`. Causa: `controllers/webhook.py` (`POST /saas/webhook/instance-status`, `auth='none'`,
+> `env = request.env(su=True)`) no tiene sesión de usuario — `env.uid` es `None`. Eso rompía **dos cosas
+> distintas** en cadena, y la segunda enmascaró a la primera durante el triage inicial:
+>
+> 1. `email_from` del template usaba `object.env.company`, que depende de `env.user.company_id` — con
+>    `env.uid=None`, `env.company` es un recordset VACÍO, así que el remitente rendía en blanco →
+>    `mail_from_missing`. Fix: `object.env.ref('base.main_company')` (lookup directo por XML-ID,
+>    independiente de `env.user`) + un fallback final hardcodeado como red de seguridad.
+> 2. Con (1) corregido, el email en realidad **sí se enviaba** — pero
+>    `action_send_credentials_email()` crasheaba en la línea siguiente (`self.message_post(...)`)
+>    con `ValueError: Expected singleton: res.users()`, porque `mail.thread.message_post()` llama
+>    `env.user._is_public()`, y `env.user` también es un recordset vacío bajo `env.uid=None`. Esa
+>    excepción la atrapaba el `except Exception` del webhook y logueaba **"credentials email failed"
+>    incluso cuando el correo ya se había enviado con éxito** — una falsa alarma que ocultó el bug (1)
+>    en la primera revisión. Fix: fijar `SUPERUSER_ID` con `self.with_user(SUPERUSER_ID)` cuando
+>    `self.env.uid` es falsy, para que `message_post` siempre tenga un usuario real (singleton).
+>
+> **Lección:** verificar un fix de email reenviándolo manualmente desde `odoo shell` como Administrator
+> NO reproduce el contexto real del webhook (`env.uid=None`). Para validar de verdad, reproducir el
+> contexto exacto: `env(user=None, su=True)` en shell, o disparar el webhook real via
+> `kubectl run ... curl -X POST http://<svc>:8069/saas/webhook/instance-status ...` con la
+> `SAAS_WEBHOOK_KEY` del secret `portal-secret`.
+
+---
+
 ## Reparación de tenants — siempre vía portal API
 
 Los arreglos directos con `kubectl` sobre recursos de un tenant (ej. `kubectl set image deployment/odoo -n odoo-<tenant> ...`)
