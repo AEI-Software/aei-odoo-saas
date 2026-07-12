@@ -6,55 +6,114 @@
 # the in-cluster Traefik/Odoo layers enforce the same controls):
 #
 #   * Block sensitive paths (VULN-0001 def-in-depth, VULN-0003, VULN-0012):
-#       /web/database/*, /xmlrpc/*, /jsonrpc, /website/info  → 403
+#       /web/database/*, /xmlrpc/*, /jsonrpc, /website/info  -> 403
 #   * Rate-limit auth endpoints (VULN-0007):
 #       /web/login, /web/signup, /web/reset_password
 #
-# HTTP security response headers (HSTS/X-Frame-Options/CSP/Referrer-Policy) are
-# NOT set here — they live in-repo in k8s/03-traefik-middleware.yaml.
+# SAFE BY DESIGN (this zone has other production rules that must NOT break):
+#   * NON-DESTRUCTIVE: appends/updates only its OWN rules (matched by description).
+#     Existing rules in the same phase are read and preserved — it never does a
+#     blind PUT that replaces the whole ruleset (unless the phase has no ruleset
+#     at all, in which case it creates one containing only our rule).
+#   * HOST-SCOPED: every rule only matches CF_PROTECTED_HOSTS, so other domains
+#     on the zone are never affected even when a rule fires.
+#   * DRY-RUN by default: prints what it would do. Set CONFIRM=1 to actually write.
 #
-# Idempotent: each PUT replaces the phase entrypoint ruleset for the zone.
+# HTTP security response headers (HSTS/X-Frame/CSP/Referrer) are NOT set here —
+# they live in-repo in k8s/03-traefik-middleware.yaml.
 #
 # Requires: CF_API_TOKEN (Zone.WAF + Zone.Ruleset edit), CF_ZONE_ID, jq, curl.
-# Scope:    CF_PROTECTED_HOSTS — space-separated hostnames the rules apply to.
-#           Defaults to staging only (staging-first rollout). Add www/admin
-#           after staging validation, e.g.:
+# Scope:    CF_PROTECTED_HOSTS (space-separated). Defaults to staging only.
+#           After validating staging, extend and re-run, e.g.:
 #             CF_PROTECTED_HOSTS="staging.aeisoftware.com www.aeisoftware.com admin.aeisoftware.com"
 #
 # Usage:
+#   # 1) dry-run first (no writes):
 #   CF_API_TOKEN=... CF_ZONE_ID=... ./infra/apply-cf-security-rules.sh
-#   DRY_RUN=1 ... ./infra/apply-cf-security-rules.sh   # print payloads, no writes
+#   # 2) apply for real:
+#   CONFIRM=1 CF_API_TOKEN=... CF_ZONE_ID=... ./infra/apply-cf-security-rules.sh
 set -euo pipefail
 
 : "${CF_API_TOKEN:?set CF_API_TOKEN}"
 : "${CF_ZONE_ID:?set CF_ZONE_ID}"
 CF_PROTECTED_HOSTS="${CF_PROTECTED_HOSTS:-staging.aeisoftware.com}"
+WRITE="${CONFIRM:-0}"
 API="https://api.cloudflare.com/client/v4"
 
-# Build a CF-expression host set: (http.host in {"a" "b"})
+command -v jq >/dev/null || { echo "jq is required" >&2; exit 1; }
+
+# CF-expression host set: (http.host in {"a" "b"})
 host_set=""
-for h in $CF_PROTECTED_HOSTS; do
-  host_set="${host_set}\"${h}\" "
-done
+for h in $CF_PROTECTED_HOSTS; do host_set="${host_set}\"${h}\" "; done
 HOST_EXPR="(http.host in {${host_set% }})"
 
-echo "==> Protected hosts: ${CF_PROTECTED_HOSTS}"
+echo "==> Zone:            $CF_ZONE_ID"
+echo "==> Protected hosts: $CF_PROTECTED_HOSTS"
+if [ "$WRITE" = "1" ]; then
+  echo "==> MODE:            WRITE (CONFIRM=1)"
+else
+  echo "==> MODE:            DRY-RUN — no changes. Re-run with CONFIRM=1 to apply."
+fi
 
-cf_put() {
-  local phase="$1" payload="$2"
-  if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    echo "--- DRY_RUN ${phase} ---"
-    echo "${payload}" | jq .
-    return 0
+cf() {  # cf METHOD PATH [DATA]
+  local method="$1" path="$2" data="${3:-}"
+  if [ -n "$data" ]; then
+    curl -s -X "$method" "${API}${path}" \
+      -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" -d "$data"
+  else
+    curl -s -X "$method" "${API}${path}" \
+      -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json"
   fi
-  curl -s -X PUT \
-    "${API}/zones/${CF_ZONE_ID}/rulesets/phases/${phase}/entrypoint" \
-    -H "Authorization: Bearer ${CF_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d "${payload}" | jq '{success, errors, messages, rules: (.result.rules // [] | length)}'
 }
 
-# ── 1. Block sensitive paths (custom firewall phase) ────────────────────────
+# apply_rule PHASE DESCRIPTION RULE_JSON  — append or update our rule, preserve the rest
+apply_rule() {
+  local phase="$1" desc="$2" rule="$3"
+  echo ""
+  echo "--- phase: $phase"
+  echo "    rule:  $desc"
+
+  local ep success rid total existing_id
+  ep=$(cf GET "/zones/${CF_ZONE_ID}/rulesets/phases/${phase}/entrypoint")
+  success=$(echo "$ep" | jq -r '.success // false')
+
+  if [ "$success" != "true" ]; then
+    echo "    no existing entrypoint ruleset in this phase -> CREATE with our rule only"
+    local payload; payload=$(jq -n --argjson r "$rule" '{rules:[$r]}')
+    if [ "$WRITE" = "1" ]; then
+      cf PUT "/zones/${CF_ZONE_ID}/rulesets/phases/${phase}/entrypoint" "$payload" \
+        | jq '{success, errors, rules: (.result.rules // [] | length)}'
+    else
+      echo "    [dry-run] would PUT:"; echo "$payload" | jq .
+    fi
+    return
+  fi
+
+  rid=$(echo "$ep" | jq -r '.result.id')
+  total=$(echo "$ep" | jq '.result.rules | length')
+  existing_id=$(echo "$ep" | jq -r --arg d "$desc" '(.result.rules[]? | select(.description==$d) | .id) // empty' | head -1)
+  echo "    existing ruleset $rid has $total rule(s) — ALL preserved"
+
+  if [ -n "$existing_id" ]; then
+    echo "    our rule already present ($existing_id) -> PATCH (update in place)"
+    if [ "$WRITE" = "1" ]; then
+      cf PATCH "/zones/${CF_ZONE_ID}/rulesets/${rid}/rules/${existing_id}" "$rule" \
+        | jq '{success, errors}'
+    else
+      echo "    [dry-run] would PATCH rule $existing_id"
+    fi
+  else
+    echo "    our rule absent -> POST (append; existing rules untouched)"
+    if [ "$WRITE" = "1" ]; then
+      cf POST "/zones/${CF_ZONE_ID}/rulesets/${rid}/rules" "$rule" \
+        | jq '{success, errors}'
+    else
+      echo "    [dry-run] would POST:"; echo "$rule" | jq .
+    fi
+  fi
+}
+
+# ── Rule 1: block sensitive paths (custom firewall phase) ───────────────────
 BLOCK_EXPR="${HOST_EXPR} and ("
 BLOCK_EXPR+='http.request.uri.path matches "^/web/database/" or '
 BLOCK_EXPR+='http.request.uri.path eq "/web/database/manager" or '
@@ -62,42 +121,23 @@ BLOCK_EXPR+='http.request.uri.path matches "^/xmlrpc/" or '
 BLOCK_EXPR+='http.request.uri.path eq "/jsonrpc" or '
 BLOCK_EXPR+='http.request.uri.path eq "/website/info"'
 BLOCK_EXPR+=")"
+BLOCK_DESC="AEI SaaS: block DB manager / RPC / info (VULN-0001/0003/0012)"
+BLOCK_RULE=$(jq -n --arg e "$BLOCK_EXPR" --arg d "$BLOCK_DESC" \
+  '{action:"block", expression:$e, description:$d, enabled:true}')
+apply_rule "http_request_firewall_custom" "$BLOCK_DESC" "$BLOCK_RULE"
 
-BLOCK_PAYLOAD=$(jq -n --arg expr "${BLOCK_EXPR}" '{
-  rules: [{
-    action: "block",
-    expression: $expr,
-    description: "AEI SaaS: block DB manager / RPC / info at edge (VULN-0001/0003/0012)",
-    enabled: true
-  }]
-}')
-
-echo "==> Applying path-block rules (http_request_firewall_custom) …"
-cf_put "http_request_firewall_custom" "${BLOCK_PAYLOAD}"
-
-# ── 2. Rate-limit auth endpoints (rate-limit phase) ─────────────────────────
+# ── Rule 2: rate-limit auth endpoints (rate-limit phase) ────────────────────
 RL_EXPR="${HOST_EXPR} and "
 RL_EXPR+='(http.request.uri.path in {"/web/login" "/web/signup" "/web/reset_password"})'
-
-RL_PAYLOAD=$(jq -n --arg expr "${RL_EXPR}" '{
-  rules: [{
-    action: "block",
-    expression: $expr,
-    description: "AEI SaaS: rate-limit auth endpoints (VULN-0007)",
-    enabled: true,
-    ratelimit: {
-      characteristics: ["ip.src", "cf.colo.id"],
-      period: 60,
-      requests_per_period: 20,
-      mitigation_timeout: 600
-    }
-  }]
+RL_DESC="AEI SaaS: rate-limit auth endpoints (VULN-0007)"
+RL_RULE=$(jq -n --arg e "$RL_EXPR" --arg d "$RL_DESC" '{
+  action:"block", expression:$e, description:$d, enabled:true,
+  ratelimit:{characteristics:["ip.src","cf.colo.id"], period:60, requests_per_period:20, mitigation_timeout:600}
 }')
+apply_rule "http_ratelimit" "$RL_DESC" "$RL_RULE"
 
-echo "==> Applying auth rate-limit rules (http_ratelimit) …"
-cf_put "http_ratelimit" "${RL_PAYLOAD}"
-
-echo "==> Done. Verify:"
-echo "    curl -sI https://${CF_PROTECTED_HOSTS%% *}/web/database/manager   # expect 403"
-echo "    for i in \$(seq 1 30); do curl -s -o /dev/null -w '%{http_code}\\n' \\"
-echo "        https://${CF_PROTECTED_HOSTS%% *}/web/login; done            # expect 429 after ~20"
+echo ""
+echo "==> Done. Verify (first host):"
+FIRST="${CF_PROTECTED_HOSTS%% *}"
+echo "    curl -sI https://${FIRST}/web/database/manager        # expect 403"
+echo "    for i in \$(seq 1 30); do curl -s -o /dev/null -w '%{http_code}\\n' https://${FIRST}/web/login; done  # 429 after ~20"
