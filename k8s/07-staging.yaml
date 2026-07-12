@@ -125,6 +125,8 @@ spec:
               cp -r /tmp/repo/odoo_k8s_saas_subscription /mnt/extra-addons/
               cp -r /tmp/repo/odoo_k8s_saas_support /mnt/extra-addons/
               cp -r /tmp/repo/payment_qr_mercantil /mnt/extra-addons/
+              cp -r /tmp/repo/saas_security_hardening /mnt/extra-addons/
+              cp -r /tmp/repo/auth_signup_verify /mnt/extra-addons/
               # Copy all modules from external_addons automatically
               if [ -d /tmp/repo/external_addons ]; then
                 cp -r /tmp/repo/external_addons/* /mnt/extra-addons/
