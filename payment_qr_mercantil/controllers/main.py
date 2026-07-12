@@ -1,8 +1,5 @@
-import hashlib
-import hmac
 import json
 import logging
-import os
 import time
 
 from odoo import fields as odoo_fields, http
@@ -61,42 +58,27 @@ class QRMercantilController(http.Controller):
 
     # ── Webhook — called by the bank when QR is paid (best-effort) ───────────
 
-    def _verify_webhook_signature(self):
-        """Verify the HMAC-SHA256 signature of the incoming webhook body.
+    def _qr_mercantil_tx_from_token(self):
+        """Return the transaction matching the callback-URL token, or None.
 
-        The bank confirmation is redundant with the authenticated `/status`
-        polling fallback, so this fails closed: if no shared secret is
-        configured, or the signature is missing/invalid, the webhook is
-        rejected and payment confirmation still happens via polling.
-
-        Secret source (first non-empty wins):
-          - ir.config_parameter `payment_qr_mercantil.webhook_secret`
-          - env var QR_WEBHOOK_SECRET
-        Signature header: `X-QR-Signature` = hex(HMAC_SHA256(secret, raw_body)).
+        The bank cannot sign its callbacks, so the webhook is authenticated by an
+        unguessable per-transaction token embedded in the callback URL we send to
+        the bank in generaQr (see payment_transaction._get_specific_rendering_values).
+        Matching the token both authenticates the call and identifies the tx, so a
+        forged body cannot redirect the confirmation to another transaction.
         """
-        secret = (
-            request.env['ir.config_parameter'].sudo().get_param('payment_qr_mercantil.webhook_secret')
-            or os.getenv('QR_WEBHOOK_SECRET', '')
-        ).strip()
-        if not secret:
-            _logger.error(
-                "QR Mercantil webhook: no secret configured "
-                "(payment_qr_mercantil.webhook_secret / QR_WEBHOOK_SECRET); rejecting. "
-                "Bank confirmation still handled by authenticated status polling."
-            )
-            return False
-
-        provided = (request.httprequest.headers.get('X-QR-Signature') or '').strip()
-        if not provided:
-            _logger.warning("QR Mercantil webhook: missing X-QR-Signature header")
-            return False
-
-        raw = request.httprequest.get_data(cache=True, as_text=False)
-        expected = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, provided):
-            _logger.warning("QR Mercantil webhook: signature mismatch")
-            return False
-        return True
+        token = (request.params.get('token') or '').strip()
+        if not token:
+            _logger.warning("QR Mercantil webhook: missing token")
+            return None
+        tx = request.env['payment.transaction'].sudo().search([
+            ('qr_mercantil_webhook_token', '=', token),
+            ('provider_code', '=', 'qr_mercantil'),
+        ], limit=1)
+        if not tx:
+            _logger.warning("QR Mercantil webhook: unknown token")
+            return None
+        return tx
 
     def _json_response(self, payload, status=200):
         return request.make_response(
@@ -116,18 +98,24 @@ class QRMercantilController(http.Controller):
     def webhook(self, **kwargs):
         """Receive payment notification from Banco Mercantil (best-effort).
 
+        Authenticated by the per-transaction token in the callback URL.
         type='http' (not 'json') so an unauthenticated caller gets a real HTTP
         401 instead of a JSON-RPC envelope. The bank posts a plain JSON body,
         parsed here manually.
         """
-        if not self._verify_webhook_signature():
+        tx = self._qr_mercantil_tx_from_token()
+        if not tx:
             return self._json_response({'status': 'error', 'message': 'unauthorized'}, status=401)
 
         try:
             notification_data = json.loads(request.httprequest.get_data(as_text=True) or '{}')
         except ValueError:
             return self._json_response({'status': 'error', 'message': 'bad request'}, status=400)
-        _logger.info("QR Mercantil webhook recibido: %s", notification_data)
+
+        # Bind the confirmation to the token's transaction: the alias is what
+        # _get_tx_from_notification_data looks up, so force it to this tx.
+        notification_data['alias'] = tx.qr_mercantil_alias or tx.reference
+        _logger.info("QR Mercantil webhook recibido (tx=%s): %s", tx.reference, notification_data)
 
         try:
             request.env['payment.transaction'].sudo()._handle_notification_data(

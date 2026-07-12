@@ -41,7 +41,7 @@ contra `staging.aeisoftware.com` / `www.aeisoftware.com` (portal Odoo 18 SaaS). 
 | 0005 | Enumeración en reset password | Med | Addon `saas_security_hardening` (respuesta genérica) | ✅ código |
 | 0008 | `frontend_lang` sin HttpOnly/Secure | Med | Addon cookie enforcement | ✅ código |
 | 0009 | Sin métodos de pago | Info | Config, no vuln | — |
-| — | Webhook de pago sin firma | Extra | HMAC en `payment_qr_mercantil` | ✅ código |
+| — | Webhook de pago sin auth | Extra | Token per-transacción en URL callback + cron de polling | ✅ código |
 | Rec9 | CVEs Odoo antiguos | Med | Verificar build 18.0-20260630 + Trivy en CI | ⏳ verificar |
 | Rec7 | CSRF en `/contactus` | Med | Verificar token CSRF (stock website) | ⏳ verificar |
 
@@ -73,10 +73,12 @@ contra `staging.aeisoftware.com` / `www.aeisoftware.com` (portal Odoo 18 SaaS). 
 - `auth_signup_verify` (install manual): signup abierto crea la cuenta **desactivada** hasta confirmar
   email; Odoo bloquea logins inactivos de forma nativa (no se parchea el auth). Signups por invitación
   (token de admin) omiten la verificación.
-- `payment_qr_mercantil/controllers/main.py`: webhook valida HMAC-SHA256 del body contra
-  `payment_qr_mercantil.webhook_secret` (ir.config_parameter) o `QR_WEBHOOK_SECRET` (env); rechaza 401.
-  Fail-closed: sin secreto configurado, el webhook se rechaza y el pago se confirma vía el polling
-  autenticado de `/status`.
+- `payment_qr_mercantil`: el webhook se autentica con un **token per-transacción** embebido en la URL
+  `callback` que se manda al banco en `generaQr` (el banco no puede firmar sus callbacks; nosotros
+  controlamos la URL). El webhook (`controllers/main.py`) busca la transacción por token; sin token
+  válido → 401. Además un **cron** (`data/ir_cron_poll.xml`, cada 2 min) consulta `estadoTransaccion`
+  de las transacciones pendientes recientes y confirma las pagadas — cierra el gap de "cliente cerró la
+  pestaña" sin depender del webhook. La versión HMAC previa se descartó: MC4 no firma los callbacks.
 
 > **Nota `block-sensitive-paths`:** el bloqueo primario es Cloudflare. El middleware Traefik requiere
 > un plugin de path-block (`denyrequest`/`blockpath`); si no está instalado, no se referencia desde los
@@ -88,7 +90,7 @@ contra `staging.aeisoftware.com` / `www.aeisoftware.com` (portal Odoo 18 SaaS). 
 
 | Clave | Dónde | Para |
 |:------|:------|:-----|
-| `QR_WEBHOOK_SECRET` (o `ir.config_parameter payment_qr_mercantil.webhook_secret`) | Secret Odoo / env | HMAC webhook pago |
+| (ninguna para el webhook — el token per-transacción se genera solo) | — | Auth webhook pago |
 | `CF_API_TOKEN`, `CF_ZONE_ID` | env al correr el script CF | Reglas WAF/rate-limit |
 | Turnstile site/secret keys | Dashboard Cloudflare | CAPTCHA signup (edge) |
 
