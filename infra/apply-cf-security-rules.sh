@@ -55,16 +55,20 @@ else
   echo "==> MODE:            DRY-RUN — no changes. Re-run with CONFIRM=1 to apply."
 fi
 
+# Emits the JSON body, then a final line "__HTTP__<status>" so callers can branch on it.
 cf() {  # cf METHOD PATH [DATA]
   local method="$1" path="$2" data="${3:-}"
   if [ -n "$data" ]; then
-    curl -s -X "$method" "${API}${path}" \
+    curl -s -w '\n__HTTP__%{http_code}' -X "$method" "${API}${path}" \
       -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json" -d "$data"
   else
-    curl -s -X "$method" "${API}${path}" \
+    curl -s -w '\n__HTTP__%{http_code}' -X "$method" "${API}${path}" \
       -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json"
   fi
 }
+
+cf_body()   { printf '%s' "$1" | sed 's/__HTTP__[0-9]*$//'; }
+cf_status() { printf '%s' "${1##*__HTTP__}"; }
 
 # apply_rule PHASE DESCRIPTION RULE_JSON  — append or update our rule, preserve the rest
 apply_rule() {
@@ -73,15 +77,29 @@ apply_rule() {
   echo "--- phase: $phase"
   echo "    rule:  $desc"
 
-  local ep success rid total existing_id
-  ep=$(cf GET "/zones/${CF_ZONE_ID}/rulesets/phases/${phase}/entrypoint")
-  success=$(echo "$ep" | jq -r '.success // false')
+  local resp code ep rid total existing_id
+  resp=$(cf GET "/zones/${CF_ZONE_ID}/rulesets/phases/${phase}/entrypoint")
+  code=$(cf_status "$resp"); ep=$(cf_body "$resp")
 
-  if [ "$success" != "true" ]; then
+  # Only a genuine 404 means "no ruleset yet". 401/403 = permission problem — never
+  # treat that as a reason to write; 5xx/other = abort too. This avoids a destructive
+  # create/overwrite when the API is merely denying us.
+  if [ "$code" = "401" ] || [ "$code" = "403" ]; then
+    echo "    ABORT: permission denied (HTTP $code) — token lacks Zone WAF/Ruleset edit. No write attempted."
+    echo "$ep" | jq -c '.errors' 2>/dev/null | sed 's/^/    /'
+    return 1
+  fi
+  if [ "$code" != "200" ] && [ "$code" != "404" ]; then
+    echo "    ABORT: unexpected HTTP $code. No write attempted."
+    echo "$ep" | jq -c '.errors' 2>/dev/null | sed 's/^/    /'
+    return 1
+  fi
+
+  if [ "$code" = "404" ]; then
     echo "    no existing entrypoint ruleset in this phase -> CREATE with our rule only"
     local payload; payload=$(jq -n --argjson r "$rule" '{rules:[$r]}')
     if [ "$WRITE" = "1" ]; then
-      cf PUT "/zones/${CF_ZONE_ID}/rulesets/phases/${phase}/entrypoint" "$payload" \
+      cf_body "$(cf PUT "/zones/${CF_ZONE_ID}/rulesets/phases/${phase}/entrypoint" "$payload")" \
         | jq '{success, errors, rules: (.result.rules // [] | length)}'
     else
       echo "    [dry-run] would PUT:"; echo "$payload" | jq .
@@ -97,7 +115,7 @@ apply_rule() {
   if [ -n "$existing_id" ]; then
     echo "    our rule already present ($existing_id) -> PATCH (update in place)"
     if [ "$WRITE" = "1" ]; then
-      cf PATCH "/zones/${CF_ZONE_ID}/rulesets/${rid}/rules/${existing_id}" "$rule" \
+      cf_body "$(cf PATCH "/zones/${CF_ZONE_ID}/rulesets/${rid}/rules/${existing_id}" "$rule")" \
         | jq '{success, errors}'
     else
       echo "    [dry-run] would PATCH rule $existing_id"
@@ -105,7 +123,7 @@ apply_rule() {
   else
     echo "    our rule absent -> POST (append; existing rules untouched)"
     if [ "$WRITE" = "1" ]; then
-      cf POST "/zones/${CF_ZONE_ID}/rulesets/${rid}/rules" "$rule" \
+      cf_body "$(cf POST "/zones/${CF_ZONE_ID}/rulesets/${rid}/rules" "$rule")" \
         | jq '{success, errors}'
     else
       echo "    [dry-run] would POST:"; echo "$rule" | jq .
