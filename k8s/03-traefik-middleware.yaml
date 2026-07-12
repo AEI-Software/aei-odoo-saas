@@ -38,11 +38,12 @@ metadata:
   namespace: kube-system
 spec:
   headers:
-    stsSeconds: 31536000
-    stsIncludeSubdomains: true
-    stsPreload: false
     frameDeny: false
     customResponseHeaders:
+      # HSTS set unconditionally (site is HTTPS-only behind Cloudflare); stsSeconds is
+      # skipped because Traefik only emits it when it detects the request as TLS, which
+      # it does not when traffic arrives via the in-cluster cloudflared tunnel.
+      Strict-Transport-Security: "max-age=31536000; includeSubDomains"
       X-Frame-Options: "SAMEORIGIN"
       X-Content-Type-Options: "nosniff"
       Referrer-Policy: "strict-origin-when-cross-origin"
@@ -58,11 +59,12 @@ metadata:
   namespace: aeisoftware
 spec:
   headers:
-    stsSeconds: 31536000
-    stsIncludeSubdomains: true
-    stsPreload: false
     frameDeny: false
     customResponseHeaders:
+      # HSTS set unconditionally (site is HTTPS-only behind Cloudflare); stsSeconds is
+      # skipped because Traefik only emits it when it detects the request as TLS, which
+      # it does not when traffic arrives via the in-cluster cloudflared tunnel.
+      Strict-Transport-Security: "max-age=31536000; includeSubDomains"
       X-Frame-Options: "SAMEORIGIN"
       X-Content-Type-Options: "nosniff"
       Referrer-Policy: "strict-origin-when-cross-origin"

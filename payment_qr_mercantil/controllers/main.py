@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import logging
 import os
 import time
@@ -97,20 +98,35 @@ class QRMercantilController(http.Controller):
             return False
         return True
 
+    def _json_response(self, payload, status=200):
+        return request.make_response(
+            json.dumps(payload),
+            status=status,
+            headers=[('Content-Type', 'application/json')],
+        )
+
     @http.route(
         '/payment/qr_mercantil/webhook',
-        type='json',
+        type='http',
         auth='public',
         methods=['POST'],
         csrf=False,
         save_session=False,
     )
     def webhook(self, **kwargs):
-        """Receive payment notification from Banco Mercantil (best-effort)."""
-        if not self._verify_webhook_signature():
-            return request.make_json_response({'status': 'error', 'message': 'unauthorized'}, status=401)
+        """Receive payment notification from Banco Mercantil (best-effort).
 
-        notification_data = request.get_json_data()
+        type='http' (not 'json') so an unauthenticated caller gets a real HTTP
+        401 instead of a JSON-RPC envelope. The bank posts a plain JSON body,
+        parsed here manually.
+        """
+        if not self._verify_webhook_signature():
+            return self._json_response({'status': 'error', 'message': 'unauthorized'}, status=401)
+
+        try:
+            notification_data = json.loads(request.httprequest.get_data(as_text=True) or '{}')
+        except ValueError:
+            return self._json_response({'status': 'error', 'message': 'bad request'}, status=400)
         _logger.info("QR Mercantil webhook recibido: %s", notification_data)
 
         try:
@@ -119,7 +135,8 @@ class QRMercantilController(http.Controller):
             )
         except Exception:
             _logger.exception("QR Mercantil: error procesando webhook")
-            return {'status': 'error', 'message': 'processing error'}
+            return self._json_response({'status': 'error', 'message': 'processing error'}, status=200)
+        return self._json_response({'status': 'ok'}, status=200)
 
     # ── Demo: simulate a payment without calling the bank ───────────────────
 
