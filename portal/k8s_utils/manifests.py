@@ -32,6 +32,14 @@ SECURITY_HEADERS_MIDDLEWARE = os.getenv(
 )
 # GitHub PAT for cloning private tenant addon repos (optional — public repos work without it)
 GIT_TOKEN = os.getenv("GIT_TOKEN", "")
+# Default language installed + set as default on every new tenant (Bolivia market).
+TENANT_DEFAULT_LANG = os.getenv("TENANT_DEFAULT_LANG", "es_BO")
+# Per-instance support user (created at first boot by odoo-init). The password is
+# generated per tenant by the portal (like app_admin_password), stored in the tenant
+# odoo-secret (SUPPORT_PASSWORD) and returned in the create response so the SaaS
+# admin addon can log it in the saas.instance chatter. If empty, the support user
+# is simply not created — provisioning still succeeds.
+SUPPORT_USER_LOGIN = os.getenv("SUPPORT_USER_LOGIN", "soporte@aeisoftware.com")
 
 # ── Per-plan compute resources ───────────────────────────────────────────────
 # Each plan tier gets different Odoo workers, CPU, and RAM limits.
@@ -86,7 +94,7 @@ def pvc_manifest(tenant_id: str, storage_gi: int = 10) -> dict[str, Any]:
     }
 
 
-def secret_manifest(tenant_id: str, db_password: str, admin_password: str, app_admin_password: str) -> dict[str, Any]:
+def secret_manifest(tenant_id: str, db_password: str, admin_password: str, app_admin_password: str, support_password: str = "") -> dict[str, Any]:
     """Per-tenant secret with DB password and Odoo admin password."""
     import base64
     def b64(s: str) -> str:
@@ -104,6 +112,9 @@ def secret_manifest(tenant_id: str, db_password: str, admin_password: str, app_a
             "DB_PASSWORD": b64(db_password),
             "ADMIN_PASSWD": b64(admin_password),
             "APP_ADMIN_PASSWORD": b64(app_admin_password),
+            # Per-tenant support-user password (may be empty — odoo-init skips
+            # creating the support user when blank).
+            "SUPPORT_PASSWORD": b64(support_password),
         },
     }
 
@@ -208,6 +219,10 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
         {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
+        # First-boot bootstrap (see first_boot.py heredoc in odoo-init below)
+        {"name": "TENANT_LANG",   "value": TENANT_DEFAULT_LANG},
+        {"name": "SUPPORT_LOGIN", "value": SUPPORT_USER_LOGIN},
+        {"name": "SUPPORT_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "SUPPORT_PASSWORD"}}},
     ]
     return {
         "apiVersion": "apps/v1",
@@ -342,9 +357,38 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 f"  echo 'DB {db_name} already has Odoo schema, skipping --init={init_modules}'; "
                                 "else "
                                 "  echo 'Initializing Odoo schema for the first time...'; "
-                                f"  odoo --config=/etc/odoo/odoo.conf --init={init_modules} --stop-after-init && "
-                                "  echo \"env.ref('base.user_admin').write({'password': '${APP_ADMIN_PASSWORD}'}); env.cr.commit()\" "
-                                "    | odoo shell --config=/etc/odoo/odoo.conf; "
+                                f"  odoo --config=/etc/odoo/odoo.conf --init={init_modules} "
+                                f"    --load-language={TENANT_DEFAULT_LANG} --stop-after-init && "
+                                # First-boot bootstrap: set admin password, default language
+                                # (TENANT_LANG for existing + future users/partners) and create
+                                # the per-instance support user (skipped if SUPPORT_PASSWORD is
+                                # empty). Heredoc is quoted ('PYEOF') so the shell does NOT
+                                # expand anything — the script reads env vars via os.environ,
+                                # which is also safe for passwords with special characters.
+                                "  cat > /tmp/first_boot.py <<'PYEOF'\n"
+                                "import os\n"
+                                "lang = os.environ.get('TENANT_LANG') or 'es_BO'\n"
+                                "env['res.lang']._activate_lang(lang)\n"
+                                "env['res.users'].with_context(active_test=False).search([]).write({'lang': lang})\n"
+                                "env['res.partner'].with_context(active_test=False).search([]).write({'lang': lang})\n"
+                                "env['ir.default'].set('res.partner', 'lang', lang)\n"
+                                "env.ref('base.user_admin').write({'password': os.environ['APP_ADMIN_PASSWORD']})\n"
+                                "support_pwd = os.environ.get('SUPPORT_PASSWORD')\n"
+                                "support_login = os.environ.get('SUPPORT_LOGIN') or 'soporte@aeisoftware.com'\n"
+                                "if support_pwd and not env['res.users'].with_context(active_test=False).search([('login', '=', support_login)]):\n"
+                                "    env['res.users'].create({\n"
+                                "        'name': 'Soporte AEI',\n"
+                                "        'login': support_login,\n"
+                                "        'email': support_login,\n"
+                                "        'password': support_pwd,\n"
+                                "        'lang': lang,\n"
+                                "        'groups_id': [(6, 0, [env.ref('base.group_user').id, env.ref('base.group_system').id])],\n"
+                                "    })\n"
+                                "    print('first-boot: support user created')\n"
+                                "env.cr.commit()\n"
+                                "print('first-boot: lang=%s applied' % lang)\n"
+                                "PYEOF\n"
+                                "  odoo shell --config=/etc/odoo/odoo.conf --no-http < /tmp/first_boot.py; "
                                 "fi; "
                                 # Flush cached asset bundles on every start (not just first boot).
                                 # With imagePullPolicy=Always the running Odoo build can legitimately
@@ -660,6 +704,7 @@ def all_manifests(
     plan: str = "starter",
     git_token: str = "",
     install_modules: str = "",
+    support_password: str = "",
 ) -> list[dict]:
     """Return all manifests in apply-order."""
     manifests = [
@@ -668,7 +713,7 @@ def all_manifests(
         resourcequota_manifest(tenant_id, plan=plan),
         network_policy_manifest(tenant_id),
         pvc_manifest(tenant_id, storage_gi),
-        secret_manifest(tenant_id, db_password, admin_password, app_admin_password),
+        secret_manifest(tenant_id, db_password, admin_password, app_admin_password, support_password),
         configmap_manifest(tenant_id, db_password, admin_password, addons_repos, plan=plan),
     ]
     if git_token:

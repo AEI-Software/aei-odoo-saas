@@ -27,7 +27,8 @@ metadata:
 #     --from-literal=POSTGRES_PASSWORD=<same-as-prod>
 #
 #   kubectl -n staging create secret generic portal-secret \
-#     --from-literal=API_KEY=<staging-api-key>
+#     --from-literal=API_KEY=<staging-api-key> \
+#     --from-literal=SAAS_WEBHOOK_KEY=<staging-webhook-key>
 #
 #   kubectl -n staging create secret generic odoo-stg-secret \
 #     --from-literal=DB_PASSWORD=<same-as-prod> \
