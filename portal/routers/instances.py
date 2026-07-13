@@ -22,7 +22,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, pdb_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN
+from k8s_utils.manifests import all_manifests, pdb_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb
 from metrics import record_operation, record_error
 
@@ -554,6 +554,7 @@ def _get_user_count(tenant_id: str) -> int:
 
     Excludes system/technical users that should not be billed:
     - __system__: Odoo internal system user (UID 1)
+    - SUPPORT_USER_LOGIN: AEI support user created at provision time
     - share=true: portal/external users
     - active=false: deactivated users
     """
@@ -565,8 +566,8 @@ def _get_user_count(tenant_id: str) -> int:
                 SELECT count(*) FROM res_users
                 WHERE share = false
                   AND active = true
-                  AND login NOT IN ('__system__')
-            """)
+                  AND login NOT IN ('__system__', %s)
+            """, (SUPPORT_USER_LOGIN,))
             count = cur.fetchone()[0]
         conn.close()
         return count

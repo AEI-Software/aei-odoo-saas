@@ -425,3 +425,26 @@ portal/
 - URL: `https://<tenant_id>.<BASE_DOMAIN>`
 
 Calling `apply_manifest()` on each is idempotent — HTTP 409 (already exists) is silently ignored.
+
+## Tenant Defaults: Language + Support User (2026-07-13)
+
+Every NEW tenant's first boot (`odoo-init` init container) now runs a `first_boot.py` script via
+`odoo shell` after `--init`:
+
+- **Language `es_BO`**: `--init` runs with `--load-language=es_BO` (translations fall back to
+  `es.po` — Odoo ships no `es_BO.po`). The script activates the lang, applies it to all existing
+  users/partners, and sets it as `ir.default` for `res.partner.lang` so future users inherit it.
+  Override per portal deployment with env `TENANT_DEFAULT_LANG`.
+- **Support user**: creates `soporte@aeisoftware.com` (name "Soporte AEI", admin — `base.group_system`)
+  with the platform-wide password from tenant secret key `SUPPORT_PASSWORD`, which the portal copies
+  from its own env `SUPPORT_USER_PASSWORD` (portal-secret). If the env/key is empty the user is NOT
+  created and provisioning continues normally. Override login with env `SUPPORT_USER_LOGIN`.
+- **Billing**: `_get_user_count()` excludes the support login — it never counts against the plan's
+  user limit (business decision: support hours are per instance, user disclosed in ToS).
+
+Existing tenants are NOT retrofitted (first-boot only). To add the support user to an old tenant,
+create it manually or re-run the shell snippet inside the tenant pod.
+
+Secrets wiring: `.secrets.env` → `SUPPORT_USER_PASSWORD` → `infra/apply-manifests.sh` (portal-secret
+in `aeisoftware` + `odoo-admin`) → portal env → per-tenant `odoo-secret.SUPPORT_PASSWORD`.
+For staging: `kubectl -n staging patch secret portal-secret` (see header of `k8s/07-staging.yaml`).

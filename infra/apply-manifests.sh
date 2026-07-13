@@ -109,6 +109,7 @@ type: Opaque
 stringData:
   API_KEY: "${API_KEY}"
   SAAS_WEBHOOK_KEY: "${SAAS_WEBHOOK_KEY}"
+  SUPPORT_USER_PASSWORD: "${SUPPORT_USER_PASSWORD:-}"
 ---
 apiVersion: v1
 kind: Secret
@@ -119,6 +120,7 @@ type: Opaque
 stringData:
   API_KEY: "${API_KEY}"
   SAAS_WEBHOOK_KEY: "${SAAS_WEBHOOK_KEY}"
+  SUPPORT_USER_PASSWORD: "${SUPPORT_USER_PASSWORD:-}"
 ---
 apiVersion: v1
 kind: Secret
