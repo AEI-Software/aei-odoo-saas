@@ -1,6 +1,6 @@
 import logging
 
-from odoo import _, http
+from odoo import _, http, SUPERUSER_ID
 from odoo.http import request
 from odoo.addons.auth_signup.controllers.main import AuthSignupHome
 
@@ -32,7 +32,12 @@ class AuthSignupVerify(AuthSignupHome):
             qcontext["error"] = str(exc)
             return request.render("auth_signup.signup", qcontext)
 
-        user = request.env.user.sudo()
+        # do_signup authenticated the session AS the new user. Deactivating a user
+        # while logged in as them raises "You cannot deactivate the user you're
+        # currently logged in as" — and .sudo() does NOT change the uid in modern
+        # Odoo (it only sets su=True). Use with_user(SUPERUSER_ID) so env.uid is the
+        # superuser, which the guard (self._uid in self._ids) allows.
+        user = request.env.user.with_user(SUPERUSER_ID)
         try:
             token = user.partner_id.signup_prepare()  # fresh signup token
             user.write({"active": False, "email_verified": False})
