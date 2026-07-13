@@ -132,10 +132,11 @@ apply_rule() {
 }
 
 # ── Rule 1: block sensitive paths (custom firewall phase) ───────────────────
+# Uses starts_with() (not regex `matches`) so it works on the Cloudflare Free plan.
 BLOCK_EXPR="${HOST_EXPR} and ("
-BLOCK_EXPR+='http.request.uri.path matches "^/web/database/" or '
-BLOCK_EXPR+='http.request.uri.path eq "/web/database/manager" or '
-BLOCK_EXPR+='http.request.uri.path matches "^/xmlrpc/" or '
+# starts_with (not regex `matches`) — regex operators require Cloudflare Pro+.
+BLOCK_EXPR+='starts_with(http.request.uri.path, "/web/database") or '
+BLOCK_EXPR+='starts_with(http.request.uri.path, "/xmlrpc/") or '
 BLOCK_EXPR+='http.request.uri.path eq "/jsonrpc" or '
 BLOCK_EXPR+='http.request.uri.path eq "/website/info"'
 BLOCK_EXPR+=")"
@@ -148,9 +149,11 @@ apply_rule "http_request_firewall_custom" "$BLOCK_DESC" "$BLOCK_RULE"
 RL_EXPR="${HOST_EXPR} and "
 RL_EXPR+='(http.request.uri.path in {"/web/login" "/web/signup" "/web/reset_password"})'
 RL_DESC="AEI SaaS: rate-limit auth endpoints (VULN-0007)"
+# period/mitigation_timeout of 10s are the only values allowed on the Cloudflare
+# Free plan ("not entitled to use the period 60, can only use a period among [10]").
 RL_RULE=$(jq -n --arg e "$RL_EXPR" --arg d "$RL_DESC" '{
   action:"block", expression:$e, description:$d, enabled:true,
-  ratelimit:{characteristics:["ip.src","cf.colo.id"], period:60, requests_per_period:20, mitigation_timeout:600}
+  ratelimit:{characteristics:["ip.src","cf.colo.id"], period:10, requests_per_period:10, mitigation_timeout:10}
 }')
 apply_rule "http_ratelimit" "$RL_DESC" "$RL_RULE"
 
