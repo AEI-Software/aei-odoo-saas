@@ -446,7 +446,7 @@ python3 infra/delete-instance.py demo-company
 
 ## Multi-Version y Custom Images
 
-La plataforma soporta la creación de instancias con versiones específicas de Odoo (17.0, 18.0, 19.0) y el uso de **imágenes de Docker personalizadas** por cliente (ej: `ghcr.io/aei-software/custom-odoo-images:19.0`).
+La plataforma soporta la creación de instancias con versiones específicas de Odoo (17.0, 18.0, 19.0) y el uso de **imágenes de Docker personalizadas** por cliente (ej: `ghcr.io/aei-software/aei-custom-odoo-images:19.0`).
 - La configuración de versión se define en el **Producto SaaS** (Pestaña "SaaS Configuration").
 - Cuando se vende una suscripción con una imagen personalizada, Kubernetes forzará un `imagePullPolicy: Always` para asegurar que el tenant siempre utilice la última versión de su imagen custom sin depender del caché del nodo.
 - Los módulos integrados en la imagen personalizada deben ubicarse en `/opt/custom-addons` para evitar ser sobrescritos por los volúmenes efímeros de Kubernetes.

@@ -493,7 +493,7 @@ aunque el pod quede sano. Las reparaciones deben hacerse a través del portal AP
 módulo SaaS para que el estado se actualice. (Incidente SUB00218, 2026-07-09.)
 
 **Configuración de productos SaaS:** `odoo_version = 'custom'` exige tener `custom_image` configurada
-(ej. `ghcr.io/aei-software/custom-odoo-images:18.0`). Si queda vacía, el portal genera la imagen
+(ej. `ghcr.io/aei-software/aei-custom-odoo-images:18.0`). Si queda vacía, el portal genera la imagen
 inexistente `odoo:custom` → `Init:ImagePullBackOff` y la instancia queda en `error`. (Incidente SUB00218:
 producto "Odoo SaaS Enterprise (Mensual)". Pendiente: validación en código que rechace la venta con
 mensaje claro.)
