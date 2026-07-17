@@ -38,6 +38,16 @@ for entry in "${PG_NODE_ENTRIES[@]}"; do
 "
 done
 
+# Con 1 solo nodo no existen replicas: el backend RO (5001) usa /read-only
+# (el Leader también responde 200) para que los consumidores de solo-lectura
+# —p.ej. los dumps de backup— sigan funcionando. Con 2+ nodos se mantiene
+# /replica (solo replicas) como siempre.
+if [ "${#PG_NODE_ENTRIES[@]}" -eq 1 ]; then
+  RO_CHECK_PATH="/read-only"
+else
+  RO_CHECK_PATH="/replica"
+fi
+
 # ─── Generar configuración ──────────────────────────────────────────────────
 echo "→ Generando /etc/haproxy/haproxy.cfg..."
 
@@ -91,7 +101,7 @@ ${SERVERS_5432%$'\n'}
 listen postgres_ro
     bind *:5001
     balance roundrobin
-    option httpchk GET /replica
+    option httpchk GET ${RO_CHECK_PATH}
     http-check expect status 200
     default-server inter 2s downinter 5s rise 2 fall 3 maxconn 200 on-marked-down shutdown-sessions
 ${SERVERS_5432%$'\n'}

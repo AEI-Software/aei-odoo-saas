@@ -12,7 +12,7 @@ set -euo pipefail
 
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 VIP="${KUBE_VIP_IP:-192.168.0.150}"
-TRAEFIK_VERSION="32.1.1"   # Traefik v3 chart estable
+TRAEFIK_VERSION="39.0.7"   # chart = Traefik v3.6.12 — misma versión que corre en COTAS
 
 echo ""
 echo "  ┌─────────────────────────────────────────────────────────"
@@ -36,7 +36,6 @@ helm upgrade --install traefik traefik/traefik \
   --set "service.spec.externalIPs[0]=${VIP}" \
   --set "ports.web.exposedPort=80" \
   --set "ports.websecure.exposedPort=443" \
-  --set "ports.websecure.tls.enabled=false" \
   --set "providers.kubernetesCRD.enabled=true" \
   --set "providers.kubernetesCRD.allowCrossNamespace=true" \
   --set "providers.kubernetesIngress.enabled=true" \
@@ -46,10 +45,7 @@ helm upgrade --install traefik traefik/traefik \
   --set "logs.general.level=INFO" \
   --set "logs.access.enabled=true" \
   --set "metrics.prometheus.enabled=true" \
-  --set "additionalArguments[0]=--entrypoints.web.http.redirections.entryPoint.to=websecure" \
-  --set "additionalArguments[1]=--entrypoints.web.http.redirections.entryPoint.scheme=https" \
-  --set "additionalArguments[2]=--entrypoints.web.http.redirections.entrypoint.permanent=true" \
-  --set "additionalArguments[3]=--api.dashboard=false" \
+  --set "additionalArguments[0]=--api.dashboard=false" \
   --wait --timeout=120s
 
 echo ""
