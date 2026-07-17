@@ -105,11 +105,15 @@ spec:
     ports:
     - protocol: TCP
       port: 443
+    # API server de K8s (CNIs que aplican la política post-DNAT ven nodo:6443,
+    # no la ClusterIP:443 — necesario para que el portal hable con el API)
+    - protocol: TCP
+      port: 6443
 
 ---
 # ── FASE 3 ───────────────────────────────────────────────────────────────────
 # Allow Egress al clúster PostgreSQL HA externo
-# HAProxy escucha en los 3 nodos: 192.168.0.127, .186, .226
+# HAProxy escucha en los nodos PG del entorno (PG_NETWORK_CIDR del inventario)
 # :5000 Primary (RW directo) | :5001 Replicas (RO)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -123,7 +127,7 @@ spec:
   egress:
   - to:
     - ipBlock:
-        cidr: 192.168.0.0/24
+        cidr: ${PG_NETWORK_CIDR}
     ports:
     - protocol: TCP
       port: 5000

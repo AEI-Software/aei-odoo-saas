@@ -1,0 +1,24 @@
+# =============================================================================
+# k8s/00b-cilium-apiserver-egress.yaml
+#
+# Permite egress del portal (namespace aeisoftware) hacia el API server de K8s.
+#
+# Por qué existe: las NetworkPolicy con ipBlock NO aplican a entidades del
+# clúster en Cilium (las IPs de nodos tienen identidad "remote-node"/"host" y
+# la ClusterIP 10.43.0.1:443 se DNAT-ea a nodo:6443 antes de evaluar la
+# política). Con default-deny-all, el portal no puede hablar con el API server
+# aunque allow-egress-https permita 0.0.0.0/0:443/6443. La entidad
+# "kube-apiserver" de Cilium cubre todos los endpoints reales del API.
+#
+# apply-manifests.sh salta este archivo si el CRD de Cilium no está instalado.
+# =============================================================================
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-egress-kube-apiserver
+  namespace: aeisoftware
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver

@@ -10,6 +10,8 @@
 #   S3_ACCESS_KEY         — Access key del usuario pgbackrest en RadosGW
 #   S3_SECRET_KEY         — Secret key del usuario pgbackrest en RadosGW
 #   S3_BUCKET             — pg-backups (default)
+#   S3_REPO_ENDPOINT      — Endpoint que usa pgBackRest (default: 127.0.0.1:18480,
+#                           el proxy stunnel local; distinto si S3_USE_STUNNEL=false)
 #   BACKUP_ENCRYPTION_KEY — Clave para cifrar backups
 #   PG_SUPERUSER_PASSWORD — Para conectar a PostgreSQL
 # =============================================================================
@@ -28,11 +30,13 @@ echo "════════════════════════�
 S3_BUCKET="${S3_BUCKET:-pg-backups}"
 
 # pgBackRest siempre usa HTTPS para S3.
-# RadosGW solo tiene HTTP, así que usamos el stunnel proxy local (05b-setup-stunnel-s3proxy.sh)
-# que escucha HTTPS en 127.0.0.1:18480 y reenvía a HTTP RadosGW.
-STUNNEL_ENDPOINT="127.0.0.1:18480"
+# En entornos con S3_USE_STUNNEL=true (RadosGW solo tiene HTTP), se usa el
+# stunnel proxy local (05b-setup-stunnel-s3proxy.sh) que escucha HTTPS en
+# 127.0.0.1:18480 y reenvía a HTTP. En otros entornos (p.ej. MinIO con TLS
+# propio) se apunta directo al S3_REPO_ENDPOINT del env file.
+S3_REPO_ENDPOINT="${S3_REPO_ENDPOINT:-127.0.0.1:18480}"
 
-echo "→ Usando proxy TLS local stunnel → ${RADOSGW_ENDPOINT}"
+echo "→ Usando endpoint S3 para pgBackRest: ${S3_REPO_ENDPOINT} (origen: ${RADOSGW_ENDPOINT})"
 
 # ─── Generar configuración de pgBackRest ────────────────────────────────────
 echo "→ Generando /etc/pgbackrest/pgbackrest.conf..."
@@ -48,7 +52,7 @@ cat > /etc/pgbackrest/pgbackrest.conf <<EOF
 [global]
 # ─── S3 Repository (RadosGW) ────────────────────────────────────────────────
 repo1-type=s3
-repo1-s3-endpoint=${STUNNEL_ENDPOINT}
+repo1-s3-endpoint=${S3_REPO_ENDPOINT}
 repo1-s3-bucket=${S3_BUCKET}
 repo1-s3-region=default
 repo1-s3-key=${S3_ACCESS_KEY}

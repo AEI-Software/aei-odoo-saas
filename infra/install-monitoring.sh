@@ -7,7 +7,7 @@
 #   2. Loki + Promtail (log aggregation)
 #   3. Configures scrape targets for PG HA cluster exporters
 #
-# Storage: All persistent data on ceph-rbd StorageClass
+# Storage: All persistent data on ${STORAGE_CLASS} StorageClass (default ceph-rbd)
 #
 # Variables (optional):
 #   GRAFANA_PASSWORD  — Grafana admin password (default: AeiMonitor2026)
@@ -15,6 +15,7 @@
 set -euo pipefail
 
 GRAFANA_PASSWORD="${GRAFANA_PASSWORD:-AeiMonitor2026}"
+STORAGE_CLASS="${STORAGE_CLASS:-ceph-rbd}"
 NAMESPACE="monitoring"
 
 echo "══════════════════════════════════════════════════"
@@ -42,15 +43,15 @@ echo "→ Installing kube-prometheus-stack..."
 helm upgrade --install kube-prom prometheus-community/kube-prometheus-stack \
   --namespace ${NAMESPACE} \
   --set prometheus.prometheusSpec.retention=15d \
-  --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=ceph-rbd \
+  --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=${STORAGE_CLASS} \
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.accessModes[0]=ReadWriteOnce \
   --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \
   --set grafana.persistence.enabled=true \
-  --set grafana.persistence.storageClassName=ceph-rbd \
+  --set grafana.persistence.storageClassName=${STORAGE_CLASS} \
   --set grafana.persistence.size=5Gi \
   --set grafana.adminPassword="${GRAFANA_PASSWORD}" \
   --set alertmanager.enabled=true \
-  --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.storageClassName=ceph-rbd \
+  --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.storageClassName=${STORAGE_CLASS} \
   --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.accessModes[0]=ReadWriteOnce \
   --set alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage=2Gi \
   --set "prometheus.prometheusSpec.additionalScrapeConfigs[0].job_name=postgres-exporters" \
@@ -79,7 +80,7 @@ helm upgrade --install loki grafana/loki-stack \
   --set grafana.enabled=false \
   --set promtail.enabled=true \
   --set loki.persistence.enabled=true \
-  --set loki.persistence.storageClassName=ceph-rbd \
+  --set loki.persistence.storageClassName=${STORAGE_CLASS} \
   --set loki.persistence.size=50Gi \
   --set "loki.config.table_manager.retention_deletes_enabled=true" \
   --set "loki.config.table_manager.retention_period=744h" \

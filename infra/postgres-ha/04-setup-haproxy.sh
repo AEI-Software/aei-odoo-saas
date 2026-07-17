@@ -13,6 +13,8 @@
 #
 # Variables de entorno requeridas:
 #   HAPROXY_STATS_PASSWORD — Password para el dashboard de stats
+#   PG_NODE_LIST           — Inventario de todos los nodos:
+#                            "name:internal_ip,name:internal_ip,..." (1 o N nodos)
 # =============================================================================
 set -euo pipefail
 
@@ -21,11 +23,20 @@ echo "  04-setup-haproxy.sh — Configurando HAProxy"
 echo "══════════════════════════════════════════════════"
 
 : "${HAPROXY_STATS_PASSWORD:?ERROR: HAPROXY_STATS_PASSWORD no definido}"
+: "${PG_NODE_LIST:?ERROR: PG_NODE_LIST no definido}"
 
-# ─── IPs del clúster ────────────────────────────────────────────────────────
-NODE1_IP="192.168.0.127"
-NODE2_IP="192.168.0.186"
-NODE3_IP="192.168.0.226"
+# ─── Líneas "server" de los backends a partir del inventario PG_NODE_LIST ───
+# PG_NODE_LIST: "name:internal_ip,name:internal_ip,..." (1 o N nodos)
+SERVERS_5432=""
+SERVERS_6432=""
+IFS=',' read -ra PG_NODE_ENTRIES <<< "$PG_NODE_LIST"
+for entry in "${PG_NODE_ENTRIES[@]}"; do
+  IFS=':' read -r entry_name entry_ip <<< "$entry"
+  SERVERS_5432="${SERVERS_5432}    server ${entry_name} ${entry_ip}:5432 check port 8008
+"
+  SERVERS_6432="${SERVERS_6432}    server ${entry_name} ${entry_ip}:6432 check port 8008
+"
+done
 
 # ─── Generar configuración ──────────────────────────────────────────────────
 echo "→ Generando /etc/haproxy/haproxy.cfg..."
@@ -69,9 +80,7 @@ listen postgres_rw
     option httpchk GET /primary
     http-check expect status 200
     default-server inter 2s downinter 5s rise 2 fall 3 maxconn 200 on-marked-down shutdown-sessions
-    server pg-node1 ${NODE1_IP}:5432 check port 8008
-    server pg-node2 ${NODE2_IP}:5432 check port 8008
-    server pg-node3 ${NODE3_IP}:5432 check port 8008
+${SERVERS_5432%$'\n'}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Replicas PostgreSQL directo (Read-Only)
@@ -85,9 +94,7 @@ listen postgres_ro
     option httpchk GET /replica
     http-check expect status 200
     default-server inter 2s downinter 5s rise 2 fall 3 maxconn 200 on-marked-down shutdown-sessions
-    server pg-node1 ${NODE1_IP}:5432 check port 8008
-    server pg-node2 ${NODE2_IP}:5432 check port 8008
-    server pg-node3 ${NODE3_IP}:5432 check port 8008
+${SERVERS_5432%$'\n'}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Primary via PgBouncer (Read/Write con connection pooling)
@@ -99,9 +106,7 @@ listen pgbouncer_rw
     option httpchk GET /primary
     http-check expect status 200
     default-server inter 2s downinter 5s rise 2 fall 3 maxconn 1500 on-marked-down shutdown-sessions
-    server pg-node1 ${NODE1_IP}:6432 check port 8008
-    server pg-node2 ${NODE2_IP}:6432 check port 8008
-    server pg-node3 ${NODE3_IP}:6432 check port 8008
+${SERVERS_6432%$'\n'}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stats Dashboard

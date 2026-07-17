@@ -1,36 +1,52 @@
 #!/bin/bash
 # =============================================================================
-# 07-join-k3s-workers.sh — Une 3 nodos worker al clúster K3s HA existente
+# 07-join-k3s-workers.sh — Une los nodos worker al clúster K3s HA existente
 #
 # Ejecutar desde tu máquina local (WSL/Linux).
 #
-# Pasos por nodo:
-#   1. Preparar nodo (ceph-common, rbd, sysctl, swap-off)
-#   2. Instalar K3s agent (conecta al VIP 192.168.0.150:6443)
-#   3. Etiquetar el nodo como worker en K8s
+# Uso:
+#   ./07-join-k3s-workers.sh [ruta/al/entorno.env]
+#   Sin argumento, usa infra/environments/cotas.env (comportamiento por defecto).
 #
-# Workers:
-#   k3s-worker-1  IT911=10.40.2.200  internal=192.168.0.148
-#   k3s-worker-2  IT911=10.40.2.190  internal=192.168.0.61
-#   k3s-worker-3  IT911=10.40.2.171  internal=192.168.0.190
+# El env file debe definir K3S_NODES, K3S_WORKER_NODES, SSH_KEY, SSH_USER
+# (ver infra/environments/cotas.env). Si K3S_WORKER_NODES está vacío, el
+# script termina sin hacer nada (entorno sin workers definidos).
+#
+# Pasos por nodo:
+#   1. Preparar nodo (sysctl, swap-off; ceph-common/rbd solo si STORAGE_BACKEND=ceph)
+#   2. Instalar K3s agent (conecta al VIP)
+#   3. Etiquetar el nodo como worker en K8s
 # =============================================================================
 set -euo pipefail
 
-SSH_KEY="/tmp/k3s_rsa"
-SSH_USER="ubuntu"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+ENV_FILE="${1:-${REPO_ROOT}/infra/environments/cotas.env}"
+
+if [ ! -f "${ENV_FILE}" ]; then
+  echo "❌ Env file no encontrado: ${ENV_FILE}"
+  exit 1
+fi
+
+echo "→ Cargando entorno desde ${ENV_FILE}..."
+# shellcheck disable=SC1090
+source "${ENV_FILE}"
+
+if [ "${#K3S_WORKER_NODES[@]}" -eq 0 ]; then
+  echo "  ⚠️  sin workers definidos para este entorno"
+  exit 0
+fi
+
 SSH_OPTS="-i ${SSH_KEY} -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ServerAliveInterval=30"
 
-KUBE_VIP_IP="192.168.0.150"
-CONTROL_SSH="10.40.2.158"    # k3s-control-1 — fuente del token
+# CONTROL_SSH = ssh_ip del primer elemento de K3S_NODES
+IFS=':' read -r _control_name CONTROL_SSH _control_internal <<< "${K3S_NODES[0]}"
 
 K3S_VERSION="v1.34.6+k3s1"
 
-# name:ssh_ip(IT911):internal_ip
-WORKERS=(
-  "k3s-worker-1:10.40.2.200:192.168.0.148"
-  "k3s-worker-2:10.40.2.190:192.168.0.61"
-  "k3s-worker-3:10.40.2.171:192.168.0.190"
-)
+# name:ssh_ip:internal_ip
+WORKERS=("${K3S_WORKER_NODES[@]}")
 
 # ─── Banner ───────────────────────────────────────────────────────────────────
 echo ""
@@ -85,26 +101,30 @@ prepare_worker() {
   echo ""
   echo "  ┌── prepare: ${name} (${ssh_ip})"
 
-  ssh ${SSH_OPTS} ${SSH_USER}@${ssh_ip} "sudo bash -s" << 'PREPARE'
+  ssh ${SSH_OPTS} ${SSH_USER}@${ssh_ip} "sudo bash -s" << PREPARE
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 echo "  → Actualizando paquetes..."
 apt-get update -qq
-apt-get install -y -qq \
-  curl wget ca-certificates \
-  net-tools iproute2 iputils-ping \
-  jq nfs-common open-iscsi \
+apt-get install -y -qq \\
+  curl wget ca-certificates \\
+  net-tools iproute2 iputils-ping \\
+  jq nfs-common open-iscsi \\
   netcat-openbsd
 
-echo "  → Instalando ceph-common (requerido para montar PVs)..."
-apt-get install -y -qq ceph-common
-ceph --version 2>/dev/null || { echo "  ✗ ceph-common falló"; exit 1; }
+if [ "${STORAGE_BACKEND:-}" = "ceph" ]; then
+  echo "  → Instalando ceph-common (requerido para montar PVs)..."
+  apt-get install -y -qq ceph-common
+  ceph --version 2>/dev/null || { echo "  ✗ ceph-common falló"; exit 1; }
 
-echo "  → Cargando módulo rbd..."
-modprobe rbd
-echo "rbd" | tee /etc/modules-load.d/rbd.conf > /dev/null
-lsmod | grep -q rbd && echo "  ✓ rbd cargado" || { echo "  ✗ rbd no disponible"; exit 1; }
+  echo "  → Cargando módulo rbd..."
+  modprobe rbd
+  echo "rbd" | tee /etc/modules-load.d/rbd.conf > /dev/null
+  lsmod | grep -q rbd && echo "  ✓ rbd cargado" || { echo "  ✗ rbd no disponible"; exit 1; }
+else
+  echo "  → STORAGE_BACKEND=${STORAGE_BACKEND:-<sin definir>} — se omite ceph-common/rbd"
+fi
 
 echo "  → Configurando parámetros kernel..."
 cat > /etc/sysctl.d/99-k3s-cilium.conf << 'SYSCTL'
@@ -229,9 +249,10 @@ echo "  ╠═══════════════════════
 echo "  ║  Tiempo: $(printf '%02d:%02d' $(( ELAPSED/60 )) $(( ELAPSED%60 )) )                                         ║"
 echo "  ║                                                          ║"
 echo "  ║  Workers:                                                ║"
-echo "  ║    k3s-worker-1  192.168.0.148                          ║"
-echo "  ║    k3s-worker-2  192.168.0.61                            ║"
-echo "  ║    k3s-worker-3  192.168.0.190                          ║"
+for worker in "${WORKERS[@]}"; do
+  IFS=':' read -r name ssh_ip internal_ip <<< "${worker}"
+  printf "  ║    %-45s ║\n" "${name}  ${internal_ip}"
+done
 echo "  ║                                                          ║"
 echo "  ║  Label aplicado: workload=tenant                        ║"
 echo "  ║                                                          ║"

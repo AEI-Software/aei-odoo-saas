@@ -2,12 +2,16 @@
 # =============================================================================
 # 00-prepare-node.sh — Prepara cada nodo K3s (Ubuntu 24.04)
 #
-# Ejecutado por deploy-k3s-cluster.sh en los 3 nodos via SSH.
-# Instala: ceph-common, módulo rbd, ajustes kernel para K3s+Cilium.
+# Ejecutado por deploy-k3s-cluster.sh en todos los nodos via SSH.
+# Instala prerequisitos comunes (open-iscsi para Longhorn incluido) y, solo si
+# STORAGE_BACKEND=ceph, el cliente Ceph (ceph-common + módulo rbd).
 #
 # Variables recibidas via env:
-#   NODE_NAME  — nombre del nodo (k3s-1, k3s-2, k3s-3)
-#   NODE_IP    — IP interna (192.168.0.x)
+#   NODE_NAME        — nombre del nodo
+#   NODE_IP          — IP interna
+#   STORAGE_BACKEND  — ceph | longhorn
+#   CEPH_MON_HOSTS   — IPs de MONs a verificar (solo ceph, separadas por espacio)
+#   PG_CHECK_IPS     — IPs de PG a verificar (warn-only, separadas por espacio)
 # =============================================================================
 set -euo pipefail
 
@@ -26,19 +30,21 @@ apt-get install -y -qq \
   jq htop nfs-common open-iscsi \
   netcat-openbsd
 
-# ── Ceph client — REQUERIDO para que el CSI driver monte RBD ─────────────────
-echo "→ Instalando ceph-common..."
-apt-get install -y -qq ceph-common
+# ── Ceph client — solo si el storage backend es Ceph RBD ─────────────────────
+STORAGE_BACKEND="${STORAGE_BACKEND:-ceph}"
+if [ "${STORAGE_BACKEND}" = "ceph" ]; then
+  echo "→ Instalando ceph-common..."
+  apt-get install -y -qq ceph-common
+  ceph --version 2>/dev/null || { echo "  ✗ ceph-common no instalado correctamente"; exit 1; }
+  echo "  ✓ ceph-common instalado"
 
-# Verificar version instalada
-ceph --version 2>/dev/null || { echo "  ✗ ceph-common no instalado correctamente"; exit 1; }
-echo "  ✓ ceph-common instalado"
-
-# ── Módulo kernel RBD — REQUERIDO para montar volúmenes Ceph RBD ─────────────
-echo "→ Cargando módulo rbd..."
-modprobe rbd
-echo "rbd" | tee /etc/modules-load.d/rbd.conf > /dev/null
-lsmod | grep -q rbd && echo "  ✓ módulo rbd cargado" || { echo "  ✗ Error cargando rbd"; exit 1; }
+  echo "→ Cargando módulo rbd..."
+  modprobe rbd
+  echo "rbd" | tee /etc/modules-load.d/rbd.conf > /dev/null
+  lsmod | grep -q rbd && echo "  ✓ módulo rbd cargado" || { echo "  ✗ Error cargando rbd"; exit 1; }
+else
+  echo "→ STORAGE_BACKEND=${STORAGE_BACKEND} — se omite cliente Ceph (open-iscsi ya instalado para Longhorn)"
+fi
 
 # ── Ajustes kernel para K3s + Cilium (eBPF) ──────────────────────────────────
 echo "→ Configurando parámetros kernel..."
@@ -62,23 +68,23 @@ swapoff -a
 sed -i '/\bswap\b/d' /etc/fstab
 echo "  ✓ swap deshabilitado"
 
-# ── Verificar conectividad con Ceph MONs ──────────────────────────────────────
-echo "→ Verificando conectividad con Ceph MONs..."
-CEPH_MONS=("10.40.1.240" "10.40.1.241")
-for mon in "${CEPH_MONS[@]}"; do
-  if nc -z -w3 "${mon}" 6789 2>/dev/null; then
-    echo "  ✓ ${mon}:6789 alcanzable"
-  else
-    echo "  ✗ ${mon}:6789 NO alcanzable"
-    echo "    Verifica que los nodos K3s tengan ruta a 10.40.1.0/24"
-    exit 1
-  fi
-done
+# ── Verificar conectividad con Ceph MONs (solo backend ceph) ──────────────────
+if [ "${STORAGE_BACKEND}" = "ceph" ] && [ -n "${CEPH_MON_HOSTS:-}" ]; then
+  echo "→ Verificando conectividad con Ceph MONs..."
+  for mon in ${CEPH_MON_HOSTS}; do
+    if nc -z -w3 "${mon}" 6789 2>/dev/null; then
+      echo "  ✓ ${mon}:6789 alcanzable"
+    else
+      echo "  ✗ ${mon}:6789 NO alcanzable"
+      echo "    Verifica que los nodos K3s tengan ruta a la red de Ceph"
+      exit 1
+    fi
+  done
+fi
 
-# ── Verificar conectividad con PG HA Cluster ──────────────────────────────────
-echo "→ Verificando conectividad con PG HA..."
-PG_NODES=("192.168.0.127" "192.168.0.186" "192.168.0.226")
-for pg_ip in "${PG_NODES[@]}"; do
+# ── Verificar conectividad con PostgreSQL (warn-only) ─────────────────────────
+echo "→ Verificando conectividad con PostgreSQL..."
+for pg_ip in ${PG_CHECK_IPS:-}; do
   if nc -z -w3 "${pg_ip}" 5002 2>/dev/null; then
     echo "  ✓ ${pg_ip}:5002 (PgBouncer) OK"
   else

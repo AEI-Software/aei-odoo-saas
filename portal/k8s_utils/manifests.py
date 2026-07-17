@@ -22,6 +22,8 @@ POSTGRES_USER = os.getenv("POSTGRES_USER", "odoo")
 ODOO_IMAGE = os.getenv("ODOO_IMAGE", "ghcr.io/aei-software/aei-odoo-saas/odoo:stable")
 # local-path para dev local K3s, ceph-rbd para producción Cloud
 STORAGE_CLASS = os.getenv("STORAGE_CLASS", "local-path")
+# Red donde vive el clúster PostgreSQL externo (egress directo de tenants a HAProxy)
+PG_NETWORK_CIDR = os.getenv("PG_NETWORK_CIDR", "192.168.0.0/24")
 # Middleware namespace = namespace donde se despliegan los middlewares de Traefik
 # Los middlewares (odoo-headers, odoo-compress) están en kube-system (ver 02-traefik-config.yaml)
 ODOO_HEADERS_MIDDLEWARE = os.getenv("ODOO_HEADERS_MIDDLEWARE", "kube-system-odoo-headers@kubernetescrd")
@@ -521,8 +523,8 @@ def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
                         {"protocol": "TCP", "port": POSTGRES_PORT},
                     ]
                 },
-                {   # Egress directo a red PG HA (192.168.0.0/24)
-                    "to": [{"ipBlock": {"cidr": "192.168.0.0/24"}}],
+                {   # Egress directo a la red del clúster PG externo
+                    "to": [{"ipBlock": {"cidr": PG_NETWORK_CIDR}}],
                     "ports": [
                         {"protocol": "TCP", "port": POSTGRES_PORT},
                     ]

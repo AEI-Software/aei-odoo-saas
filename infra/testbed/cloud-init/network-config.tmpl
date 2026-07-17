@@ -1,0 +1,22 @@
+# infra/testbed/cloud-init/network-config.tmpl
+# Renderizado por create-testbed-vms.sh (envsubst) para cada VM del testbed.
+# Variables esperadas: ${VM_IP}, ${GATEWAY}
+# Usamos match por nombre "enp*" en vez de la MAC/driver: es robusto frente a
+# cualquier NIC virtio expuesta por virt-install --import.
+
+network:
+  version: 2
+  ethernets:
+    ethvirtio:
+      match:
+        name: "enp*"
+      set-name: enp1s0
+      dhcp4: false
+      dhcp6: false
+      addresses:
+        - ${VM_IP}/24
+      gateway4: ${GATEWAY}
+      nameservers:
+        addresses:
+          - 1.1.1.1
+          - 8.8.8.8

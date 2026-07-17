@@ -1,5 +1,12 @@
 # DEPLOY — odoo-saas-mvp
 
+> **Entornos parametrizados:** la topología no-secreta de cada entorno (IPs de nodos,
+> `STORAGE_CLASS`, `BASE_DOMAIN`, endpoint S3, exclusiones de manifiestos) vive en
+> `infra/environments/<env>.env`. Los orquestadores (`infra/k3s-ha/deploy-k3s-cluster.sh`,
+> `infra/postgres-ha/deploy-all.sh`, `infra/apply-manifests.sh --env ...`) lo reciben como
+> argumento; sin argumento usan `cotas.env` (el entorno actual). Detalle y matriz de
+> proveedores en `docs/wiki/Cloud-Portability.md`.
+
 ## Entorno de producción
 
 | Elemento | Valor |

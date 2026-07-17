@@ -18,6 +18,10 @@ Usage:
 
   # Dry-run (show what would change, make no changes):
   python3 setup_wildcard_tunnel.py --dry-run
+
+  # Optional overrides (defaults shown):
+  #   WILDCARD_HOSTNAME=*.aeisoftware.com
+  #   TRAEFIK_SERVICE=http://traefik.kube-system:80
 """
 
 import os
@@ -26,8 +30,8 @@ import json
 import argparse
 import requests
 
-TRAEFIK_SERVICE = "http://traefik.kube-system:80"
-WILDCARD_HOSTNAME = "*.aeisoftware.com"
+TRAEFIK_SERVICE = os.getenv("TRAEFIK_SERVICE", "http://traefik.kube-system:80")
+WILDCARD_HOSTNAME = os.getenv("WILDCARD_HOSTNAME", "*.aeisoftware.com")
 
 
 def get_env():
@@ -58,7 +62,7 @@ def setup_wildcard_dns(env, dry_run=False):
     # Check if wildcard already exists
     r = requests.get(
         f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
-        f"?type=CNAME&name=*.aeisoftware.com",
+        f"?type=CNAME&name={WILDCARD_HOSTNAME}",
         headers=h, timeout=15
     )
     r.raise_for_status()
@@ -67,7 +71,7 @@ def setup_wildcard_dns(env, dry_run=False):
     if existing:
         current_target = existing[0].get("content", "")
         if current_target == tunnel_target:
-            print(f"✅ Wildcard CNAME already correct: *.aeisoftware.com → {tunnel_target}")
+            print(f"✅ Wildcard CNAME already correct: {WILDCARD_HOSTNAME} → {tunnel_target}")
             return
         else:
             print(f"⚠️  Wildcard CNAME exists but points to: {current_target}")
@@ -77,7 +81,7 @@ def setup_wildcard_dns(env, dry_run=False):
                 upd = requests.put(
                     f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{rec_id}",
                     headers=h, timeout=15,
-                    json={"type": "CNAME", "name": "*.aeisoftware.com",
+                    json={"type": "CNAME", "name": WILDCARD_HOSTNAME,
                           "content": tunnel_target, "proxied": True, "ttl": 1},
                 )
                 upd.raise_for_status()
@@ -85,12 +89,12 @@ def setup_wildcard_dns(env, dry_run=False):
             else:
                 print("   [dry-run] Would update CNAME")
     else:
-        print(f"   Creating *.aeisoftware.com CNAME → {tunnel_target}")
+        print(f"   Creating {WILDCARD_HOSTNAME} CNAME → {tunnel_target}")
         if not dry_run:
             cr = requests.post(
                 f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",
                 headers=h, timeout=15,
-                json={"type": "CNAME", "name": "*.aeisoftware.com",
+                json={"type": "CNAME", "name": WILDCARD_HOSTNAME,
                       "content": tunnel_target, "proxied": True, "ttl": 1},
             )
             cr.raise_for_status()

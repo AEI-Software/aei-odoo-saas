@@ -3,8 +3,10 @@
 # 02-setup-patroni.sh — Configura Patroni + PostgreSQL en un nodo
 #
 # Variables de entorno requeridas:
-#   NODE_NAME             — pg-node1, pg-node2, pg-node3
-#   NODE_IP               — 192.168.0.x (IP interna)
+#   NODE_NAME             — pg-node1, pg-node2, ...
+#   NODE_IP               — IP interna del nodo
+#   PG_NODE_LIST          — Inventario de todos los nodos:
+#                           "name:internal_ip,name:internal_ip,..." (1 o N nodos)
 #   DB_PASSWORD           — Contraseña del usuario 'odoo'
 #   REPLICATOR_PASSWORD   — Contraseña del usuario 'replicator'
 #   PG_SUPERUSER_PASSWORD — Contraseña del superuser 'postgres'
@@ -22,14 +24,20 @@ echo "════════════════════════�
 # ─── Validar variables ──────────────────────────────────────────────────────
 : "${NODE_NAME:?ERROR: NODE_NAME no definido}"
 : "${NODE_IP:?ERROR: NODE_IP no definido}"
+: "${PG_NODE_LIST:?ERROR: PG_NODE_LIST no definido}"
 : "${DB_PASSWORD:?ERROR: DB_PASSWORD no definido}"
 : "${REPLICATOR_PASSWORD:?ERROR: REPLICATOR_PASSWORD no definido}"
 : "${PG_SUPERUSER_PASSWORD:?ERROR: PG_SUPERUSER_PASSWORD no definido}"
 
-# ─── IPs del clúster ────────────────────────────────────────────────────────
-NODE1_IP="192.168.0.127"
-NODE2_IP="192.168.0.186"
-NODE3_IP="192.168.0.226"
+# ─── Hosts de etcd a partir del inventario PG_NODE_LIST ─────────────────────
+# PG_NODE_LIST: "name:internal_ip,name:internal_ip,..." (1 o N nodos)
+ETCD_HOSTS_YAML=""
+IFS=',' read -ra PG_NODE_ENTRIES <<< "$PG_NODE_LIST"
+for entry in "${PG_NODE_ENTRIES[@]}"; do
+  IFS=':' read -r entry_name entry_ip <<< "$entry"
+  ETCD_HOSTS_YAML="${ETCD_HOSTS_YAML}    - ${entry_ip}:2379
+"
+done
 
 # ─── Detener PostgreSQL standalone si está corriendo ─────────────────────────
 echo "→ Deteniendo PostgreSQL standalone..."
@@ -68,9 +76,7 @@ restapi:
 
 etcd3:
   hosts:
-    - ${NODE1_IP}:2379
-    - ${NODE2_IP}:2379
-    - ${NODE3_IP}:2379
+${ETCD_HOSTS_YAML%$'\n'}
 
 bootstrap:
   dcs:

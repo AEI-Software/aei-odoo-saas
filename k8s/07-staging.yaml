@@ -43,7 +43,7 @@ metadata:
   namespace: staging
 spec:
   accessModes: [ReadWriteOnce]
-  storageClassName: ceph-rbd
+  storageClassName: ${STORAGE_CLASS}
   resources:
     requests:
       storage: 5Gi
@@ -297,7 +297,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: staging.aeisoftware.com
+    - host: staging.${BASE_DOMAIN}
       http:
         paths:
           - path: /websocket
@@ -372,9 +372,11 @@ spec:
                   name: portal-secret
                   key: API_KEY
             - name: BASE_DOMAIN
-              value: aeisoftware.com
+              value: ${BASE_DOMAIN}
             - name: STORAGE_CLASS
-              value: ceph-rbd              # same cluster as prod — must use ceph-rbd
+              value: ${STORAGE_CLASS}      # renderizado por apply-manifests.sh desde el env del entorno
+            - name: PG_NETWORK_CIDR
+              value: ${PG_NETWORK_CIDR}
             - name: URL_SCHEME
               value: http
             - name: GIT_TOKEN
@@ -439,7 +441,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: portal-stg.aeisoftware.com
+    - host: portal-stg.${BASE_DOMAIN}
       http:
         paths:
           - path: /

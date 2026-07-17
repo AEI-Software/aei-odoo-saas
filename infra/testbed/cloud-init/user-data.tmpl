@@ -1,0 +1,22 @@
+#cloud-config
+# infra/testbed/cloud-init/user-data.tmpl
+# Renderizado por create-testbed-vms.sh (envsubst) para cada VM del testbed.
+# Variables esperadas: ${VM_NAME}, ${SSH_PUBKEY}
+
+hostname: ${VM_NAME}
+manage_etc_hosts: true
+
+package_update: true
+packages:
+  - qemu-guest-agent
+
+users:
+  - name: ubuntu
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${SSH_PUBKEY}
+
+runcmd:
+  - systemctl enable --now qemu-guest-agent

@@ -3,8 +3,10 @@
 # 01-setup-etcd.sh — Configura etcd en un nodo del clúster
 #
 # Variables de entorno requeridas:
-#   NODE_NAME       — Nombre del nodo (pg-node1, pg-node2, pg-node3)
-#   NODE_IP         — IP interna del nodo (192.168.0.x)
+#   NODE_NAME       — Nombre del nodo (pg-node1, pg-node2, ...)
+#   NODE_IP         — IP interna del nodo
+#   PG_NODE_LIST    — Inventario de todos los nodos del clúster:
+#                     "name:internal_ip,name:internal_ip,..." (1 o N nodos)
 #
 # Se ejecuta en cada VM vía SSH desde deploy-all.sh
 # =============================================================================
@@ -18,17 +20,24 @@ echo "════════════════════════�
 # ─── Validar variables ──────────────────────────────────────────────────────
 : "${NODE_NAME:?ERROR: NODE_NAME no definido}"
 : "${NODE_IP:?ERROR: NODE_IP no definido}"
+: "${PG_NODE_LIST:?ERROR: PG_NODE_LIST no definido}"
 
 # ─── Configuración del clúster ──────────────────────────────────────────────
 CLUSTER_TOKEN="odoo-saas-etcd"
 CLUSTER_NAME="odoo-saas-ha"
 
-# IPs internas de los 3 nodos (192.168.0.x)
-NODE1_IP="192.168.0.127"
-NODE2_IP="192.168.0.186"
-NODE3_IP="192.168.0.226"
-
-INITIAL_CLUSTER="pg-node1=http://${NODE1_IP}:2380,pg-node2=http://${NODE2_IP}:2380,pg-node3=http://${NODE3_IP}:2380"
+# ─── Construir initial-cluster a partir del inventario PG_NODE_LIST ─────────
+# PG_NODE_LIST: "name:internal_ip,name:internal_ip,..." (1 o N nodos)
+INITIAL_CLUSTER=""
+IFS=',' read -ra PG_NODE_ENTRIES <<< "$PG_NODE_LIST"
+for entry in "${PG_NODE_ENTRIES[@]}"; do
+  IFS=':' read -r entry_name entry_ip <<< "$entry"
+  if [ -z "$INITIAL_CLUSTER" ]; then
+    INITIAL_CLUSTER="${entry_name}=http://${entry_ip}:2380"
+  else
+    INITIAL_CLUSTER="${INITIAL_CLUSTER},${entry_name}=http://${entry_ip}:2380"
+  fi
+done
 
 # ─── Crear archivo de configuración de etcd ─────────────────────────────────
 echo "→ Creando configuración de etcd..."

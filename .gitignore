@@ -3,6 +3,8 @@ __pycache__/
 *.pyo
 # Secrets — NEVER commit real passwords
 .secrets.env
+.secrets.env.*
+!.secrets.env.example
 .secrets/
 .env
 .env.*
@@ -20,9 +22,15 @@ venv/
 
 # K3s HA — generados por deploy-k3s-cluster.sh
 infra/k3s-ha/.env
+infra/k3s-ha/.env.*
+!infra/k3s-ha/.env.example
 infra/k3s-ha/.kubeconfig
+infra/k3s-ha/.kubeconfig.*
 infra/postgres-ha/.env
+infra/postgres-ha/.env.*
+!infra/postgres-ha/.env.example
 infra/postgres-ha/.secrets.generated
+infra/postgres-ha/.secrets.generated.*
 
 
 # Editor
