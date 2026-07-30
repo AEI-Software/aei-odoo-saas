@@ -1,9 +1,29 @@
 # k8s/07-cloudflare-tunnel.yaml
-# Cloudflare Tunnel — expone admin.aeisoftware.com → odoo-admin:8069 en k3s
+# Cloudflare Tunnel — ingress del clúster vía una única ruta COMODÍN.
 #
-# IMPORTANTE: el routing se configura en el dashboard de Cloudflare Zero Trust:
-#   Zero Trust > Networks > Tunnels > <este-tunnel> > Edit > Public Hostname
-#   Subdomain: admin | Domain: aeisoftware.com | Service: http://odoo-admin.odoo.svc.cluster.local:8069
+# El tunnel NO enruta por tenant: publica un solo hostname comodín hacia Traefik,
+# y Traefik reparte por Host: header con los Ingress de cada tenant. Así provisionar
+# un tenant nuevo no requiere ninguna llamada a la API de Cloudflare.
+#
+#   *.<BASE_DOMAIN>  →  http://traefik.kube-system:80
+#
+# IMPORTANTE: el routing es remote-managed (el tunnel corre con --token, así que la
+# config de ingress vive en Cloudflare, no en este manifiesto). Se configura con:
+#   CF_API_TOKEN=... CF_ACCOUNT_ID=... CF_ZONE_ID=... CF_TUNNEL_ID=... \
+#   WILDCARD_HOSTNAME='*.aeisoftware.com' TRAEFIK_SERVICE='http://traefik.kube-system:80' \
+#   python3 setup_cloudflare_wildcard_tunnel.py --dry-run
+# …o a mano en Zero Trust > Networks > Tunnels > <tunnel> > Public Hostname.
+#
+# El comodín debe ser de UN solo nivel (`*.aeisoftware.com`): el Universal SSL de
+# Cloudflare no cubre `*.sub.dominio.com`, así que un comodín anidado resuelve por
+# DNS pero rompe el handshake TLS. Ver infra/environments/testbed.env.
+#
+# El pod DEBE correr in-cluster: `traefik.kube-system` solo resuelve por DNS de k8s.
+#
+# ⚠️  setup_cloudflare_wildcard_tunnel.py REEMPLAZA todas las rutas del tunnel que
+#     recibe en CF_TUNNEL_ID. Correrlo contra el tunnel del host cruzoil
+#     (contenedor 6ad434184e13, cargas de terceros) las borraría todas.
+#     Verificar siempre el CF_TUNNEL_ID del entorno antes de ejecutarlo.
 #
 # ⚠️  El Secret cloudflared-token se crea en apply-manifests.sh desde .secrets.env
 # NO incluir el token en este archivo — está en .gitignore

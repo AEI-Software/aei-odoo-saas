@@ -13,7 +13,11 @@
 # Uso:
 #   cp .env.example .env
 #   nano .env   # completar credenciales RadosGW
-#   ./deploy-all.sh
+#   ./deploy-all.sh [infra/environments/<env>.env]
+#
+# Sin argumento se usa infra/environments/testbed.env (único entorno vivo).
+# NOTA: el default era cotas.env hasta el 2026-07-28, cuando ese entorno fue
+# desmantelado (ver docs/wiki/Environment-Status.md).
 #
 # Las contraseñas de PostgreSQL se generan automáticamente la primera vez.
 # =============================================================================
@@ -31,8 +35,8 @@ echo ""
 
 # ─── Cargar inventario de entorno ────────────────────────────────────────────
 # Primer argumento posicional: ruta al env file (infra/environments/*.env).
-# Sin argumento, se usa cotas.env (comportamiento actual = default).
-ENV_FILE="${1:-${REPO_ROOT}/infra/environments/cotas.env}"
+# Sin argumento, se usa testbed.env (único entorno vivo desde 2026-07-28).
+ENV_FILE="${1:-${REPO_ROOT}/infra/environments/testbed.env}"
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "  ✗ Archivo de entorno no encontrado: ${ENV_FILE}"

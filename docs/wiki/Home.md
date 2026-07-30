@@ -1,14 +1,21 @@
 # Odoo SaaS MVP — Wiki
 
-Multi-node K3s platform (Ceph RBD storage) that hosts multiple Odoo 18 tenants with automated provisioning, per-user billing, and integrated QR payments.
+Multi-node K3s platform that hosts multiple Odoo 18 tenants with automated provisioning, per-user billing, and integrated QR payments.
 
-**Launch date:** 2026-04-15 — www.aeisoftware.com
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> ya no existe y **no hay entorno productivo activo**; la migración a un nuevo proveedor está
+> pendiente. El único entorno vivo es el **testbed cruzoil** (`10.9.13.x`), solo laboratorio.
+> Empezar por → [**Environment Status**](Environment-Status.md), que dice qué páginas de este wiki
+> son históricas.
+
+**Launch date:** 2026-04-15 — www.aeisoftware.com (offline desde 2026-07-28)
 
 ## Architecture
 
-- [High-Level Design (HLD)](High-Level-Design-(HLD).md) — component map, routing, database, security
-- [Low-Level Design (LLD)](Low-Level-Design-(LLD).md) — K8s resources, configs, env vars, probes
-- [Production Cloud Environment](Production-Cloud-Environment.md) — Ceph RBD, PostgreSQL HA (Patroni + HAProxy), Cilium networking
+- [Environment Status](Environment-Status.md) — **qué infraestructura existe hoy** (fuente de verdad)
+- [High-Level Design (HLD)](High-Level-Design-(HLD).md) — component map, routing, database, security _(histórico: topología COTAS)_
+- [Low-Level Design (LLD)](Low-Level-Design-(LLD).md) — K8s resources, configs, env vars, probes _(histórico: topología COTAS)_
+- [Production Cloud Environment](Production-Cloud-Environment.md) — Ceph RBD, PostgreSQL HA (Patroni + HAProxy), Cilium networking _(histórico: COTAS desmantelado)_
 
 ## Components
 
@@ -24,17 +31,20 @@ Multi-node K3s platform (Ceph RBD storage) that hosts multiple Odoo 18 tenants w
 - [DAY0 Install From Scratch](DAY0-Install-From-Scratch.md) — full setup walkthrough for a fresh VM or standard K3s.
 - [Local Deployment WSL](Local-Deployment-WSL.md) — `dev-setup.sh` for local K3s on WSL/Linux.
 
-### Production Environment (Cloud K3s)
-- [Production Cloud Environment](Production-Cloud-Environment.md) — architecture differences, storage (`ceph-rbd`), and Ceph-specific security context fixes in production.
+### Testbed cruzoil (único entorno vivo)
+- [Environment Status](Environment-Status.md) — inventario de entornos vivos vs desmantelados, accesos del testbed, trampas conocidas.
 - [Cloud Portability](Cloud-Portability.md) — inventario por entorno (`infra/environments/`), matriz de proveedores (AWS/Vultr/GCP/bare-metal), Longhorn vs Ceph, runbook del testbed cruzoil.
-- [Cloud Provider Cost Analysis](Cloud-Provider-Cost-Analysis.md) — costo comparado Vultr/AWS/Azure/GCP para arranque mínimo, auto-scaling nativo de workers por proveedor, fricciones (Blob no es S3 en Azure).
+- [Cloud Provider Cost Analysis](Cloud-Provider-Cost-Analysis.md) — costo comparado Vultr/AWS/Azure/GCP para arranque mínimo, auto-scaling nativo de workers por proveedor, fricciones (Blob no es S3 en Azure). **Insumo para elegir el nuevo destino productivo.**
+
+### Production Environment (COTAS — desmantelado 2026-07-28)
+- [Production Cloud Environment](Production-Cloud-Environment.md) — architecture differences, storage (`ceph-rbd`), and Ceph-specific security context fixes in production. _(histórico)_
 
 ### General
 - [Secrets Management](Secrets-Management.md) — `.secrets.env` workflow, credential rotation, drift diagnosis.
-- [PostgreSQL Cluster Operations](PostgreSQL-Cluster-Operations.md) — **referencia operativa del cluster Patroni**: topología, puertos, roles, eliminación de tenants, errores comunes, docs stale.
-- [Operational Runbook](Operational-Runbook.md) — DAY1/DAY2 health checks, backups (pgBackRest), **monitoring stack (Prometheus+Grafana+Loki)**, debugging, scaling.
+- [PostgreSQL Cluster Operations](PostgreSQL-Cluster-Operations.md) — **referencia operativa del cluster Patroni**: topología, puertos, roles, eliminación de tenants, errores comunes, docs stale. _(histórico: nodos COTAS)_
+- [Operational Runbook](Operational-Runbook.md) — DAY1/DAY2 health checks, backups (pgBackRest), **monitoring stack (Prometheus+Grafana+Loki)**, debugging, scaling. _(histórico: hosts COTAS)_
 - [CICD Pipeline](CICD-Pipeline.md) — GitHub Actions build and push workflow (deploy is manual).
-- [Branch Strategy and Promotion](Branch-Strategy-and-Promotion.md) — two-branch model (`main`=staging, `18.0`=production), code promotion procedure, rollback.
+- [Branch Strategy and Promotion](Branch-Strategy-and-Promotion.md) — two-branch model (`main`=staging, `18.0`=production), code promotion procedure, rollback. _(histórico: sin entorno productivo, el modelo de dos ramas está en pausa)_
 
 ## Security & Audit
 
@@ -56,6 +66,10 @@ Multi-node K3s platform (Ceph RBD storage) that hosts multiple Odoo 18 tenants w
 | Monitoring Stack | Prometheus + Grafana + AlertManager + Loki + Promtail, 32 targets |
 
 ## Monitoring
+
+> _Histórico: el stack corría en COTAS. `grafana.aeisoftware.com` está offline desde 2026-07-28;
+> el testbed no tiene kube-prometheus instalado (por eso `05c-portal-servicemonitor.yaml` está
+> excluido en `testbed.env`)._
 
 Access via `https://grafana.aeisoftware.com` or port-forward:
 ```bash

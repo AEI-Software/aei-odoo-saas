@@ -1,6 +1,14 @@
 # Odoo SaaS MVP
 
-Multi-node Kubernetes SaaS provisioning for Odoo 18, running on **K3s + Ceph RBD + PostgreSQL HA + Cloudflare tunnels**.
+Multi-node Kubernetes SaaS provisioning for Odoo 18, running on **K3s + PostgreSQL HA + Cloudflare tunnels**
+(almacenamiento según el entorno: Ceph RBD o Longhorn).
+
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> (Ceph RBD, Patroni `192.168.0.x`, `*.aeisoftware.com`) ya no existe, y **no hay entorno productivo
+> activo** — la migración a un nuevo proveedor está pendiente. El único entorno vivo es el **testbed
+> cruzoil** (`10.9.13.x`), que es solo laboratorio. Los dominios y namespaces citados abajo describen
+> cómo corría en COTAS y se conservan como referencia.
+> Estado real de la infraestructura: [**docs/wiki/Environment-Status.md**](docs/wiki/Environment-Status.md).
 
 > 📖 Full documentation: [**docs/wiki/Home.md**](docs/wiki/Home.md)
 

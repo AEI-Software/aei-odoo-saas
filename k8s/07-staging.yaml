@@ -285,7 +285,9 @@ spec:
       targetPort: 8072
 
 ---
-# ── Ingress: Odoo staging → staging.aeisoftware.com ────────────────────────
+# ── Ingress: Odoo staging → staging.${BASE_DOMAIN} y www.${BASE_DOMAIN} ────
+# www apunta al Odoo de staging porque el stack odoo-admin (que servía admin. y www.
+# en COTAS) no se despliega en el testbed — ver MANIFEST_EXCLUDE en testbed.env.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -298,6 +300,23 @@ spec:
   ingressClassName: traefik
   rules:
     - host: staging.${BASE_DOMAIN}
+      http:
+        paths:
+          - path: /websocket
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-stg-svc
+                port:
+                  number: 8072
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: odoo-stg-svc
+                port:
+                  number: 8069
+    - host: www.${BASE_DOMAIN}
       http:
         paths:
           - path: /websocket

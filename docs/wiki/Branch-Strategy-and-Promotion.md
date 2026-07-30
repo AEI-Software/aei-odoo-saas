@@ -1,5 +1,12 @@
 # Branch Strategy & Code Promotion
 
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> (Ceph RBD, Patroni `192.168.0.x`, `*.aeisoftware.com`) ya no existe, y **no hay entorno productivo
+> activo** — la migración a un nuevo proveedor está pendiente. El único entorno vivo es el **testbed
+> cruzoil** (`10.9.13.x`), que es solo laboratorio. Esta página se conserva como referencia histórica:
+> los procedimientos siguen siendo válidos como plantilla, pero ningún host, IP o namespace aquí
+> descrito responde hoy. Ver [Environment Status](Environment-Status.md).
+
 ## Overview
 
 The project uses a **two-branch model** with separate staging and production environments in the same K3s cluster:

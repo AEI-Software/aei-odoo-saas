@@ -1,13 +1,21 @@
 # DEPLOY — odoo-saas-mvp
 
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> (Ceph RBD, Patroni `192.168.0.x`, `*.aeisoftware.com`) ya no existe, y **no hay entorno productivo
+> activo** — la migración a un nuevo proveedor está pendiente. El único entorno vivo es el **testbed
+> cruzoil** (`10.9.13.x`), que es solo laboratorio. Los procedimientos de este documento siguen siendo
+> válidos como plantilla, pero ningún host, IP o namespace aquí descrito responde hoy.
+> Estado real: [`docs/wiki/Environment-Status.md`](docs/wiki/Environment-Status.md).
+
 > **Entornos parametrizados:** la topología no-secreta de cada entorno (IPs de nodos,
 > `STORAGE_CLASS`, `BASE_DOMAIN`, endpoint S3, exclusiones de manifiestos) vive en
 > `infra/environments/<env>.env`. Los orquestadores (`infra/k3s-ha/deploy-k3s-cluster.sh`,
 > `infra/postgres-ha/deploy-all.sh`, `infra/apply-manifests.sh --env ...`) lo reciben como
-> argumento; sin argumento usan `cotas.env` (el entorno actual). Detalle y matriz de
-> proveedores en `docs/wiki/Cloud-Portability.md`.
+> argumento; **desde 2026-07-28 el default sin argumento es `testbed.env`** (antes `cotas.env`,
+> hoy desmantelado; se conserva como plantilla). Detalle y matriz de proveedores en
+> `docs/wiki/Cloud-Portability.md`.
 
-## Entorno de producción
+## Entorno de producción (histórico — COTAS)
 
 | Elemento | Valor |
 |---|---|

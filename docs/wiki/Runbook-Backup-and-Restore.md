@@ -1,5 +1,12 @@
 # Runbook: Backup y Restore
 
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> (Ceph RBD, Patroni `192.168.0.x`, `*.aeisoftware.com`) ya no existe, y **no hay entorno productivo
+> activo** — la migración a un nuevo proveedor está pendiente. El único entorno vivo es el **testbed
+> cruzoil** (`10.9.13.x`), que es solo laboratorio. Esta página se conserva como referencia histórica:
+> los procedimientos siguen siendo válidos como plantilla, pero ningún host, IP o namespace aquí
+> descrito responde hoy. Ver [Environment Status](Environment-Status.md).
+
 > **Actualizado:** 2026-04-14  
 > **Relacionado:** [Roadmap: Production Readiness 100 Tenants](Roadmap-Production-Readiness-100-Tenants.md) · [Operational Runbook](Operational-Runbook.md)
 

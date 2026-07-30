@@ -1,5 +1,12 @@
 # Production Cloud Environment (Cloud K3s)
 
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> (Ceph RBD, Patroni `192.168.0.x`, `*.aeisoftware.com`) ya no existe, y **no hay entorno productivo
+> activo** — la migración a un nuevo proveedor está pendiente. El único entorno vivo es el **testbed
+> cruzoil** (`10.9.13.x`), que es solo laboratorio. Esta página se conserva como referencia histórica:
+> los procedimientos siguen siendo válidos como plantilla, pero ningún host, IP o namespace aquí
+> descrito responde hoy. Ver [Environment Status](Environment-Status.md).
+
 This document describes the architectural differences and necessary configuration when deploying the Odoo SaaS MVP to the production environment, which currently runs on a cloud-hosted Kubernetes cluster (OpenStack / K3s) with Ceph storage.
 
 ## Server Access

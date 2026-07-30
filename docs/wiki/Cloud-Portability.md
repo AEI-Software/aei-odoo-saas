@@ -2,6 +2,11 @@
 
 > Estado: implementado en branch `feat/cloud-portability` (2026-07-17). Validado en el
 > testbed cruzoil (ver runbook abajo) antes de merge a `main`.
+>
+> **Actualización 2026-07-28:** el entorno COTAS fue desmantelado. Ya no es un ejercicio
+> preventivo — el testbed cruzoil es el **único entorno vivo** y esta portabilidad es el
+> camino para levantar el nuevo entorno productivo donde se decida. Ver
+> [Environment Status](Environment-Status.md).
 
 ## Objetivo
 

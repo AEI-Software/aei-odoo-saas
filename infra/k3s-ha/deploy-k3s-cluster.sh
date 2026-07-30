@@ -20,7 +20,11 @@
 #
 # Uso:
 #   ./infra/k3s-ha/deploy-k3s-cluster.sh [infra/environments/<env>.env]
-#   Sin argumento usa infra/environments/cotas.env (comportamiento histórico).
+#   Sin argumento usa infra/environments/testbed.env (único entorno vivo).
+#
+#   NOTA: el default era cotas.env hasta el 2026-07-28, cuando ese entorno fue
+#   desmantelado (ver docs/wiki/Environment-Status.md). cotas.env se conserva
+#   como plantilla, pero su infraestructura ya no existe.
 # =============================================================================
 set -euo pipefail
 
@@ -28,7 +32,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # ─── Cargar inventario del entorno ───────────────────────────────────────────
-ENV_FILE="${1:-${REPO_ROOT}/infra/environments/cotas.env}"
+ENV_FILE="${1:-${REPO_ROOT}/infra/environments/testbed.env}"
 if [ ! -f "${ENV_FILE}" ]; then
   echo "❌ Inventario de entorno no encontrado: ${ENV_FILE}"
   echo "   Disponibles: $(ls "${REPO_ROOT}/infra/environments/"*.env 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"

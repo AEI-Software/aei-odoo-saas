@@ -1,5 +1,12 @@
 # High-Level Design (HLD)
 
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> (Ceph RBD, Patroni `192.168.0.x`, `*.aeisoftware.com`) ya no existe, y **no hay entorno productivo
+> activo** — la migración a un nuevo proveedor está pendiente. El único entorno vivo es el **testbed
+> cruzoil** (`10.9.13.x`), que es solo laboratorio. Esta página se conserva como referencia histórica:
+> los procedimientos siguen siendo válidos como plantilla, pero ningún host, IP o namespace aquí
+> descrito responde hoy. Ver [Environment Status](Environment-Status.md).
+
 ## Overview
 
 The Odoo SaaS MVP is a **single-node K3s deployment** that hosts multiple Odoo 18 tenants on one VM. It is the lightweight successor to the full aeisoftware K3s HA cluster — same Cloudflare tunnel routing, no Ceph, no Patroni, no S3.

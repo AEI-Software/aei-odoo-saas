@@ -3,11 +3,15 @@
 # infra/apply-manifests.sh
 # Apply all K8s manifests in order, injecting secrets from .secrets.env.
 #
-# Usage (production/cotas — default environment):
+# Usage (testbed cruzoil — default environment since 2026-07-28):
 #   ./infra/apply-manifests.sh
 #
 # Usage (other environment):
-#   ./infra/apply-manifests.sh --env infra/environments/testbed.env
+#   ./infra/apply-manifests.sh --env infra/environments/<env>.env
+#
+# NOTE: el default era cotas.env hasta el 2026-07-28, cuando ese entorno fue
+# desmantelado (ver docs/wiki/Environment-Status.md). cotas.env se conserva como
+# plantilla del entorno productivo anterior, pero su infraestructura ya no existe.
 #
 # Usage (dry-run — shows what would be applied, touches nothing):
 #   ./infra/apply-manifests.sh --dry-run
@@ -21,7 +25,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRETS_FILE="$REPO_ROOT/.secrets.env"
-ENV_FILE="$REPO_ROOT/infra/environments/cotas.env"
+ENV_FILE="$REPO_ROOT/infra/environments/testbed.env"
 DRY_RUN=false
 
 # ── Argument parsing ─────────────────────────────────────────────────────────
@@ -124,7 +128,7 @@ PVCEOF
 fi
 
 # ── Apply secrets first (from env vars, never from git files) ────────────────
-echo "==> Applying secrets from .secrets.env …"
+echo "==> Applying secrets from $(basename "$SECRETS_FILE") …"
 cat <<EOF | kubectl apply $KUBECTL_ARGS --validate=false -f -
 apiVersion: v1
 kind: Secret

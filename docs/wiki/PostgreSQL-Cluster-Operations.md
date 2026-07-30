@@ -1,5 +1,12 @@
 # PostgreSQL Cluster Operations
 
+> ⚠️ **ENTORNO COTAS DESMANTELADO (2026-07-28).** El clúster de producción/staging en `10.40.2.158`
+> (Ceph RBD, Patroni `192.168.0.x`, `*.aeisoftware.com`) ya no existe, y **no hay entorno productivo
+> activo** — la migración a un nuevo proveedor está pendiente. El único entorno vivo es el **testbed
+> cruzoil** (`10.9.13.x`), que es solo laboratorio. Esta página se conserva como referencia histórica:
+> los procedimientos siguen siendo válidos como plantilla, pero ningún host, IP o namespace aquí
+> descrito responde hoy. Ver [Environment Status](Environment-Status.md).
+
 > Guía operativa consolidada para el cluster Patroni HA. Esta página reconcilia y reemplaza información dispersa en otros docs. Véase también la guía más detallada en [`infra/postgres-ha/README.md`](../../infra/postgres-ha/README.md) del repo principal.
 
 ## Arquitectura del cluster

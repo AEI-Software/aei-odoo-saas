@@ -6,11 +6,13 @@
 #
 # Uso:
 #   ./07-join-k3s-workers.sh [ruta/al/entorno.env]
-#   Sin argumento, usa infra/environments/cotas.env (comportamiento por defecto).
+#   Sin argumento, usa infra/environments/testbed.env (único entorno vivo desde
+#   el desmantelamiento de COTAS el 2026-07-28 — ver docs/wiki/Environment-Status.md).
 #
 # El env file debe definir K3S_NODES, K3S_WORKER_NODES, SSH_KEY, SSH_USER
-# (ver infra/environments/cotas.env). Si K3S_WORKER_NODES está vacío, el
-# script termina sin hacer nada (entorno sin workers definidos).
+# (ver infra/environments/testbed.env). Si K3S_WORKER_NODES está vacío, el
+# script termina sin hacer nada (entorno sin workers definidos) — es el caso
+# del testbed, donde los 3 servers agendan pods.
 #
 # Pasos por nodo:
 #   1. Preparar nodo (sysctl, swap-off; ceph-common/rbd solo si STORAGE_BACKEND=ceph)
@@ -22,7 +24,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-ENV_FILE="${1:-${REPO_ROOT}/infra/environments/cotas.env}"
+ENV_FILE="${1:-${REPO_ROOT}/infra/environments/testbed.env}"
 
 if [ ! -f "${ENV_FILE}" ]; then
   echo "❌ Env file no encontrado: ${ENV_FILE}"
