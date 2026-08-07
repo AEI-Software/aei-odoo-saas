@@ -30,7 +30,6 @@ logging.basicConfig(level=logging.INFO)
 
 AGENT_WEBHOOK_SECRET = os.environ["AGENT_WEBHOOK_SECRET"]
 ODOO_URL = os.environ.get("ODOO_URL", "http://odoo:8069")
-AGENT_MODEL = os.environ.get("AGENT_MODEL", "claude-sonnet-5")
 AGENT_MAX_TURNS = int(os.environ.get("AGENT_MAX_TURNS", "12"))
 AGENT_MAX_BUDGET_USD = float(os.environ.get("AGENT_MAX_BUDGET_USD", "0.50"))
 
@@ -102,9 +101,37 @@ async def _pretooluse_guardrail(input_data: dict, _tool_use_id: str | None, _con
     return {}
 
 
-def _build_options(mcp_key: str, resume: str | None) -> ClaudeAgentOptions:
+async def _fetch_llm_config() -> dict | None:
+    """BYOK: pull the tenant's own AI-provider credentials from Odoo on
+    every turn instead of a static env var, so a key change in Settings
+    takes effect on the next message with no redeploy. Returns None if
+    the assistant isn't configured yet (Odoo-side already short-circuits
+    before ever calling /hook, but this is defense in depth against a
+    race — key removed between the webhook firing and this call)."""
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            f"{ODOO_URL}/ai_agent/llm_config",
+            headers={"Authorization": f"Bearer {AGENT_WEBHOOK_SECRET}"},
+        )
+        resp.raise_for_status()
+        config = resp.json()
+    return config if config.get("configured") else None
+
+
+def _build_options(llm_config: dict, mcp_key: str, resume: str | None) -> ClaudeAgentOptions:
+    if llm_config["base_url"]:
+        # Non-Anthropic (or self-hosted) provider — all confirmed to expose
+        # an Anthropic-compatible /v1/messages endpoint (see
+        # saas_ai_agent/models/res_config_settings.py PROVIDER_BASE_URLS).
+        env = {
+            "ANTHROPIC_BASE_URL": llm_config["base_url"],
+            "ANTHROPIC_AUTH_TOKEN": llm_config["api_key"],
+        }
+    else:
+        env = {"ANTHROPIC_API_KEY": llm_config["api_key"]}
     return ClaudeAgentOptions(
-        model=AGENT_MODEL,
+        model=llm_config["model"],
+        env=env,
         mcp_servers={
             "odoo": {
                 "type": "http",
@@ -151,8 +178,22 @@ async def _post_reply(channel_id: int, text: str, is_error: bool) -> None:
 async def _run_turn(payload: HookPayload) -> None:
     lock = await _channel_lock(payload.channel_id)
     async with lock:
+        try:
+            llm_config = await _fetch_llm_config()
+        except httpx.HTTPError as exc:
+            logger.error("agent(channel=%s): failed to fetch llm_config: %s", payload.channel_id, exc)
+            llm_config = None
+        if llm_config is None:
+            await _post_reply(
+                payload.channel_id,
+                "Todavía no tengo una API key de IA configurada — anda a "
+                "Ajustes > AEI Assistant para activarme.",
+                is_error=True,
+            )
+            return
+
         resume = await session_store.get(payload.channel_id)
-        options = _build_options(payload.mcp_key, resume)
+        options = _build_options(llm_config, payload.mcp_key, resume)
         session_id: str | None = None
         final_text = ""
         is_error = False
