@@ -55,6 +55,14 @@ Runbook completo en [Cloud Portability](Cloud-Portability.md).
 > la red `br0` ni los ~28 contenedores docker del host (Odoo 17 de clientes, cloudflared,
 > traefik). El gateway de la red es `10.9.13.253`, no `.1`.
 
+> ⚠️ **Capacidad de storage Longhorn muy justa (desde 2026-08-08):** un tenant real se quedó en
+> `error` por falta de espacio para un replica (ver `docs/wiki/AEI-Assistant.md` § Auto-enable /
+> memoria de proyecto `testbed_cruzoil` para el diagnóstico completo — el fix real fue bajar
+> `storageReserved` estático por disco en `nodes.longhorn.io`, no `numberOfReplicas` ni el setting
+> global de porcentaje). Tras el fix, nodos 1 y 2 quedaron con solo ~6.2 GB libres cada uno, nodo 3
+> con ~27.6 GB. **Revisar headroom real antes de provisionar un tenant nuevo** — no asumir que
+> alcanza.
+
 ## Tunnel Cloudflare del testbed
 
 Desde el **2026-07-29** el testbed tiene su propio tunnel cloudflared, que recupera la

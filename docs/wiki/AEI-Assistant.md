@@ -3,8 +3,16 @@
 > **Estado (2026-08-08):** Phase 1 (MVP) y Phase 2 (BYOK + billing hook) construidos y verificados
 > en vivo sobre el testbed. Ver [Environment Status](Environment-Status.md) para qué está
 > apuntando temporalmente a `feat/cloud-portability` en vez de `main`.
+>
+> **Pivote de modelo de negocio (2026-08-08):** aei_assistant **no se vende** por el momento —
+> viene instalado por defecto en **todos** los tenants como valor agregado (`AI_AGENT_DEFAULT_MODULES`
+> en `odoo_k8s_saas/models/saas_instance.py`, mergeado en cada `action_provision()` sin pisar lo que
+> el admin tipeó explícitamente). Cada cliente paga su propia API key (DeepSeek/Kimi/Anthropic —
+> BYOK, ver abajo); la plataforma no revende uso de LLM. El cron de facturación
+> (`ir_cron_update_aei_assistant_line`) queda **desactivado** (`active=False`), no borrado, por si
+> se retoma la venta más adelante. Ver sección Billing.
 
-Cada tenant puede activar opcionalmente un agente de IA, accesible como una conversación normal
+Cada tenant tiene un agente de IA, accesible como una conversación normal
 de Discuss (estilo OdooBot), que puede leer/escribir sobre los datos del tenant **dentro de los
 permisos del usuario de Odoo que le escribe** — nunca como superusuario.
 
@@ -100,7 +108,7 @@ The first time a user opens the "AEI Assistant" menu, the agent introduces itsel
 (same `/hook` path, `welcome: true`, a canned prompt instead of user text) instead of waiting for
 the first message — mirrors OdooBot's own unprompted greeting.
 
-## Billing
+## Billing (desactivado — ver pivote arriba)
 
 `odoo_k8s_saas_subscription`: producto `product_aei_assistant` + cron diario
 `_cron_update_aei_assistant_line` (mismo patrón que el cron ya existente de usuarios extra,
@@ -109,8 +117,32 @@ the first message — mirrors OdooBot's own unprompted greeting.
 `aei_assistant_price` (default 85 Bs/mes, ver investigación de modelo de negocio delegada a Fable 5)
 o `aei_assistant_included` (gratis, ej. para diferenciar el plan Enterprise). El toggle
 enable/disable en `saas.instance` (`action_enable_ai_agent`/`action_disable_ai_agent`) solo maneja
-el workload K8s — la facturación la sincroniza el cron, misma división de responsabilidades que
-usuarios extra.
+el workload K8s — la facturación la sincronizaba el cron, misma división de responsabilidades que
+usuarios extra. **El cron está desactivado desde 2026-08-08** (`active=False` en
+`odoo_k8s_saas_subscription/data/ir_cron.xml`) — el código y los campos de precio quedan tal cual
+para reactivar sin reescribir nada si se retoma la venta.
+
+## Auto-enable en cada tenant
+
+Desde el pivote a "valor agregado por defecto", el agente se activa **automáticamente** apenas el
+tenant llega a `ready` — sin botón manual. Dos puntos de entrada, ambos con la misma llamada a
+`action_enable_ai_agent()`:
+
+- `odoo_k8s_saas_subscription/controllers/webhook.py::instance_status_webhook()` — el camino rápido
+  real: el portal empuja este webhook en cada transición de estado (`portal/routers/instances.py::_fire_webhook`),
+  así que la mayoría de tenants pasan por acá, no por el cron.
+- `odoo_k8s_saas/models/saas_instance.py::action_check_status()` — el cron de 2 min, red de
+  seguridad si el webhook falla.
+
+**Bug real encontrado y corregido (2026-08-08)**: en ambos lugares, `action_send_credentials_email()`
+y la nueva llamada a `action_enable_ai_agent()` estaban en el **mismo** try/except — si el email
+fallaba (plausible sin SMTP configurado), la excepción saltaba directo al `except` genérico exterior
+y el auto-enable nunca corría, sin rastro del motivo real. Confirmado en vivo sobre
+`administrator-sub00258`: llegó a `ready` con `ai_agent_enabled=False`; llamar
+`action_enable_ai_agent()` a mano funcionó al instante, probando que el método estaba bien y el bug
+era pura estructura de try/except. Fix: cada paso en su propio try/except independiente — commit
+`132cf21`, verificado en vivo forzando el tenant de vuelta a `provisioning`/`ai_agent_enabled=False`
+y confirmando que un solo `action_check_status()` lo deja en `ready`/`ai_agent_enabled=True`.
 
 ## Cómo probarlo
 
@@ -161,6 +193,17 @@ Vale la pena leerlos antes de tocar este código — ninguno era obvio desde el 
   concurrent update` — parece un bug de código pero es una conexión huérfana. Diagnóstico:
   `pg_stat_activity` filtrado por `datname`, `pg_terminate_backend(<pid>)` la que esté
   `idle in transaction`.
+- Encadenar dos pasos "best-effort" en el mismo try/except es una trampa: si el primero
+  (`action_send_credentials_email()`) tira excepción, el segundo (`action_enable_ai_agent()`) nunca
+  corre, y solo queda un warning genérico del `except` exterior sin decir cuál de los dos falló ni
+  por qué. Cada paso best-effort necesita su propio try/except (ver "Auto-enable en cada tenant"
+  arriba) — patrón a repetir en cualquier código nuevo que encadene pasos independientes tras una
+  transición de estado.
+- El webhook de estado (`instance_status_webhook()`) solo escribe `state`, nunca un motivo, en una
+  transición a error — `portal/routers/instances.py::_fire_webhook` solo manda `{tenant_id, status}`,
+  aunque el llamador sí tiene info más rica en scope (fase del pod K8s, la excepción capturada, el
+  motivo del timeout) que se descarta antes de la llamada. Gap real, no corregido todavía — explica
+  por qué un tenant en error puede mostrar `error_msg` vacío.
 
 Más detalle operativo (comandos exactos, nombres de pods, etc.) en la memoria de proyecto
 `ai-agent-per-tenant` (`/home/kali/.claude/projects/-home-kali-aeisoftware-aei-odoo-saas/memory/`).
