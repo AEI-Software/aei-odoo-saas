@@ -85,6 +85,21 @@ que el SDK los usa vía `ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN` sin cambios)
 | Moonshot / Kimi | `https://api.moonshot.ai/anthropic` |
 | Custom / self-hosted (Ollama, etc.) | URL propia del tenant |
 
+## Trial fallback + proactive welcome
+
+New tenants don't have to configure BYOK before getting any value: the platform can supply its own
+default key (currently DeepSeek), used only until the tenant sets their own, within a per-tenant
+USD budget Odoo tracks itself (`aei_assistant_trial_cap_usd`, default $1, Settings > AEI Assistant
+— shown only while unconfigured). The key lives **only** in each tenant's `agent-secret` K8s Secret
+(`DEFAULT_LLM_*`, injected from the portal's own env — `agent_secret_manifest()`), never in any
+tenant's Odoo database: `GET /ai_agent/llm_config` hands back a `trial_available` boolean and a
+running spend total, nothing else, when no BYOK key is set. The agent pod reports each trial turn's
+real SDK-billed cost (`ResultMessage.total_cost_usd`) back via `/ai_agent/reply`; Odoo accumulates it.
+
+The first time a user opens the "AEI Assistant" menu, the agent introduces itself proactively
+(same `/hook` path, `welcome: true`, a canned prompt instead of user text) instead of waiting for
+the first message — mirrors OdooBot's own unprompted greeting.
+
 ## Billing
 
 `odoo_k8s_saas_subscription`: producto `product_aei_assistant` + cron diario
@@ -131,6 +146,21 @@ Vale la pena leerlos antes de tocar este código — ninguno era obvio desde el 
 - `res.partner.im_search` (buscador de "nuevo mensaje directo" de Discuss) solo busca
   `res.users`, nunca `res.partner` sueltos — un partner-bot sin login real (como el de
   AEI Assistant, a propósito) nunca aparece ahí. Por eso existe el menú dedicado.
+- Un PVC recién borrado sigue leyéndose como "existe" mientras Longhorn termina de desmontarlo
+  (`metadata.deletion_timestamp` seteado, objeto todavía presente) — un disable seguido
+  inmediatamente de un enable puede saltarse la recreación del PVC y dejar el pod del agente en
+  `Pending`. Mitigado tratando un PVC con `deletion_timestamp` como ausente.
+- Probar `action_open_ai_assistant_chat()` desde `odoo shell` sin `.with_user(usuario)` deja
+  `self.env.user` apuntando al usuario por defecto de la shell, no al usuario que se pasó como
+  argumento — crea el canal para la identidad equivocada. No es un bug real (en producción el
+  `ir.actions.server` del menú siempre llama `env.user.action_open_ai_assistant_chat()`, así que
+  `self` y `env.user` son el mismo registro), pero confunde el debugging si no se tiene en cuenta.
+- Un `kubectl exec ... odoo shell` interrumpido a medias (por un timeout de la herramienta, por
+  ejemplo) puede dejar una transacción Postgres "idle in transaction" colgada, y todo `odoo -u`
+  posterior contra ese tenant falla con `SerializationFailure: could not serialize access due to
+  concurrent update` — parece un bug de código pero es una conexión huérfana. Diagnóstico:
+  `pg_stat_activity` filtrado por `datname`, `pg_terminate_backend(<pid>)` la que esté
+  `idle in transaction`.
 
 Más detalle operativo (comandos exactos, nombres de pods, etc.) en la memoria de proyecto
 `ai-agent-per-tenant` (`/home/kali/.claude/projects/-home-kali-aeisoftware-aei-odoo-saas/memory/`).
