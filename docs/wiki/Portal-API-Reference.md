@@ -257,6 +257,46 @@ Upgrade a running tenant to a different plan tier. Updates CPU/RAM limits in the
 
 ---
 
+## POST /api/v1/instances/{tenant_id}/agent/enable
+
+Deploys the **aei_assistant** AI agent add-on workload (`agent` Deployment/Service/Secret/PVC/NetworkPolicy — see [`agent_manifests()`](../../portal/k8s_utils/manifests.py) and `AGENT_PLAN_RESOURCES`, sized independently of `PLAN_RESOURCES` since the agent's footprint is dominated by the Claude Agent SDK subprocess, not tenant size) and wires `AGENT_WEBHOOK_SECRET`/`AGENT_URL` into the tenant's `odoo` Deployment env (read-modify-write via `patch_deployment_env()` — a naive merge patch would wipe unrelated env vars like `DB_PASSWORD`).
+
+Idempotent: re-enabling an already-enabled tenant is safe. Two gotchas this had to work around, both found only by testing live (see `AI Agent (aei_assistant)` in [Environment Status](Environment-Status.md)):
+- PVC creation hits `ResourceQuota` admission *before* the "already exists" check, so the PVC's existence is checked explicitly instead of relying on catch-409.
+- The Secret's *actual* stored value is always read back after `apply_manifest()` (which silently no-ops on an existing Secret) before patching the odoo Deployment — never the freshly generated value, which would desync the two sides on a re-enable.
+
+The tenant still needs to configure their own AI-provider API key in their own instance's **Settings > AEI Assistant** (BYOK — the `saas_ai_agent` addon, see the tenant's own settings screen; the platform never sees or pays for LLM usage) before the assistant actually answers.
+
+**Request Body**
+
+```json
+{"plan": "starter"}
+```
+
+| Field | Type | Required | Description |
+|:---|:---|:---|:---|
+| `plan` | string | | `starter`, `pro`, or `enterprise` — sizes the agent pod. Default `starter`. |
+
+**Response 200**
+
+```json
+{"status": "enabled"}
+```
+
+---
+
+## POST /api/v1/instances/{tenant_id}/agent/disable
+
+Tears down the AI agent add-on's K8s objects (`delete_agent_resources()`). Idempotent — 404s from already-absent resources are ignored. Leaves `AGENT_WEBHOOK_SECRET`/`AGENT_URL` on the odoo Deployment's env in place; harmless once the `agent` Service is gone (the `saas_ai_agent` addon's postcommit hook degrades gracefully — logs and skips instead of blocking the user's Discuss message).
+
+**Response 200**
+
+```json
+{"status": "disabled"}
+```
+
+---
+
 ## GET /api/v1/instances/{tenant_id}/backup
 
 Stream a complete Odoo backup (DB + filestore ZIP) for a single tenant. Uses `kubectl exec` to run `dump_db` directly inside the tenant pod, bypassing the `list_db=False` restriction.

@@ -1,6 +1,6 @@
 # Environment Status — qué entornos existen hoy
 
-> **Última actualización:** 2026-07-28
+> **Última actualización:** 2026-08-08
 > Esta página es la fuente de verdad sobre qué infraestructura está viva. Cualquier otra
 > página del wiki que describa hosts, IPs o namespaces debe leerse contra esta tabla.
 
@@ -151,11 +151,41 @@ segura de operar:
 3+3 nodos, Ceph, PG HA de 3 nodos) — útil como punto de partida al dimensionar el nuevo proveedor,
 pero su infraestructura ya no existe.
 
+## AI Agent (aei_assistant) — build en curso, 2026-08-07/08
+
+Nueva funcionalidad: agente de IA opcional por tenant en Discuss. Ver
+[AEI Assistant](AEI-Assistant.md) para arquitectura, guardrails, BYOK y billing. Mientras se
+construye (Phase 1 y 2 completas, verificadas en vivo), **`staging` y `portal-stg` apuntan
+temporalmente a `feat/cloud-portability`** en vez de `main`:
+
+| Recurso | Normal | Ahora mismo |
+|:---|:---|:---|
+| `odoo-stg-conf` (ConfigMap, key `addon-git-branch`) | `main` | `feat/cloud-portability` |
+| `portal-stg` imagen | `portal:main` | `portal:feat-cloud-portability` |
+| `portal-stg` env `AGENT_IMAGE` | (sin setear → `agent:stable`, no existe) | `agent:feat-cloud-portability` |
+
+**Esto confirmó en vivo el pendiente #1 de abajo**: un tenant nuevo provisionado por `portal-stg`
+mientras corría `:main` recibió una NetworkPolicy con el CIDR viejo de COTAS
+(`192.168.0.0/24`) en vez del real del testbed (`10.9.13.0/24`) — Postgres inalcanzable,
+`Connection timed out`. Mitigado apuntando al build de `feat/cloud-portability`, no hay que
+volver a tocarlo mientras este branch siga siendo el que corre ahí.
+
+**Revertir cuando el branch se mergee a `main`** (o antes, si hace falta volver a probar algo en
+`main` tal cual está hoy):
+```bash
+kubectl patch configmap odoo-stg-conf -n staging --type merge -p '{"data":{"addon-git-branch":"main"}}'
+kubectl set image deployment/portal-stg -n staging portal=ghcr.io/aei-software/aei-odoo-saas/portal:main
+kubectl set env deployment/portal-stg -n staging AGENT_IMAGE-   # unset, vuelve al default del código
+kubectl rollout restart deployment/odoo-stg deployment/portal-stg -n staging
+```
+
 ## Pendientes abiertos del branch `feat/cloud-portability`
 
 1. **Rebuild de la imagen del portal** — `PG_NETWORK_CIDR` ya es configurable
-   (`portal/k8s_utils/manifests.py:26`), pero la imagen `:stable` desplegada hardcodea
-   `192.168.0.0/24`; la NetworkPolicy del tenant demo1 se parcheó a mano.
+   (`portal/k8s_utils/manifests.py:26`), pero la imagen `:stable`/`:main` desplegada hardcodea
+   `192.168.0.0/24`; la NetworkPolicy del tenant demo1 se parcheó a mano. **Confirmado en vivo de
+   nuevo el 2026-08-08** contra `portal-stg` (ver § "AI Agent" arriba) — sigue sin mergearse a
+   `main`, así que el próximo deploy desde `main` (sin el workaround manual) lo vuelve a pisar.
 2. ~~**Ruta Cloudflare** `*.test.aeisoftware.com → https://10.9.13.20` — se crea a mano.~~
    **Resuelto el 2026-07-29** con un tunnel propio in-cluster: `*.aeisoftware.com →
    http://traefik.kube-system:80` (ver § "Tunnel Cloudflare del testbed"). Sigue vigente el

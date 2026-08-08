@@ -24,6 +24,7 @@ Multi-node K3s platform that hosts multiple Odoo 18 tenants with automated provi
 - [Subscription Integration](Subscription-Integration.md) — **recurring billing**: subscription_oca + bridge module for SaaS lifecycle management, **customer portal** at `/my/subscriptions`, per-user billing
 - [Payment QR Mercantil](Payment-QR-Mercantil.md) — QR payment provider for Banco Mercantil Santa Cruz (Bolivia)
 - [Portal API Reference](Portal-API-Reference.md) — FastAPI endpoints for provisioning, status, deletion
+- [AEI Assistant](AEI-Assistant.md) — **nueva funcionalidad**: agente de IA opcional por tenant en Discuss, BYOK, RBAC vía `muk_mcp`, billing hook — build en curso sobre `feat/cloud-portability`
 
 ## Operations
 

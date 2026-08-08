@@ -47,12 +47,15 @@ Three layers work together:
 
 1. **Portal API** (`portal/`) — FastAPI service that provisions/manages tenants via Kubernetes API. Runs as a Deployment (2 replicas) in namespace `aeisoftware`. Authenticated by `X-API-Key` header.
 
-2. **Odoo Addons** — Three custom modules installed in the admin Odoo instance:
-   - `odoo_k8s_saas` — Core SaaS admin UI. Model `saas.instance` tracks tenants through states: draft → provisioning → ready → suspended → pending_delete → error → deleted. Cron syncs state from K8s every 2 min.
-   - `odoo_k8s_saas_subscription` — Bridges OCA subscriptions to SaaS provisioning. Hooks on `stage_id`/`template_id` changes trigger provision/upgrade/suspend. Auto-install addon.
+2. **Odoo Addons** — Custom modules installed in the admin Odoo instance:
+   - `odoo_k8s_saas` — Core SaaS admin UI. Model `saas.instance` tracks tenants through states: draft → provisioning → ready → suspended → pending_delete → error → deleted. Cron syncs state from K8s every 2 min. Also owns the `ai_agent_enabled`/`ai_agent_state` toggle + `action_enable_ai_agent`/`action_disable_ai_agent`.
+   - `odoo_k8s_saas_subscription` — Bridges OCA subscriptions to SaaS provisioning. Hooks on `stage_id`/`template_id` changes trigger provision/upgrade/suspend. Auto-install addon. Also bills the `aei_assistant` add-on via `_cron_update_aei_assistant_line`.
    - `payment_qr_mercantil` — QR payment via Banco Mercantil MC4 API. JWT-cached auth, webhook-driven confirmation, 2s polling on frontend.
+   - `saas_ai_agent` — **Tenant-side** addon (not admin — installed inside each opted-in tenant's own DB) for the **AEI Assistant** AI agent feature: bot partner reachable via Discuss, BYOK settings screen, RBAC guardrails. Delivered to tenants via the dedicated `AEI-Software/aei-odoo-saas-agent` repo (git-clone, like any tenant addon), not baked into the tenant image. See [docs/wiki/AEI-Assistant.md](docs/wiki/AEI-Assistant.md).
 
-3. **Kubernetes Manifests** (`k8s/`) — Applied in lexical order (00-08). Each tenant gets its own namespace (`odoo-{tenant_id}`), PVC, secrets, deployment, service, ingress, and network policy.
+3. **AI Agent workload** (`agent/`) — Per-tenant FastAPI + Claude Agent SDK container, one Deployment per opted-in tenant (not a sidecar, not a pooled multi-tenant service). Talks to the tenant's Odoo over MCP (via the vendored `muk_mcp` addon) scoped to whichever Odoo user is chatting — never a shared admin identity. See [docs/wiki/AEI-Assistant.md](docs/wiki/AEI-Assistant.md) for architecture, guardrails, and BYOK.
+
+4. **Kubernetes Manifests** (`k8s/`) — Applied in lexical order (00-08). Each tenant gets its own namespace (`odoo-{tenant_id}`), PVC, secrets, deployment, service, ingress, and network policy.
 
 **External dependency:** OCA contract/subscription modules included in `external_addons/` (rama 18.0). No longer cloned at deploy time.
 
@@ -200,11 +203,15 @@ errores de frontend/assets, verificar `cf-cache-status` en los headers: el edge 
 la URL no cambia al recompilar). Tras purgar assets en el servidor o cambiar la imagen de Odoo, purgar
 también Cloudflare. Runbook completo en `DEPLOY.md` § "Caché de assets frontend y Cloudflare".
 
-## Reparación de tenants
+## Reparación y provisioning de tenants
 
-Nunca reparar tenants con `kubectl` directo (set image, edit deployment...): el `saas.instance` queda
-desincronizado y una instancia en `error` no vuelve sola a `ready`. Usar el portal API o las acciones del
-módulo SaaS.
+Nunca reparar (ni **crear**) tenants con `kubectl` directo (set image, edit deployment, apply manifests a
+mano...): el `saas.instance` queda desincronizado — una instancia en `error` no vuelve sola a `ready`, y un
+tenant creado por kubectl directo **no aparece ni es gestionable** desde los menús de Odoo (Ventas /
+Suscripciones / SaaS), porque no existe el registro `saas.instance` correspondiente. Siempre usar el portal
+API o las acciones del módulo SaaS (`action_provision`, `action_enable_ai_agent`, etc.) — confirmado en vivo
+2026-08-07/08 al provisionar un tenant de prueba con kubectl directo y no poder encontrarlo luego en el
+admin.
 
 ## Documentation Wiki
 
@@ -229,9 +236,12 @@ analysis reports live in `docs/` directly.
 |------|---------|
 | `infra/environments/testbed.env` | Inventario del único entorno vivo (cruzoil) — nodos, storage, S3, exclusiones |
 | `docs/wiki/Environment-Status.md` | Qué entornos existen hoy y qué páginas del wiki son históricas |
+| `docs/wiki/AEI-Assistant.md` | Arquitectura, guardrails, BYOK y billing del agente de IA por tenant |
 | `infra/apply-manifests.sh` | Main deploy orchestrator (reads .secrets.env, creates namespaces/secrets, applies manifests) |
-| `portal/routers/instances.py` | Tenant provisioning API (create, status, upgrade, delete, stop, start) |
-| `portal/k8s_utils/manifests.py` | K8s manifest generators + PLAN_RESOURCES |
+| `portal/routers/instances.py` | Tenant provisioning API (create, status, upgrade, delete, stop, start, agent/enable, agent/disable) |
+| `portal/k8s_utils/manifests.py` | K8s manifest generators + PLAN_RESOURCES + agent_* generators + AGENT_PLAN_RESOURCES |
+| `agent/main.py` | Tenant AI agent container — Claude Agent SDK, BYOK config fetch, guardrails |
+| `saas_ai_agent/` | Tenant-side addon for the AI agent feature (Discuss bot, BYOK settings, RBAC) |
 | `k8s/06-odoo-admin.yaml` | Production Odoo admin deployment (init containers, probes, volumes) — excluido en el testbed |
 | `k8s/07-staging.yaml` | Staging environment manifest — sin entorno donde aplicarse hoy |
 | `odoo_k8s_saas/models/saas_instance.py` | Core tenant model + K8s sync logic |
