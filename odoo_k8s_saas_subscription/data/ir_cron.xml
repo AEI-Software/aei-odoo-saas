@@ -58,13 +58,17 @@
   </record>
 
   <record id="ir_cron_update_aei_assistant_line" model="ir.cron">
+    <!-- Deactivated 2026-08-08: AEI Assistant ships as a default value-add
+         on every tenant for now, not a paid add-on — this cron (and the
+         product/pricing fields it drives) stays wired up for whenever
+         that changes, but must not create billing lines today. -->
     <field name="name">SaaS: Update AEI Assistant Billing Lines</field>
     <field name="model_id" ref="subscription_oca.model_sale_subscription"/>
     <field name="state">code</field>
     <field name="code">model._cron_update_aei_assistant_line()</field>
     <field name="interval_number">1</field>
     <field name="interval_type">days</field>
-    <field name="active">True</field>
+    <field name="active">False</field>
   </record>
 </odoo>
 

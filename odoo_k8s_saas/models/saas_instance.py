@@ -18,6 +18,19 @@ logger = logging.getLogger(__name__)
 PORTAL_URL = os.getenv("SAAS_PORTAL_URL", "http://portal.aeisoftware.svc.cluster.local:8000")
 PORTAL_KEY = os.getenv("SAAS_PORTAL_KEY", "")
 
+# AEI Assistant ships as a default value-add on every tenant (not sold as
+# a paid add-on for now — see odoo_k8s_saas_subscription's
+# _cron_update_aei_assistant_line, deactivated until that changes) — every
+# tenant gets muk_mcp + saas_ai_agent installed and the agent K8s workload
+# deployed automatically, on top of whatever the admin explicitly asked
+# for. Each tenant's own users pay for their own AI-provider key (BYOK);
+# the platform doesn't pay for or resell LLM usage.
+AI_AGENT_DEFAULT_MODULES = ["muk_mcp", "saas_ai_agent"]
+AI_AGENT_DEFAULT_REPO = {
+    "url": "https://github.com/AEI-Software/aei-odoo-saas-agent.git",
+    "branch": "18.0",
+}
+
 
 class SaasInstance(models.Model):
     _name = "saas.instance"
@@ -221,22 +234,30 @@ class SaasInstance(models.Model):
         # ─────────────────────────────────────────────────────────────────────
 
         try:
+            modules = {m.strip() for m in (self.install_modules or "").split(",") if m.strip()}
+            modules.update(AI_AGENT_DEFAULT_MODULES)
             body = {
                 "tenant_id": self.tenant_id,
                 "plan": self.plan,
                 "storage_gi": self.storage_gi,
                 "odoo_version": self.odoo_version or "18.0",
                 "custom_image": self.custom_image if self.custom_image else None,
-                "install_modules": self.install_modules or "",
+                "install_modules": ",".join(sorted(modules)),
             }
-            # Include addon repos if configured
+            # Addon repos: whatever the admin configured, plus the AEI
+            # Assistant delivery repo (always — not stored back onto
+            # addons_repos_json, which stays "what the admin explicitly
+            # asked for" so the form doesn't fill up with a platform
+            # default the admin never typed).
+            repos = []
             if self.addons_repos_json:
                 try:
-                    repos = json.loads(self.addons_repos_json)
-                    if repos:
-                        body["addons_repos"] = repos
+                    repos = json.loads(self.addons_repos_json) or []
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    repos = []
+            if not any(r.get("url") == AI_AGENT_DEFAULT_REPO["url"] for r in repos):
+                repos.append(AI_AGENT_DEFAULT_REPO)
+            body["addons_repos"] = repos
             resp = requests.post(
                 f"{PORTAL_URL}/api/v1/instances",
                 json=body,
@@ -323,6 +344,22 @@ class SaasInstance(models.Model):
                 if data.get("status") == "ready":
                     rec.state = "ready"
                     rec.action_send_credentials_email()
+                    # AEI Assistant is a default value-add on every tenant
+                    # (see AI_AGENT_DEFAULT_MODULES above) — deploy its K8s
+                    # workload the moment the tenant is actually reachable,
+                    # same as any other first-ready bootstrap step. A
+                    # failure here (e.g. portal hiccup) is logged and
+                    # retried on the next 2-min cron pass, same resilience
+                    # as everything else in this loop — it must never block
+                    # the tenant itself from going Ready.
+                    if not rec.ai_agent_enabled:
+                        try:
+                            rec.action_enable_ai_agent()
+                        except Exception:
+                            logger.exception(
+                                "Auto-enable of AI agent failed for %s — will retry next cron pass.",
+                                rec.tenant_id,
+                            )
             except Exception as exc:
                 logger.warning("Status check failed for %s: %s", rec.tenant_id, exc)
 
