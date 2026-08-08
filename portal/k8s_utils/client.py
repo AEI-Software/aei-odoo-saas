@@ -201,6 +201,26 @@ def namespace_exists(namespace: str) -> bool:
             return False
         raise
 
+def persistent_volume_claim_exists(namespace: str, name: str) -> bool:
+    """PVCs need an existence check ahead of apply_manifest(), unlike
+    Secret/Deployment/Service — verified live: when a namespace's
+    ResourceQuota is already at its PVC cap, the API server's quota
+    admission control rejects a CREATE for an object that would in fact be
+    a harmless duplicate with 403 Forbidden ("exceeded quota") *before*
+    reaching the uniqueness check that would otherwise return a clean 409
+    (which apply_manifest already treats as already-applied). A re-enable
+    of the AI agent add-on — or any tenant that already has the PVC from
+    an earlier attempt — would hit this without the check.
+    """
+    try:
+        _core().read_namespaced_persistent_volume_claim(name=name, namespace=namespace)
+        return True
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return False
+        raise
+
+
 def read_namespaced_secret(namespace: str, name: str) -> dict:
     """Return a Secret's data, base64-decoded to plain strings. {} if absent."""
     import base64

@@ -23,7 +23,7 @@ from pydantic import BaseModel, field_validator
 import re
 
 from k8s_utils.manifests import all_manifests, pdb_manifest, agent_secret_manifest, agent_pvc_manifest, agent_deployment_manifest, agent_service_manifest, agent_network_policy_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN
-from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb, delete_agent_resources, patch_deployment_env, read_namespaced_secret
+from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb, delete_agent_resources, patch_deployment_env, read_namespaced_secret, persistent_volume_claim_exists
 from metrics import record_operation, record_error
 
 # ── Odoo webhook push config ──────────────────────────────────────────────────
@@ -385,8 +385,9 @@ def enable_agent(tenant_id: str, req: AgentEnableRequest):
         if not actual_secret:
             raise RuntimeError("agent-secret applied but AGENT_WEBHOOK_SECRET missing on read-back")
 
+        if not persistent_volume_claim_exists(namespace, "agent-workspace"):
+            apply_manifest(agent_pvc_manifest(tenant_id))
         for manifest in [
-            agent_pvc_manifest(tenant_id),
             agent_deployment_manifest(tenant_id, req.plan),
             agent_service_manifest(tenant_id),
             agent_network_policy_manifest(tenant_id),
