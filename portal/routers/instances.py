@@ -22,8 +22,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, pdb_manifest, agent_manifests, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN
-from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb, delete_agent_resources, patch_deployment_env
+from k8s_utils.manifests import all_manifests, pdb_manifest, agent_secret_manifest, agent_pvc_manifest, agent_deployment_manifest, agent_service_manifest, agent_network_policy_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN
+from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb, delete_agent_resources, patch_deployment_env, read_namespaced_secret
 from metrics import record_operation, record_error
 
 # ── Odoo webhook push config ──────────────────────────────────────────────────
@@ -373,12 +373,28 @@ def enable_agent(tenant_id: str, req: AgentEnableRequest):
     already-exists for everything except NetworkPolicy, which it replaces).
     """
     namespace = f"odoo-{tenant_id}"
-    webhook_secret = secrets.token_urlsafe(32)
     try:
-        for manifest in agent_manifests(tenant_id, webhook_secret, req.plan):
+        # apply_manifest() treats a 409 (Secret already exists — e.g. a
+        # re-enable, or a tenant hand-provisioned during earlier testing)
+        # as already-applied and silently skips it. Read back whatever is
+        # actually stored afterward rather than trusting the freshly
+        # generated value, so the odoo Deployment's env can never end up
+        # mismatched against the real Secret the agent pod reads from.
+        apply_manifest(agent_secret_manifest(tenant_id, secrets.token_urlsafe(32)))
+        actual_secret = read_namespaced_secret(namespace, "agent-secret").get("AGENT_WEBHOOK_SECRET")
+        if not actual_secret:
+            raise RuntimeError("agent-secret applied but AGENT_WEBHOOK_SECRET missing on read-back")
+
+        for manifest in [
+            agent_pvc_manifest(tenant_id),
+            agent_deployment_manifest(tenant_id, req.plan),
+            agent_service_manifest(tenant_id),
+            agent_network_policy_manifest(tenant_id),
+        ]:
             apply_manifest(manifest)
+
         patch_deployment_env(namespace, "odoo", {
-            "AGENT_WEBHOOK_SECRET": webhook_secret,
+            "AGENT_WEBHOOK_SECRET": actual_secret,
             "AGENT_URL": "http://agent:8000",
         })
     except Exception as exc:

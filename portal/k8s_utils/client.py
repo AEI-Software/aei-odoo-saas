@@ -201,6 +201,18 @@ def namespace_exists(namespace: str) -> bool:
             return False
         raise
 
+def read_namespaced_secret(namespace: str, name: str) -> dict:
+    """Return a Secret's data, base64-decoded to plain strings. {} if absent."""
+    import base64
+    try:
+        secret = _core().read_namespaced_secret(name=name, namespace=namespace)
+        return {k: base64.b64decode(v).decode() for k, v in (secret.data or {}).items()}
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return {}
+        raise
+
+
 def read_namespaced_config_map(namespace: str, name: str) -> dict:
     try:
         cm = _core().read_namespaced_config_map(name=name, namespace=namespace)
