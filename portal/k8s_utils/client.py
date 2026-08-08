@@ -211,10 +211,22 @@ def persistent_volume_claim_exists(namespace: str, name: str) -> bool:
     (which apply_manifest already treats as already-applied). A re-enable
     of the AI agent add-on — or any tenant that already has the PVC from
     an earlier attempt — would hit this without the check.
+
+    A PVC mid-deletion still reads back successfully (deletion isn't
+    instantaneous — Longhorn needs to detach/clean up the underlying
+    volume first) with `metadata.deletion_timestamp` set, so a bare
+    existence check can say "exists" for an object that's about to vanish
+    entirely. Verified live: a disable immediately followed by an enable
+    hit exactly this — the PVC read back as present, so the create was
+    skipped, and by the time the Deployment actually needed it moments
+    later it was gone, leaving the agent pod stuck `Pending` with
+    `persistentvolumeclaim "agent-workspace" not found`. Treat a
+    terminating PVC as absent so the caller creates a fresh one instead of
+    racing the old one's teardown.
     """
     try:
-        _core().read_namespaced_persistent_volume_claim(name=name, namespace=namespace)
-        return True
+        pvc = _core().read_namespaced_persistent_volume_claim(name=name, namespace=namespace)
+        return pvc.metadata.deletion_timestamp is None
     except client.exceptions.ApiException as e:
         if e.status == 404:
             return False
