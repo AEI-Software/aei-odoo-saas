@@ -21,6 +21,16 @@ POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Same 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "odoo")
 ODOO_IMAGE = os.getenv("ODOO_IMAGE", "ghcr.io/aei-software/aei-odoo-saas/odoo:stable")
 AGENT_IMAGE = os.getenv("AGENT_IMAGE", "ghcr.io/aei-software/aei-odoo-saas/agent:stable")
+# Platform-owned trial key for the AI agent add-on — used only when a
+# tenant hasn't set their own (BYOK) key yet, within a per-tenant budget
+# Odoo itself tracks (see saas_ai_agent's aei_assistant_trial_cap_usd).
+# Injected straight into each tenant's agent-secret; never written into
+# any tenant's Odoo database. Empty by default — the trial fallback is
+# simply unavailable until the platform operator sets these.
+DEFAULT_LLM_PROVIDER = os.getenv("DEFAULT_LLM_PROVIDER", "deepseek")
+DEFAULT_LLM_API_KEY = os.getenv("DEFAULT_LLM_API_KEY", "")
+DEFAULT_LLM_BASE_URL = os.getenv("DEFAULT_LLM_BASE_URL", "https://api.deepseek.com/anthropic")
+DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "deepseek-chat")
 # local-path para dev local K3s, ceph-rbd para producción Cloud
 STORAGE_CLASS = os.getenv("STORAGE_CLASS", "local-path")
 # Red donde vive el clúster PostgreSQL externo (egress directo de tenants a HAProxy)
@@ -717,14 +727,23 @@ def agent_secret_manifest(tenant_id: str, webhook_secret: str) -> dict[str, Any]
     only carries AGENT_WEBHOOK_SECRET, mirroring k8s/dev/agent-*.yaml.
     """
     import base64
+    def b64(s: str) -> str:
+        return base64.b64encode(s.encode()).decode()
+
+    data = {"AGENT_WEBHOOK_SECRET": b64(webhook_secret)}
+    if DEFAULT_LLM_API_KEY:
+        data.update({
+            "DEFAULT_LLM_PROVIDER": b64(DEFAULT_LLM_PROVIDER),
+            "DEFAULT_LLM_API_KEY": b64(DEFAULT_LLM_API_KEY),
+            "DEFAULT_LLM_BASE_URL": b64(DEFAULT_LLM_BASE_URL),
+            "DEFAULT_LLM_MODEL": b64(DEFAULT_LLM_MODEL),
+        })
     return {
         "apiVersion": "v1",
         "kind": "Secret",
         "metadata": {"name": "agent-secret", "namespace": _ns(tenant_id)},
         "type": "Opaque",
-        "data": {
-            "AGENT_WEBHOOK_SECRET": base64.b64encode(webhook_secret.encode()).decode(),
-        },
+        "data": data,
     }
 
 
@@ -782,6 +801,27 @@ def agent_deployment_manifest(tenant_id: str, plan: str = "starter") -> dict[str
                                 {
                                     "name": "AGENT_WEBHOOK_SECRET",
                                     "valueFrom": {"secretKeyRef": {"name": "agent-secret", "key": "AGENT_WEBHOOK_SECRET"}},
+                                },
+                                # Optional: absent whenever DEFAULT_LLM_API_KEY isn't
+                                # set platform-wide (agent_secret_manifest skips
+                                # writing these keys entirely in that case) — the
+                                # trial fallback is then simply unavailable, tenants
+                                # go straight to "configure your own key".
+                                {
+                                    "name": "DEFAULT_LLM_PROVIDER",
+                                    "valueFrom": {"secretKeyRef": {"name": "agent-secret", "key": "DEFAULT_LLM_PROVIDER", "optional": True}},
+                                },
+                                {
+                                    "name": "DEFAULT_LLM_API_KEY",
+                                    "valueFrom": {"secretKeyRef": {"name": "agent-secret", "key": "DEFAULT_LLM_API_KEY", "optional": True}},
+                                },
+                                {
+                                    "name": "DEFAULT_LLM_BASE_URL",
+                                    "valueFrom": {"secretKeyRef": {"name": "agent-secret", "key": "DEFAULT_LLM_BASE_URL", "optional": True}},
+                                },
+                                {
+                                    "name": "DEFAULT_LLM_MODEL",
+                                    "valueFrom": {"secretKeyRef": {"name": "agent-secret", "key": "DEFAULT_LLM_MODEL", "optional": True}},
                                 },
                             ],
                             "volumeMounts": [{"name": "agent-workspace", "mountPath": "/data"}],

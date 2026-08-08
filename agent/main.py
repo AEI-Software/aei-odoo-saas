@@ -33,6 +33,32 @@ ODOO_URL = os.environ.get("ODOO_URL", "http://odoo:8069")
 AGENT_MAX_TURNS = int(os.environ.get("AGENT_MAX_TURNS", "12"))
 AGENT_MAX_BUDGET_USD = float(os.environ.get("AGENT_MAX_BUDGET_USD", "0.50"))
 
+# Trial fallback: AEI's own key, used only when the tenant hasn't set their
+# own (BYOK) yet and Odoo says the tenant is still within its trial budget
+# (GET /ai_agent/llm_config -> trial_available). Lives only here, in this
+# pod's own env (agent_secret_manifest() in manifests.py) — never written
+# into any tenant's Odoo database, so the shared platform key can't leak
+# through Settings/developer mode the way a per-tenant config_parameter
+# could. Odoo only ever sees a boolean + a running cost total it tracks
+# itself from what this pod reports back after each trial turn.
+DEFAULT_LLM_PROVIDER = os.environ.get("DEFAULT_LLM_PROVIDER", "")
+DEFAULT_LLM_API_KEY = os.environ.get("DEFAULT_LLM_API_KEY", "")
+DEFAULT_LLM_BASE_URL = os.environ.get("DEFAULT_LLM_BASE_URL", "")
+DEFAULT_LLM_MODEL = os.environ.get("DEFAULT_LLM_MODEL", "deepseek-chat")
+
+WELCOME_PROMPT = (
+    "This is the very first time this user has opened a chat with you — "
+    "they haven't typed anything yet. Proactively introduce yourself in "
+    "1-3 short sentences: who you are (AEI Assistant), that you can help "
+    "them configure and use their Odoo instance, and — only if you are "
+    "currently running on AEI's own trial key rather than the tenant's "
+    "own — mention briefly that they can set up their own API key in "
+    "Settings > AEI Assistant for unlimited use. Keep it short and warm, "
+    "in the same language the rest of this Odoo instance appears to be "
+    "in (default to Spanish if unsure). Do not call any tools for this "
+    "message."
+)
+
 # Layer 2 guardrail (defense in depth — the authoritative block is the
 # ORM-level override in saas_ai_agent/models/guardrails.py, gated on the
 # mcp_name context key that muk_mcp stamps on every MCP request). This list
@@ -65,10 +91,11 @@ async def _channel_lock(channel_id: int) -> asyncio.Lock:
 
 class HookPayload(BaseModel):
     channel_id: int
-    message: str
+    message: str = ""
     user_id: int
     user_login: str
     mcp_key: str
+    welcome: bool = False
 
 
 async def _pretooluse_guardrail(input_data: dict, _tool_use_id: str | None, _context) -> dict:
@@ -101,21 +128,40 @@ async def _pretooluse_guardrail(input_data: dict, _tool_use_id: str | None, _con
     return {}
 
 
-async def _fetch_llm_config() -> dict | None:
+async def _fetch_llm_config() -> dict:
     """BYOK: pull the tenant's own AI-provider credentials from Odoo on
     every turn instead of a static env var, so a key change in Settings
-    takes effect on the next message with no redeploy. Returns None if
-    the assistant isn't configured yet (Odoo-side already short-circuits
-    before ever calling /hook, but this is defense in depth against a
-    race — key removed between the webhook firing and this call)."""
+    takes effect on the next message with no redeploy. When the tenant
+    hasn't configured their own key, Odoo doesn't hand back a key at all —
+    just `trial_available` (still within the platform's trial budget) or
+    not — see saas_ai_agent's _aei_assistant_resolve_llm_config()."""
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(
             f"{ODOO_URL}/ai_agent/llm_config",
             headers={"Authorization": f"Bearer {AGENT_WEBHOOK_SECRET}"},
         )
         resp.raise_for_status()
-        config = resp.json()
-    return config if config.get("configured") else None
+        return resp.json()
+
+
+def _resolve_effective_config(remote_config: dict) -> dict | None:
+    """Combine Odoo's answer with this pod's own trial credentials.
+    Returns None if there's simply nothing usable to run the turn with
+    (no BYOK key, and either not in trial or this pod has no default key
+    configured at all — e.g. a provider portal-stg didn't set up)."""
+    if remote_config.get("configured"):
+        cfg = dict(remote_config)
+        cfg["trial"] = False
+        return cfg
+    if remote_config.get("trial_available") and DEFAULT_LLM_API_KEY:
+        return {
+            "trial": True,
+            "provider": DEFAULT_LLM_PROVIDER or "deepseek",
+            "api_key": DEFAULT_LLM_API_KEY,
+            "base_url": DEFAULT_LLM_BASE_URL or None,
+            "model": DEFAULT_LLM_MODEL,
+        }
+    return None
 
 
 def _build_options(llm_config: dict, mcp_key: str, resume: str | None) -> ClaudeAgentOptions:
@@ -158,8 +204,8 @@ def _build_options(llm_config: dict, mcp_key: str, resume: str | None) -> Claude
     )
 
 
-async def _post_reply(channel_id: int, text: str, is_error: bool) -> None:
-    body = {"channel_id": channel_id, "text": text, "is_error": is_error}
+async def _post_reply(channel_id: int, text: str, is_error: bool, cost_usd: float = 0.0, trial: bool = False) -> None:
+    body = {"channel_id": channel_id, "text": text, "is_error": is_error, "cost_usd": cost_usd, "trial": trial}
     import json
 
     raw = json.dumps(body).encode()
@@ -179,36 +225,41 @@ async def _run_turn(payload: HookPayload) -> None:
     lock = await _channel_lock(payload.channel_id)
     async with lock:
         try:
-            llm_config = await _fetch_llm_config()
+            remote_config = await _fetch_llm_config()
         except httpx.HTTPError as exc:
             logger.error("agent(channel=%s): failed to fetch llm_config: %s", payload.channel_id, exc)
-            llm_config = None
+            remote_config = {}
+        llm_config = _resolve_effective_config(remote_config)
         if llm_config is None:
-            await _post_reply(
-                payload.channel_id,
-                "Todavía no tengo una API key de IA configurada — anda a "
-                "Ajustes > AEI Assistant para activarme.",
-                is_error=True,
-            )
+            # Odoo's own pre-check (saas_ai_agent's _dispatch_to_agent)
+            # already messages the user in this case before ever calling
+            # /hook — reaching here means a race (config changed between
+            # the webhook firing and this fetch) or this pod has no
+            # DEFAULT_LLM_API_KEY configured at all. Stay quiet rather than
+            # duplicate a message Odoo likely already posted.
+            logger.warning("agent(channel=%s): no usable llm config, skipping turn", payload.channel_id)
             return
 
+        prompt = WELCOME_PROMPT if payload.welcome else payload.message
         resume = await session_store.get(payload.channel_id)
         options = _build_options(llm_config, payload.mcp_key, resume)
         session_id: str | None = None
         final_text = ""
         is_error = False
+        cost_usd = 0.0
         try:
             # can_use_tool (our guardrail handler) requires streaming mode —
             # the one-shot query() helper only accepts a plain string prompt
             # and rejects can_use_tool with "requires streaming mode".
             async with ClaudeSDKClient(options=options) as client:
-                await client.query(payload.message)
+                await client.query(prompt)
                 async for message in client.receive_response():
                     cls_name = type(message).__name__
                     if cls_name == "SystemMessage" and getattr(message, "subtype", None) == "init":
                         session_id = message.data.get("session_id")
                     elif cls_name == "ResultMessage":
                         is_error = bool(getattr(message, "is_error", False))
+                        cost_usd = float(getattr(message, "total_cost_usd", 0.0) or 0.0)
                         final_text = getattr(message, "result", None) or (
                             "No pude completar la solicitud." if is_error else ""
                         )
@@ -222,7 +273,7 @@ async def _run_turn(payload: HookPayload) -> None:
         if not final_text:
             final_text = "No tengo una respuesta para eso todavía."
 
-        await _post_reply(payload.channel_id, final_text, is_error)
+        await _post_reply(payload.channel_id, final_text, is_error, cost_usd=cost_usd, trial=llm_config.get("trial", False))
 
 
 @app.post("/hook", status_code=202)
