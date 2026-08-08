@@ -343,7 +343,22 @@ class SaasInstance(models.Model):
                 data = resp.json()
                 if data.get("status") == "ready":
                     rec.state = "ready"
-                    rec.action_send_credentials_email()
+                    # Each first-ready bootstrap step gets its own try/except
+                    # — verified live that chaining these in one try was a
+                    # real bug: action_send_credentials_email() failing
+                    # (e.g. no SMTP configured, no partner email set) meant
+                    # the AI-agent auto-enable below never even ran, since
+                    # the exception skipped straight past it to the outer
+                    # handler. Neither step may block the other, and
+                    # neither may block `state` having already become Ready
+                    # above.
+                    try:
+                        rec.action_send_credentials_email()
+                    except Exception:
+                        logger.exception(
+                            "Credentials email failed for %s (state still Ready).",
+                            rec.tenant_id,
+                        )
                     # AEI Assistant is a default value-add on every tenant
                     # (see AI_AGENT_DEFAULT_MODULES above) — deploy its K8s
                     # workload the moment the tenant is actually reachable,

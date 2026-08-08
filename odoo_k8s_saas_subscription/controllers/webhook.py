@@ -121,7 +121,13 @@ class SaaSWebhookController(http.Controller):
             tenant_id, old_state, odoo_state,
         )
 
-        # provisioning → ready: send credentials email (best-effort, never rolls back the state write)
+        # provisioning → ready: send credentials email + auto-enable the AI
+        # Assistant (best-effort each, never rolls back the state write, and
+        # neither may block the other — see the identical split in
+        # saas.instance.action_check_status(), which found this the hard way).
+        # This webhook is the fast path most tenants actually go through, so
+        # the 2-min cron's action_check_status() is really just the retry
+        # safety net for whichever of these fails here.
         if old_state == "provisioning" and odoo_state == "ready":
             logger.info(
                 "instance_status_webhook: %s is ready — sending credentials email",
@@ -134,5 +140,19 @@ class SaaSWebhookController(http.Controller):
                     "instance_status_webhook: credentials email failed for %s (state still updated)",
                     tenant_id,
                 )
+
+            if not instance.ai_agent_enabled:
+                logger.info(
+                    "instance_status_webhook: %s is ready — auto-enabling AI Assistant",
+                    tenant_id,
+                )
+                try:
+                    instance.action_enable_ai_agent()
+                except Exception:
+                    logger.exception(
+                        "instance_status_webhook: AI Assistant auto-enable failed for %s "
+                        "(will retry on next action_check_status cron pass)",
+                        tenant_id,
+                    )
 
         return _json({"ok": True, "state": odoo_state, "changed": True})
