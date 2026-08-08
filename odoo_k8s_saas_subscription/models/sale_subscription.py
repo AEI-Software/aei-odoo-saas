@@ -848,6 +848,99 @@ class SaleSubscription(models.Model):
                     sub.display_name, extra, price,
                 )
 
+    @api.model
+    def _cron_update_aei_assistant_line(self):
+        """Daily cron: update subscription line for the aei_assistant add-on.
+
+        Same pattern as _cron_update_extra_user_line, keyed off
+        saas_instance_ids.ai_agent_enabled instead of extra_users:
+        - If any linked (non-deleted) instance has the AI agent enabled:
+          create/update a line at template.aei_assistant_price (0 if the
+          template has aei_assistant_included, e.g. bundled into
+          Enterprise).
+        - If none do: remove any existing line.
+
+        Runs daily so the line reflects current state before OCA's
+        invoicing cron generates the monthly invoice. Enabling/disabling
+        itself (saas.instance.action_enable_ai_agent/action_disable_ai_agent)
+        only touches the K8s workload — billing catches up here, same
+        division of labor as the extra-user line.
+        """
+        stage_in_progress = self.env.ref(_STAGE_IN_PROGRESS, raise_if_not_found=False)
+        if not stage_in_progress:
+            logger.warning(
+                "_cron_update_aei_assistant_line: stage '%s' not found — skipping.",
+                _STAGE_IN_PROGRESS,
+            )
+            return
+
+        active_subs = self.search([
+            ("stage_id", "=", stage_in_progress.id),
+            ("template_id.is_saas_plan", "=", True),
+        ])
+
+        aei_assistant_product = self.env.ref(
+            "odoo_k8s_saas_subscription.product_aei_assistant",
+            raise_if_not_found=False,
+        )
+        if not aei_assistant_product:
+            logger.error(
+                "_cron_update_aei_assistant_line: missing product "
+                "'product_aei_assistant' — cannot bill the AI agent add-on."
+            )
+            return
+
+        logger.info(
+            "_cron_update_aei_assistant_line: processing %d active subscriptions",
+            len(active_subs),
+        )
+
+        for sub in active_subs:
+            enabled = any(
+                inst.ai_agent_enabled
+                for inst in sub.saas_instance_ids
+                if inst.state != "deleted"
+            )
+            existing_line = sub.sale_subscription_line_ids.filtered(
+                lambda l: l.product_id == aei_assistant_product
+            )
+
+            if not enabled:
+                if existing_line:
+                    existing_line.unlink()
+                    logger.info(
+                        "_cron_update_aei_assistant_line: removed line from "
+                        "subscription %s (AI agent disabled)",
+                        sub.display_name,
+                    )
+                continue
+
+            price = 0.0 if sub.template_id.aei_assistant_included else sub.template_id.aei_assistant_price
+            name = (
+                "AEI Assistant (included)" if sub.template_id.aei_assistant_included
+                else f"AEI Assistant ({price} Bs./month)"
+            )
+
+            if existing_line:
+                if existing_line.price_unit != price:
+                    existing_line.write({"price_unit": price, "name": name})
+                    logger.info(
+                        "_cron_update_aei_assistant_line: updated %s → %.2f Bs.",
+                        sub.display_name, price,
+                    )
+            else:
+                self.env["sale.subscription.line"].create({
+                    "sale_subscription_id": sub.id,
+                    "product_id": aei_assistant_product.id,
+                    "name": name,
+                    "product_uom_qty": 1.0,
+                    "price_unit": price,
+                })
+                logger.info(
+                    "_cron_update_aei_assistant_line: created line for %s at %.2f Bs.",
+                    sub.display_name, price,
+                )
+
     # NOTE: no generate_invoice override for emailing. With invoicing_mode
     # 'invoice'/'invoice_send', subscription_oca already posts the invoice and
     # emails it (PDF attached) using template_id.invoice_mail_template_id —

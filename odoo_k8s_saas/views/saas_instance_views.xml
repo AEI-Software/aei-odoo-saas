@@ -85,6 +85,13 @@
           <button name="action_send_credentials_email" type="object" string="✉️ Resend Credentials"
                   class="btn-secondary"
                   invisible="state != 'ready'"/>
+          <button name="action_enable_ai_agent" type="object" string="🤖 Enable AI Agent"
+                  class="btn-secondary"
+                  invisible="state != 'ready' or ai_agent_enabled"/>
+          <button name="action_disable_ai_agent" type="object" string="Disable AI Agent"
+                  class="btn-secondary"
+                  invisible="not ai_agent_enabled"
+                  confirm="This removes the AI agent workload for this tenant. Continue?"/>
           <field name="state" widget="statusbar"
                  statusbar_visible="draft,provisioning,ready,suspended"/>
         </header>
@@ -125,6 +132,10 @@
               <field name="install_modules" placeholder="e.g. aei_setup"/>
               <field name="url" widget="url" readonly="1"/>
               <field name="namespace" readonly="1"/>
+            </group>
+            <group string="AI Agent (aei_assistant)">
+              <field name="ai_agent_enabled" readonly="1"/>
+              <field name="ai_agent_state" invisible="not ai_agent_enabled"/>
             </group>
           </group>
 

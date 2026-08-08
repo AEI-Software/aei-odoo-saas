@@ -19,5 +19,22 @@
             <field name="description_sale">Additional active users beyond the plan's included amount. Billed monthly.</field>
         </record>
 
+        <!-- ── Product used as the subscription line for the aei_assistant
+             add-on ─────────────────────────────────────────────────────────
+             Same pattern as product_extra_user: not sold via e-commerce,
+             created/updated automatically by _cron_update_aei_assistant_line
+             based on saas.instance.ai_agent_enabled. price_unit is set
+             dynamically from template.aei_assistant_price (0 if the
+             template has aei_assistant_included). -->
+        <record id="product_aei_assistant" model="product.product">
+            <field name="name">AEI Assistant (Monthly)</field>
+            <field name="type">service</field>
+            <field name="list_price">0.0</field>
+            <field name="sale_ok" eval="False"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="website_published" eval="False"/>
+            <field name="description_sale">AI agent add-on (BYOK — tenant supplies their own AI-provider API key). Billed monthly while enabled.</field>
+        </record>
+
     </data>
 </odoo>

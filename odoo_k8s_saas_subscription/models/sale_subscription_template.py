@@ -59,3 +59,20 @@ class SaleSubscriptionTemplate(models.Model):
              "Hours are pooled per instance (not per user), expire monthly, "
              "and additional hours are sold as separate support packages.",
     )
+    aei_assistant_included = fields.Boolean(
+        string="AI Agent Included Free",
+        default=False,
+        help="If True, instances on this plan get the aei_assistant add-on "
+             "billed at 0 when enabled — e.g. bundled into Enterprise as a "
+             "plan differentiator — instead of the flat add-on price.",
+    )
+    aei_assistant_price = fields.Float(
+        string="AI Agent Add-on Price / Month",
+        digits="Product Price",
+        default=85.0,
+        help="Monthly price for the aei_assistant add-on when a customer "
+             "enables it, unless aei_assistant_included is set. BYOK: this "
+             "is the platform's price for the K8s workload + integration, "
+             "not for LLM usage — the tenant pays their own AI provider "
+             "directly with their own API key.",
+    )

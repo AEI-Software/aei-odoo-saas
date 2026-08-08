@@ -28,6 +28,11 @@
                         <field name="support_hours_included"
                                help="Pooled hours per instance per month. Expire monthly."/>
                     </group>
+                    <group string="AI Agent (aei_assistant)" col="4"
+                           invisible="not is_saas_plan">
+                        <field name="aei_assistant_included" widget="boolean_toggle"/>
+                        <field name="aei_assistant_price" invisible="aei_assistant_included"/>
+                    </group>
                 </xpath>
             </field>
         </record>

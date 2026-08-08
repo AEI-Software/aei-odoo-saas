@@ -88,6 +88,23 @@ class SaasInstance(models.Model):
         help="Comma-separated list of modules to install on DB creation (e.g., 'commission,account_reconcile').",
     )
 
+    # ── AI agent add-on (aei_assistant) ─────────────────────────────────────
+    ai_agent_enabled = fields.Boolean(
+        string="AI Agent Enabled", default=False, tracking=True,
+        help="Whether the aei_assistant K8s workload is deployed for this "
+             "tenant. Billed as a subscription add-on line — see "
+             "odoo_k8s_saas_subscription's _cron_update_aei_assistant_line.",
+    )
+    ai_agent_state = fields.Selection(
+        [("disabled", "Disabled"), ("active", "Active"), ("error", "Error")],
+        string="AI Agent State", default="disabled", tracking=True,
+        help="Reflects only whether the K8s workload is deployed, not "
+             "whether it's actually answering — that also depends on the "
+             "tenant having set their own AI-provider API key in Settings > "
+             "AEI Assistant (BYOK) inside their own instance, which this "
+             "admin database has no visibility into.",
+    )
+
     _sql_constraints = [
         ("tenant_id_unique", "UNIQUE(tenant_id)", "Tenant ID must be unique."),
     ]
@@ -441,6 +458,50 @@ class SaasInstance(models.Model):
         except Exception as exc:
             self.write({"state": "error", "error_msg": str(exc)})
             raise UserError(f"Resume failed: {exc}") from exc
+
+    def action_enable_ai_agent(self):
+        """Deploy the aei_assistant add-on's K8s workload for this instance.
+
+        Calls POST /api/v1/instances/{tenant_id}/agent/enable on the portal
+        (applies the agent Deployment/Service/Secret/PVC/NetworkPolicy and
+        wires AGENT_WEBHOOK_SECRET/AGENT_URL into the odoo Deployment's
+        env). The tenant still has to set their own AI-provider API key in
+        Settings > AEI Assistant (BYOK) inside their own instance before it
+        actually answers — this only deploys the workload.
+        """
+        self.ensure_one()
+        if self.state != "ready":
+            raise UserError(_("Can only enable the AI agent on a Ready instance."))
+        try:
+            resp = requests.post(
+                f"{PORTAL_URL}/api/v1/instances/{self.tenant_id}/agent/enable",
+                json={"plan": self.plan},
+                headers={"X-API-Key": PORTAL_KEY},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            self.write({"ai_agent_enabled": True, "ai_agent_state": "active"})
+            logger.info("AI agent enabled for instance %s.", self.tenant_id)
+        except Exception as exc:
+            self.write({"ai_agent_state": "error"})
+            raise UserError(f"Enable AI agent failed: {exc}") from exc
+
+    def action_disable_ai_agent(self):
+        """Tear down the aei_assistant add-on's K8s workload. Billing catches
+        up via odoo_k8s_saas_subscription's daily cron, same pattern as the
+        extra-user line — see _cron_update_aei_assistant_line."""
+        self.ensure_one()
+        try:
+            resp = requests.post(
+                f"{PORTAL_URL}/api/v1/instances/{self.tenant_id}/agent/disable",
+                headers={"X-API-Key": PORTAL_KEY},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            self.write({"ai_agent_enabled": False, "ai_agent_state": "disabled"})
+            logger.info("AI agent disabled for instance %s.", self.tenant_id)
+        except Exception as exc:
+            raise UserError(f"Disable AI agent failed: {exc}") from exc
 
     def action_open_url(self):
         self.ensure_one()

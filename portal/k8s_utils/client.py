@@ -251,6 +251,41 @@ def delete_pdb(namespace: str, name: str) -> None:
             raise
 
 
+def patch_deployment_env(namespace: str, name: str, env: dict[str, str]) -> None:
+    """Merge plain env vars into a deployment's first container, preserving
+    whatever's already there. A naive JSON merge patch on `env` would
+    REPLACE the whole list (K8s merge semantics don't merge list items by
+    key), wiping unrelated vars like DB_PASSWORD — so this reads the
+    current spec first and merges by name in Python.
+    """
+    apps = _apps()
+    dep = apps.read_namespaced_deployment(name=name, namespace=namespace)
+    container = dep.spec.template.spec.containers[0]
+    existing = {e.name: e for e in (container.env or [])}
+    for key, value in env.items():
+        existing[key] = client.V1EnvVar(name=key, value=value)
+    container.env = list(existing.values())
+    apps.patch_namespaced_deployment(name=name, namespace=namespace, body=dep)
+
+
+def delete_agent_resources(namespace: str) -> None:
+    """Tear down the AI agent add-on's K8s objects for one tenant, leaving
+    the rest of the namespace (odoo, postgres access, etc.) untouched.
+    404s are expected/ignored — disable is idempotent."""
+    def _ignore_404(fn, *args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+        except client.exceptions.ApiException as e:
+            if e.status != 404:
+                raise
+
+    _ignore_404(_apps().delete_namespaced_deployment, name="agent", namespace=namespace)
+    _ignore_404(_core().delete_namespaced_service, name="agent", namespace=namespace)
+    _ignore_404(_core().delete_namespaced_secret, name="agent-secret", namespace=namespace)
+    _ignore_404(_core().delete_namespaced_persistent_volume_claim, name="agent-workspace", namespace=namespace)
+    _ignore_404(_networking().delete_namespaced_network_policy, name="agent-isolation", namespace=namespace)
+
+
 _EXCLUDED_NAMESPACES = {"odoo-admin", "odoo-stg"}
 
 

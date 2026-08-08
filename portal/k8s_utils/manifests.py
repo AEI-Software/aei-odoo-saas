@@ -20,6 +20,7 @@ POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5000"))          # HAProxy prima
 POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Same (legacy compat)
 POSTGRES_USER = os.getenv("POSTGRES_USER", "odoo")
 ODOO_IMAGE = os.getenv("ODOO_IMAGE", "ghcr.io/aei-software/aei-odoo-saas/odoo:stable")
+AGENT_IMAGE = os.getenv("AGENT_IMAGE", "ghcr.io/aei-software/aei-odoo-saas/agent:stable")
 # local-path para dev local K3s, ceph-rbd para producción Cloud
 STORAGE_CLASS = os.getenv("STORAGE_CLASS", "local-path")
 # Red donde vive el clúster PostgreSQL externo (egress directo de tenants a HAProxy)
@@ -62,6 +63,19 @@ PLAN_RESOURCES = {
         "cpu_req": "500m", "cpu_lim": "2",
         "mem_req": "2Gi", "mem_lim": "4Gi",
     },
+}
+
+# ── AI agent add-on resources per plan ───────────────────────────────────────
+# Deliberately not scaled with plan size the way PLAN_RESOURCES is — the
+# agent's footprint is dominated by the SDK/CLI subprocess (~256Mi-1Gi
+# regardless of tenant size, see agent/Dockerfile), not the tenant's own
+# workload. Enterprise gets minReplicas effectively always-on (no
+# scale-to-zero yet — that's Phase 5); starter/pro are meant to be toggled
+# on demand by the customer.
+AGENT_PLAN_RESOURCES = {
+    "starter": {"cpu_req": "128m", "cpu_lim": "1", "mem_req": "256Mi", "mem_lim": "1Gi"},
+    "pro": {"cpu_req": "256m", "cpu_lim": "1", "mem_req": "512Mi", "mem_lim": "2Gi"},
+    "enterprise": {"cpu_req": "256m", "cpu_lim": "1", "mem_req": "512Mi", "mem_lim": "2Gi"},
 }
 
 
@@ -692,6 +706,157 @@ def pdb_manifest(tenant_id: str) -> dict[str, Any]:
             },
         },
     }
+
+
+def agent_secret_manifest(tenant_id: str, webhook_secret: str) -> dict[str, Any]:
+    """Platform-internal shared secret for the odoo<->agent HMAC channel.
+
+    NOT the tenant's AI-provider API key — that's BYOK, entered by the
+    tenant in Settings > AEI Assistant (saas_ai_agent addon) and fetched
+    by the agent pod per-turn from GET /ai_agent/llm_config. This Secret
+    only carries AGENT_WEBHOOK_SECRET, mirroring k8s/dev/agent-*.yaml.
+    """
+    import base64
+    return {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {"name": "agent-secret", "namespace": _ns(tenant_id)},
+        "type": "Opaque",
+        "data": {
+            "AGENT_WEBHOOK_SECRET": base64.b64encode(webhook_secret.encode()).decode(),
+        },
+    }
+
+
+def agent_pvc_manifest(tenant_id: str) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "PersistentVolumeClaim",
+        "metadata": {"name": "agent-workspace", "namespace": _ns(tenant_id)},
+        "spec": {
+            "accessModes": ["ReadWriteOnce"],
+            "storageClassName": STORAGE_CLASS,
+            "resources": {"requests": {"storage": "1Gi"}},
+        },
+    }
+
+
+def agent_deployment_manifest(tenant_id: str, plan: str = "starter") -> dict[str, Any]:
+    res = AGENT_PLAN_RESOURCES.get(plan, AGENT_PLAN_RESOURCES["starter"])
+    return {
+        "apiVersion": "apps/v1",
+        "kind": "Deployment",
+        "metadata": {
+            "name": "agent",
+            "namespace": _ns(tenant_id),
+            "labels": {"app": "agent", "tenant": tenant_id},
+        },
+        "spec": {
+            "replicas": 1,
+            "strategy": {"type": "Recreate"},
+            "selector": {"matchLabels": {"app": "agent"}},
+            "template": {
+                "metadata": {"labels": {"app": "agent", "tenant": tenant_id}},
+                "spec": {
+                    "securityContext": {
+                        "runAsNonRoot": True,
+                        "runAsUser": 1000,
+                        # Without fsGroup, the mounted PVC lands owned by
+                        # root:root and the non-root `agent` user (uid 1000,
+                        # baked into the image by Dockerfile's adduser)
+                        # can't write to /data — verified live during the
+                        # Phase 1 build as a real PermissionError.
+                        "fsGroup": 1000,
+                    },
+                    "containers": [
+                        {
+                            "name": "agent",
+                            "image": AGENT_IMAGE,
+                            "imagePullPolicy": "Always",
+                            "ports": [{"containerPort": 8000}],
+                            "env": [
+                                {"name": "ODOO_URL", "value": "http://odoo:8069"},
+                                {"name": "AGENT_MAX_TURNS", "value": "12"},
+                                {"name": "AGENT_MAX_BUDGET_USD", "value": "0.50"},
+                                {"name": "SESSION_STORE_PATH", "value": "/data/sessions.json"},
+                                {
+                                    "name": "AGENT_WEBHOOK_SECRET",
+                                    "valueFrom": {"secretKeyRef": {"name": "agent-secret", "key": "AGENT_WEBHOOK_SECRET"}},
+                                },
+                            ],
+                            "volumeMounts": [{"name": "agent-workspace", "mountPath": "/data"}],
+                            "resources": {
+                                "requests": {"cpu": res["cpu_req"], "memory": res["mem_req"]},
+                                "limits": {"cpu": res["cpu_lim"], "memory": res["mem_lim"]},
+                            },
+                            "readinessProbe": {
+                                "httpGet": {"path": "/healthz", "port": 8000},
+                                "initialDelaySeconds": 3, "periodSeconds": 10,
+                            },
+                            "livenessProbe": {
+                                "httpGet": {"path": "/healthz", "port": 8000},
+                                "initialDelaySeconds": 5, "periodSeconds": 20,
+                            },
+                        }
+                    ],
+                    "volumes": [
+                        {"name": "agent-workspace", "persistentVolumeClaim": {"claimName": "agent-workspace"}},
+                    ],
+                },
+            },
+        },
+    }
+
+
+def agent_service_manifest(tenant_id: str) -> dict[str, Any]:
+    return {
+        "apiVersion": "v1",
+        "kind": "Service",
+        "metadata": {"name": "agent", "namespace": _ns(tenant_id)},
+        "spec": {
+            "selector": {"app": "agent"},
+            "ports": [{"name": "http", "port": 8000, "targetPort": 8000}],
+        },
+    }
+
+
+def agent_network_policy_manifest(tenant_id: str) -> dict[str, Any]:
+    """Supplementary to `network_policy_manifest` (K8s NetworkPolicies are
+    additive across objects selecting the same pods) — adds the
+    intra-namespace odoo<->agent traffic that the base tenant-isolation
+    policy doesn't grant (it only allows ingress from other namespaces).
+    Applied only when the AI agent add-on is enabled; deleted alongside
+    the other agent resources on disable.
+    """
+    ns = _ns(tenant_id)
+    return {
+        "apiVersion": "networking.k8s.io/v1",
+        "kind": "NetworkPolicy",
+        "metadata": {"name": "agent-isolation", "namespace": ns},
+        "spec": {
+            "podSelector": {},
+            "policyTypes": ["Ingress", "Egress"],
+            "ingress": [
+                {"from": [{"podSelector": {"matchLabels": {"app": "odoo"}}}], "ports": [{"protocol": "TCP", "port": 8000}]},
+                {"from": [{"podSelector": {"matchLabels": {"app": "agent"}}}], "ports": [{"protocol": "TCP", "port": 8069}]},
+            ],
+            "egress": [
+                {"to": [{"podSelector": {"matchLabels": {"app": "agent"}}}], "ports": [{"protocol": "TCP", "port": 8000}]},
+                {"to": [{"podSelector": {"matchLabels": {"app": "odoo"}}}], "ports": [{"protocol": "TCP", "port": 8069}]},
+            ],
+        },
+    }
+
+
+def agent_manifests(tenant_id: str, webhook_secret: str, plan: str = "starter") -> list[dict[str, Any]]:
+    """All K8s objects needed to enable the AI agent add-on for one tenant."""
+    return [
+        agent_secret_manifest(tenant_id, webhook_secret),
+        agent_pvc_manifest(tenant_id),
+        agent_deployment_manifest(tenant_id, plan),
+        agent_service_manifest(tenant_id),
+        agent_network_policy_manifest(tenant_id),
+    ]
 
 
 def all_manifests(

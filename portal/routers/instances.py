@@ -22,8 +22,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, pdb_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN
-from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb
+from k8s_utils.manifests import all_manifests, pdb_manifest, agent_manifests, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN
+from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb, delete_agent_resources, patch_deployment_env
 from metrics import record_operation, record_error
 
 # ── Odoo webhook push config ──────────────────────────────────────────────────
@@ -359,6 +359,52 @@ def start_instance(tenant_id: str):
     record_operation("start")
     threading.Thread(target=_fire_webhook, args=(tenant_id, "provisioning"), daemon=True).start()
     return {"status": "starting"}
+
+
+class AgentEnableRequest(BaseModel):
+    plan: str = "starter"       # sizes the agent pod — see AGENT_PLAN_RESOURCES
+
+
+@router.post("/{tenant_id}/agent/enable")
+def enable_agent(tenant_id: str, req: AgentEnableRequest):
+    """Deploy the AI agent add-on workload for a tenant (agent Deployment/
+    Service/Secret/PVC/NetworkPolicy) and wire the odoo Deployment to reach
+    it. Idempotent — re-applying is safe (apply_manifest treats 409 as
+    already-exists for everything except NetworkPolicy, which it replaces).
+    """
+    namespace = f"odoo-{tenant_id}"
+    webhook_secret = secrets.token_urlsafe(32)
+    try:
+        for manifest in agent_manifests(tenant_id, webhook_secret, req.plan):
+            apply_manifest(manifest)
+        patch_deployment_env(namespace, "odoo", {
+            "AGENT_WEBHOOK_SECRET": webhook_secret,
+            "AGENT_URL": "http://agent:8000",
+        })
+    except Exception as exc:
+        record_error("agent_enable", "k8s_error")
+        raise HTTPException(status_code=500, detail=str(exc))
+    record_operation("agent_enable")
+    return {"status": "enabled"}
+
+
+@router.post("/{tenant_id}/agent/disable")
+def disable_agent(tenant_id: str):
+    """Tear down the AI agent add-on's K8s objects. Leaves the odoo
+    Deployment's AGENT_WEBHOOK_SECRET/AGENT_URL env vars in place —
+    harmless once the agent Service is gone (saas_ai_agent's postcommit
+    hook already degrades gracefully, logging and skipping instead of
+    blocking the user's message, if the agent pod is unreachable), and
+    avoids an extra odoo rollout restart just to unset them.
+    """
+    namespace = f"odoo-{tenant_id}"
+    try:
+        delete_agent_resources(namespace)
+    except Exception as exc:
+        record_error("agent_disable", "k8s_error")
+        raise HTTPException(status_code=500, detail=str(exc))
+    record_operation("agent_disable")
+    return {"status": "disabled"}
 
 
 class UpgradeRequest(BaseModel):
