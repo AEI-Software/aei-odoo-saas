@@ -56,7 +56,8 @@ fi
 # scripts in k8s/backup/ and k8s/07-staging.yaml contain many other ${VARS}
 # that must reach the cluster untouched.
 export STORAGE_CLASS BASE_DOMAIN PG_NETWORK_CIDR
-RENDER_VARS='${STORAGE_CLASS} ${BASE_DOMAIN} ${PG_NETWORK_CIDR}'
+export PG_TOPOLOGY="${PG_TOPOLOGY:-external}"
+RENDER_VARS='${STORAGE_CLASS} ${BASE_DOMAIN} ${PG_NETWORK_CIDR} ${PG_TOPOLOGY}'
 
 KUBECTL_ARGS=""
 if $DRY_RUN; then
@@ -171,13 +172,14 @@ stringData:
 EOF
 
 # ── Backup system secrets (backup-system namespace) ──────────────────────────
-echo "==> Aplicando backup secrets en namespace backup-system ..."
-# BACKUP_S3_ENDPOINT viene del inventario del entorno (sin default: cada
-# entorno debe declarar su object storage explícitamente).
+# BACKUP_S3_ENDPOINT viene del inventario del entorno (sin default). Si el
+# entorno lo deja vacío A PROPÓSITO (backups pendientes de definir, p.ej.
+# cotas-staging 2026-08-09), se omite el bloque en vez de abortar — los
+# CronJobs de backup simplemente no tendrán secret hasta que se configure.
 if [[ -z "${BACKUP_S3_ENDPOINT:-}" ]]; then
-  echo "ERROR: BACKUP_S3_ENDPOINT no definido en $ENV_FILE"
-  exit 1
-fi
+  echo "==> BACKUP_S3_ENDPOINT vacío — se omiten los backup secrets (backups pendientes en este entorno)"
+else
+echo "==> Aplicando backup secrets en namespace backup-system ..."
 BACKUP_S3_BUCKET="${BACKUP_S3_BUCKET:-pg-backups}"
 cat <<EOF | kubectl apply $KUBECTL_ARGS --validate=false -f -
 apiVersion: v1
@@ -201,6 +203,7 @@ type: Opaque
 stringData:
   POSTGRES_PASSWORD: "${BACKUP_PG_SUPERUSER_PASSWORD}"
 EOF
+fi  # BACKUP_S3_ENDPOINT
 
 # Cloudflare tunnel token — inyectar en namespace cloudflare (no en aeisoftware)
 if [[ " ${MANIFEST_EXCLUDE:-} " != *" 07-cloudflare-tunnel.yaml "* ]]; then
@@ -256,6 +259,19 @@ stringData:
 EOF
 fi
 
+# ── PostgreSQL de plataforma según topología ──────────────────────────────────
+if [[ "${PG_TOPOLOGY}" == "cnpg" ]]; then
+  # Postgres in-cluster (CloudNativePG, k8s/04b-postgres-cnpg.yaml): no hay
+  # Endpoints externos que generar. Crear el secret de bootstrap del Cluster
+  # (username/password del owner de la BD — el DB_PASSWORD de siempre).
+  echo "==> PG_TOPOLOGY=cnpg — creando secret pg-admin-user (bootstrap CNPG) ..."
+  kubectl create secret generic pg-admin-user \
+    --namespace=aeisoftware \
+    --type=kubernetes.io/basic-auth \
+    --from-literal=username=odoo \
+    --from-literal=password="${DB_PASSWORD}" \
+    --dry-run=client -o yaml | kubectl apply $KUBECTL_ARGS -f -
+else
 # ── Endpoints de PostgreSQL externo (generados desde PG_ENDPOINT_IPS) ─────────
 if [[ -z "${PG_ENDPOINT_IPS:-}" ]]; then
   echo "ERROR: PG_ENDPOINT_IPS no definido en $ENV_FILE"
@@ -287,6 +303,7 @@ EOF
         protocol: TCP
 EOF
 } | kubectl apply $KUBECTL_ARGS -f -
+fi  # PG_TOPOLOGY
 
 # ── Apply all other manifests (secrets files are deliberately skipped) ────────
 echo "==> Applying manifests …"
@@ -316,6 +333,17 @@ for f in "$REPO_ROOT"/k8s/0*.yaml; do
   if [[ "$filename" == 00b-cilium-* ]] && \
      ! kubectl get crd ciliumnetworkpolicies.cilium.io &>/dev/null; then
     echo "  skipping $filename (CRD de Cilium no instalado)"
+    continue
+  fi
+
+  # El Postgres CNPG de plataforma solo existe en topología cnpg
+  if [[ "$filename" == "04b-postgres-cnpg.yaml" && "${PG_TOPOLOGY}" != "cnpg" ]]; then
+    echo "  skipping $filename (PG_TOPOLOGY=${PG_TOPOLOGY})"
+    continue
+  fi
+  # …y el Service/Endpoints del PG externo solo en topología external
+  if [[ "$filename" == "02-postgres-external.yaml" && "${PG_TOPOLOGY}" == "cnpg" ]]; then
+    echo "  skipping $filename (PG_TOPOLOGY=cnpg — el service postgres lo define 04b)"
     continue
   fi
 

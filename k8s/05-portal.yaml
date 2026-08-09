@@ -76,6 +76,8 @@ spec:
               value: ${STORAGE_CLASS}      # renderizado por apply-manifests.sh desde el env del entorno
             - name: PG_NETWORK_CIDR
               value: ${PG_NETWORK_CIDR}
+            - name: PG_TOPOLOGY
+              value: ${PG_TOPOLOGY}        # external | cnpg (Postgres por tenant, CloudNativePG)
             - name: ODOO_HEADERS_MIDDLEWARE
               value: aeisoftware-odoo-headers@kubernetescrd
             - name: SECURITY_HEADERS_MIDDLEWARE

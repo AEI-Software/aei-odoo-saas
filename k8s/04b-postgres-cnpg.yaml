@@ -1,0 +1,105 @@
+# =============================================================================
+# k8s/04b-postgres-cnpg.yaml — Postgres de la plataforma con CloudNativePG
+#
+# SOLO se aplica cuando PG_TOPOLOGY=cnpg en el env del entorno (apply-manifests.sh
+# lo salta en topología external, donde el service postgres apunta por Endpoints
+# al HAProxy externo).
+#
+# Piezas:
+#   1. Cluster CNPG "pg" en aeisoftware — la BD del Odoo admin/staging
+#      (database "staging", owner "odoo" con el DB_PASSWORD de siempre, vía el
+#      secret pg-admin-user que genera apply-manifests.sh desde .secrets.env).
+#   2. Service "postgres" (5000 → 5432) seleccionando el primario CNPG — TODA
+#      la configuración existente (odoo-stg, portal, tenants external-mode)
+#      referencia postgres.aeisoftware.svc.cluster.local:5000, así que nada
+#      más cambia.
+#   3. NetworkPolicy: aeisoftware es default-deny — permitir staging/aeisoftware
+#      → pg :5432 y el operador cnpg-system (:8000 status, :5432).
+#      El egress al API server ya lo cubre 00b (endpointSelector {} en el ns).
+# =============================================================================
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg
+  namespace: aeisoftware
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  bootstrap:
+    initdb:
+      database: staging
+      owner: odoo
+      secret:
+        name: pg-admin-user
+  storage:
+    size: 10Gi
+    storageClass: ${STORAGE_CLASS}
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {cpu: "1", memory: 1Gi}
+  enableSuperuserAccess: false
+---
+# Mismo nombre/puerto que el service de la topología external — drop-in.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: aeisoftware
+  labels:
+    app: postgres
+spec:
+  selector:
+    cnpg.io/cluster: pg
+    cnpg.io/instanceRole: primary
+  ports:
+    - name: primary
+      port: 5000
+      targetPort: 5432
+      protocol: TCP
+---
+# Egress intra-namespace hacia el pg (aeisoftware es default-deny también en
+# egress; tras el DNAT del service la política se evalúa contra pod:5432,
+# así que las reglas existentes de :5000 hacia ipBlock/namespace no aplican).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-pg-cnpg
+  namespace: aeisoftware
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: pg
+      ports:
+        - {protocol: TCP, port: 5432}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-pg-ingress
+  namespace: aeisoftware
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: pg
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: staging
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aeisoftware
+      ports:
+        - {protocol: TCP, port: 5432}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cnpg-system
+      ports:
+        - {protocol: TCP, port: 8000}
+        - {protocol: TCP, port: 5432}
