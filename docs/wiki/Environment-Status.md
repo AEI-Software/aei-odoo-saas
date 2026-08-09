@@ -72,7 +72,8 @@ techos por namespace. Desplegado en el **proyecto IT911** de la nube COTAS
 | K3s | v1.36.3, 3 servers HA + Cilium + Traefik + Longhorn (validado con PVC de prueba) |
 | Longhorn | réplica **2**, overprovisioning **200%**, minimal-available **10%**, `storageReserved` **5 GB**/disco, RecurringJobs `snapshot-delete` (diario, retain 2) + `filesystem-trim` (semanal) |
 | Postgres | **CNPG por tenant** (operador CloudNativePG 1.30.0 instalado en ns `cnpg-system`): cada tenant lleva un Cluster `pg` single-instance en su namespace, creado por el portal con `PG_TOPOLOGY=cnpg` — validado en vivo 2026-08-09 (initdb con credenciales del portal, quota `requests.storage` 16Gi enforced, PVC en exceso rechazado). ⚠ Los pods CNPG necesitan `CiliumNetworkPolicy` → `kube-apiserver` (generada por el portal, `pg_cilium_apiserver_policy_manifest`) |
-| Tunnel/dominios | pendiente — se opera solo por VPN/kubectl; el comodín `*.aeisoftware.com` sigue en el tunnel del testbed cruzoil |
+| Tunnel/dominios | **el comodín `*.aeisoftware.com` corre AQUÍ desde 2026-08-09** — mismo tunnel `afc7a49a` movido desde cruzoil (connectors de cruzoil en `replicas=0`, rollback fácil). `staging.` / `www.` / `portal.aeisoftware.com` verificados 200 |
+| Stack SaaS | **DESPLEGADO y MIGRADO (2026-08-09)**: `odoo-stg` + `portal-stg` (ns `staging`, branch `feat/cloud-portability`, portal `PG_TOPOLOGY=cnpg`) + portal prod (ns `aeisoftware`) + CNPG de plataforma (`pg` en `aeisoftware`, BD `staging` migrada desde cruzoil — dump 65MB + filestore 59MB — y **limpiada: 0 tenants**, 12 saas.instance borradas; 9 suscripciones quedaron como histórico). Service `postgres` 5000→5432 → primario CNPG (`k8s/04b-postgres-cnpg.yaml`) |
 
 Convivencia: el **testbed cruzoil sigue vivo** (arquitectura anterior, tunnel comodín, admin
 SaaS en ns `staging`). `cotas-staging` es el candidato a reemplazarlo como Staging permanente

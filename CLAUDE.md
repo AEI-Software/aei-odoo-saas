@@ -24,12 +24,18 @@ El **único entorno vivo es el testbed cruzoil**, y es solo laboratorio (no aloj
 | Tunnel Cloudflare | propio, **in-cluster** (ns `cloudflare`, 2 réplicas) — tunnel `afc7a49a-166d-4505-92de-b9aad8fb1e32`, ruta comodín `*.aeisoftware.com` → `http://traefik.kube-system:80` |
 | Dominios | los **mismos del ex-productivo**: `staging.` / `www.` / `portal.` / `<tenant>.aeisoftware.com` (`BASE_DOMAIN="aeisoftware.com"`). `test.aeisoftware.com` **descartado**: el Universal SSL no cubre dos niveles |
 
-**Nuevo desde 2026-08-09 — segundo entorno: `cotas-staging`** en el proyecto **IT911** de la
+**Desde 2026-08-09 el entorno PRINCIPAL es `cotas-staging`** en el proyecto **IT911** de la
 nube COTAS (`cloudscz.cotas.com.bo`, vía VPN): 3 VMs `aei-stg-1..3` (m1.xlarge) con K3s HA +
-Cilium + Longhorn re-tuneado (réplica 2, overprov 200%, thin), **sin VM de Postgres** (irá CNPG
-por tenant). Primer entorno de la nueva arquitectura de `docs/CLOUD-STRATEGY-2026-08.md`.
+Cilium + Longhorn re-tuneado (réplica 2, overprov 200%, thin), **sin VM de Postgres** — CNPG
+in-cluster (plataforma en `aeisoftware`, y por-tenant vía `PG_TOPOLOGY=cnpg` del portal).
+Primer entorno de la nueva arquitectura de `docs/CLOUD-STRATEGY-2026-08.md`.
 `export KUBECONFIG=infra/k3s-ha/.kubeconfig.cotas-staging` (API: `https://10.40.2.210:6443`),
-inventario `infra/environments/cotas-staging.env`. Aún sin tunnel/dominios ni stack SaaS.
+inventario `infra/environments/cotas-staging.env`.
+
+**El stack SaaS y los dominios viven aquí ahora**: `staging.`/`www.`/`portal.aeisoftware.com`
+sirven desde cotas-staging (el tunnel comodín `afc7a49a` se movió desde cruzoil, cuyos
+connectors quedaron en `replicas=0`); la BD `staging` fue migrada desde cruzoil y **limpiada
+(0 tenants)**. El testbed cruzoil sigue vivo pero ya sin dominios ni rol de admin SaaS.
 
 Detalle completo, invariantes del host y pendientes: `docs/wiki/Environment-Status.md`.
 Las páginas del wiki que describen COTAS llevan un banner de desmantelamiento y se conservan
