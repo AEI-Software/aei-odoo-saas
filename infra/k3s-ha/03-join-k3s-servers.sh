@@ -40,6 +40,12 @@ done
 # ── Instalar K3s como nodo adicional del clúster ──────────────────────────────
 echo "→ Instalando K3s y uniéndose al clúster..."
 
+# Mismos SANs extra que en 01-install-k3s-server1.sh (floating IPs, etc.)
+EXTRA_TLS_SAN_FLAGS=""
+for san in ${K3S_EXTRA_TLS_SANS:-}; do
+  EXTRA_TLS_SAN_FLAGS+=" --tls-san=${san}"
+done
+
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --server=https://${KUBE_VIP_IP}:6443 \
   --token=${K3S_TOKEN} \
@@ -47,6 +53,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --advertise-address=${NODE_IP} \
   --tls-san=${KUBE_VIP_IP} \
   --tls-san=${NODE_IP} \
+  ${EXTRA_TLS_SAN_FLAGS} \
   --disable=traefik \
   --disable=servicelb \
   --disable=local-storage \

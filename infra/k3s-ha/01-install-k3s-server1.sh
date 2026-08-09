@@ -30,6 +30,13 @@ fi
 # ── Instalar K3s (primer nodo, --cluster-init) ────────────────────────────────
 echo "→ Instalando K3s con --cluster-init..."
 
+# SANs extra para el cert del API server — necesario cuando kubectl entra por una
+# IP distinta a las internas (p.ej. floating IPs de OpenStack). Espacio-separado.
+EXTRA_TLS_SAN_FLAGS=""
+for san in ${K3S_EXTRA_TLS_SANS:-}; do
+  EXTRA_TLS_SAN_FLAGS+=" --tls-san=${san}"
+done
+
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --cluster-init \
   --token=${K3S_TOKEN} \
@@ -37,6 +44,7 @@ curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server \
   --advertise-address=${NODE_IP} \
   --tls-san=${KUBE_VIP_IP} \
   --tls-san=${NODE_IP} \
+  ${EXTRA_TLS_SAN_FLAGS} \
   --disable=traefik \
   --disable=servicelb \
   --disable=local-storage \

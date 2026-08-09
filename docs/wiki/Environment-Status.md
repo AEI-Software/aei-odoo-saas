@@ -55,6 +55,29 @@ Runbook completo en [Cloud Portability](Cloud-Portability.md).
 > la red `br0` ni los ~28 contenedores docker del host (Odoo 17 de clientes, cloudflared,
 > traefik). El gateway de la red es `10.9.13.253`, no `.1`.
 
+## Staging nuevo en la nube COTAS — `cotas-staging` (2026-08-09)
+
+Primer entorno de la **nueva arquitectura** (`docs/CLOUD-STRATEGY-2026-08.md`): Longhorn
+thin-provisioned re-tuneado, **sin VM de Postgres** (los tenants llevarán CNPG por namespace),
+techos por namespace. Desplegado en el **proyecto IT911** de la nube COTAS
+(`cloudscz.cotas.com.bo`, PCD 2026.4 CE — acceso vía VPN, ver `~/it911/cloud.cotas.com/ACCESS.md`).
+
+| Elemento | Valor |
+|:---|:---|
+| VMs | `aei-stg-1..3` = m1.xlarge (8 vCPU / 16 GB / 160 GB root) + volumen cinder 150 GB dedicado a Longhorn (`/var/lib/longhorn`) |
+| Red | `IT911` 192.168.0.0/24 (geneve MTU 1440) → router → `net4002`; fixed .135/.208/.196 |
+| Floating IPs | `10.40.2.248` / `.245` / `.220`; **VIP kube-vip `192.168.0.150` ← FIP `10.40.2.210`** (puerto neutron `aei-stg-vip` + allowed_address_pairs) |
+| Kubeconfig | `infra/k3s-ha/.kubeconfig.cotas-staging` (gitignored) — apunta a `https://10.40.2.210:6443` |
+| Inventario | `infra/environments/cotas-staging.env` |
+| K3s | v1.36.3, 3 servers HA + Cilium + Traefik + Longhorn (validado con PVC de prueba) |
+| Longhorn | réplica **2**, overprovisioning **200%**, minimal-available **10%**, `storageReserved` **5 GB**/disco, RecurringJobs `snapshot-delete` (diario, retain 2) + `filesystem-trim` (semanal) |
+| Postgres | **ninguno** — pendiente CNPG por tenant (follow-up del reporte §3) |
+| Tunnel/dominios | pendiente — se opera solo por VPN/kubectl; el comodín `*.aeisoftware.com` sigue en el tunnel del testbed cruzoil |
+
+Convivencia: el **testbed cruzoil sigue vivo** (arquitectura anterior, tunnel comodín, admin
+SaaS en ns `staging`). `cotas-staging` es el candidato a reemplazarlo como Staging permanente
+cuando tenga el stack completo (CNPG, portal, tunnel propio).
+
 > ⚠️ **Capacidad de storage Longhorn muy justa (desde 2026-08-08):** un tenant real se quedó en
 > `error` por falta de espacio para un replica (ver `docs/wiki/AEI-Assistant.md` § Auto-enable /
 > memoria de proyecto `testbed_cruzoil` para el diagnóstico completo — el fix real fue bajar

@@ -113,6 +113,9 @@ run_remote() {
   env_exports+="export K3S_TOKEN='${K3S_TOKEN}';"
   env_exports+="export KUBE_VIP_IP='${KUBE_VIP_IP}';"
   env_exports+="export K3S_INTERFACE='${K3S_INTERFACE}';"
+  # ⚠ valor con espacios: comillas dobles escapadas — las simples anidadas dentro
+  # del `bash -c '...'` remoto rompen el quoting y el script remoto no se ejecuta
+  env_exports+="export K3S_EXTRA_TLS_SANS=\"${K3S_EXTRA_TLS_SANS:-}\";"
   env_exports+="export STORAGE_BACKEND='${STORAGE_BACKEND}';"
   env_exports+="export CEPH_MON_HOSTS='${CEPH_MON_HOSTS:-}';"
   env_exports+="export PG_CHECK_IPS='${PG_CHECK_IPS:-}';"
@@ -270,11 +273,14 @@ echo "  ║    ./infra/apply-manifests.sh                           ║"
 echo "  ╚══════════════════════════════════════════════════════════╝"
 echo ""
 
-# ── Extraer kubeconfig apuntando al VIP ────────────────────────────────────
-echo "→ Descargando kubeconfig (apunta al VIP ${KUBE_VIP_IP})..."
+# ── Extraer kubeconfig ─────────────────────────────────────────────────────
+# Por defecto apunta al VIP interno; si la workstation entra por otra IP (p.ej.
+# la floating IP del VIP en OpenStack), definir KUBECONFIG_SERVER_IP en el env.
+KUBECONFIG_TARGET="${KUBECONFIG_SERVER_IP:-${KUBE_VIP_IP}}"
+echo "→ Descargando kubeconfig (apunta a ${KUBECONFIG_TARGET})..."
 ssh ${SSH_OPTS} ${SSH_USER}@${FIRST_SSH} \
   "sudo cat /etc/rancher/k3s/k3s.yaml" | \
-  sed "s/127.0.0.1/${KUBE_VIP_IP}/g" > "${SCRIPT_DIR}/.kubeconfig${ENV_NAME:+.${ENV_NAME}}"
+  sed "s/127.0.0.1/${KUBECONFIG_TARGET}/g" > "${SCRIPT_DIR}/.kubeconfig${ENV_NAME:+.${ENV_NAME}}"
 chmod 600 "${SCRIPT_DIR}/.kubeconfig${ENV_NAME:+.${ENV_NAME}}"
 echo "  ✅ Guardado en: ${SCRIPT_DIR}/.kubeconfig${ENV_NAME:+.${ENV_NAME}}"
 echo "     Para usar: export KUBECONFIG=${SCRIPT_DIR}/.kubeconfig${ENV_NAME:+.${ENV_NAME}}"
