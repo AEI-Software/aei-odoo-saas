@@ -19,6 +19,22 @@ POSTGRES_HOST = os.getenv("POSTGRES_HOST", "postgres.aeisoftware.svc.cluster.loc
 POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", "5000"))          # HAProxy primary
 POSTGRES_PORT_PRIMARY = int(os.getenv("POSTGRES_PORT_PRIMARY", "5000"))  # Same (legacy compat)
 POSTGRES_USER = os.getenv("POSTGRES_USER", "odoo")
+# ── Topología de base de datos ───────────────────────────────────────────────
+# "external": clúster PG compartido FUERA de K8s (HAProxy/Patroni — modelo
+#             original COTAS y el testbed cruzoil). El portal crea rol+DB por
+#             psycopg2 contra POSTGRES_HOST.
+# "cnpg":     una instancia PostgreSQL single POR TENANT dentro de su propio
+#             namespace (CloudNativePG) — nueva arquitectura, ver
+#             docs/CLOUD-STRATEGY-2026-08.md §3. El portal NO toca psycopg2:
+#             el Cluster CR hace initdb con las credenciales que el portal
+#             genera (secret pg-app-user), así el flujo de odoo-secret y
+#             odoo.conf es idéntico en ambas topologías.
+PG_TOPOLOGY = os.getenv("PG_TOPOLOGY", "external")
+CNPG_IMAGE = os.getenv("CNPG_IMAGE", "ghcr.io/cloudnative-pg/postgresql:16")
+CNPG_STORAGE_GI = int(os.getenv("CNPG_STORAGE_GI", "5"))
+# Tamaño del PVC agent-workspace (agent_pvc_manifest) — usado para computar el
+# techo de storage del namespace en resourcequota_manifest.
+AGENT_WORKSPACE_GI = 1
 ODOO_IMAGE = os.getenv("ODOO_IMAGE", "ghcr.io/aei-software/aei-odoo-saas/odoo:stable")
 AGENT_IMAGE = os.getenv("AGENT_IMAGE", "ghcr.io/aei-software/aei-odoo-saas/agent:stable")
 # Platform-owned trial key for the AI agent add-on — used only when a
@@ -162,6 +178,98 @@ def git_secret_manifest(tenant_id: str, git_token: str) -> dict[str, Any]:
     }
 
 
+def pg_credentials_secret_manifest(tenant_id: str, db_password: str) -> dict[str, Any]:
+    """Credenciales del owner de la BD del tenant, consumidas por CNPG initdb.
+
+    El portal sigue siendo la fuente de verdad del password (igual que en la
+    topología external) — CNPG NO genera su propio secret pg-app cuando
+    bootstrap.initdb.secret está presente, usa este. Así odoo-secret,
+    odoo.conf y todo el flujo aguas abajo no cambian entre topologías.
+    """
+    import base64
+    def b64(s: str) -> str:
+        return base64.b64encode(s.encode()).decode()
+    return {
+        "apiVersion": "v1",
+        "kind": "Secret",
+        "metadata": {
+            "name": "pg-app-user",
+            "namespace": _ns(tenant_id),
+        },
+        "type": "kubernetes.io/basic-auth",
+        "data": {
+            "username": b64(f"odoo-{tenant_id}"),
+            "password": b64(db_password),
+        },
+    }
+
+
+def pg_cluster_manifest(tenant_id: str) -> dict[str, Any]:
+    """Instancia PostgreSQL single del tenant (CloudNativePG, PG_TOPOLOGY=cnpg).
+
+    1 instancia, sin standby — decisión de arquitectura (Patroni HA descartado;
+    el RTO es el re-schedule del pod sobre su réplica Longhorn). Sizing por
+    tenant según docs/CLOUD-STRATEGY-2026-08.md §3: 250m/512Mi req=lim
+    (QoS Guaranteed, regla CNPG shared_buffers 128MB ⇒ 512Mi de contenedor).
+    Servicios que crea el operador: pg-rw / pg-ro / pg-r en el namespace.
+    """
+    return {
+        "apiVersion": "postgresql.cnpg.io/v1",
+        "kind": "Cluster",
+        "metadata": {
+            "name": "pg",
+            "namespace": _ns(tenant_id),
+            "labels": {"app": "pg", "tenant": tenant_id},
+        },
+        "spec": {
+            "instances": 1,
+            "imageName": CNPG_IMAGE,
+            "bootstrap": {
+                "initdb": {
+                    "database": _dbname(tenant_id),
+                    "owner": f"odoo-{tenant_id}",
+                    "secret": {"name": "pg-app-user"},
+                }
+            },
+            "storage": {
+                "size": f"{CNPG_STORAGE_GI}Gi",
+                "storageClass": STORAGE_CLASS,
+            },
+            "resources": {
+                "requests": {"cpu": "250m", "memory": "512Mi"},
+                "limits": {"cpu": "250m", "memory": "512Mi"},
+            },
+            "enableSuperuserAccess": False,
+        },
+    }
+
+
+def pg_cilium_apiserver_policy_manifest(tenant_id: str) -> dict[str, Any]:
+    """Egress al API server para los pods CNPG del tenant (solo PG_TOPOLOGY=cnpg).
+
+    El instance-manager de CNPG necesita leer su Cluster CR del API server al
+    arrancar. Con Cilium, el ipBlock 0.0.0.0/0:443 de la NetworkPolicy NO cubre
+    la ClusterIP del API server (identidad de clúster, DNAT a nodo:6443 antes
+    de evaluar la política) — mismo motivo por el que existe
+    k8s/00b-cilium-apiserver-egress.yaml para el portal. Confirmado en vivo en
+    cotas-staging: sin esto, el job initdb muere con "dial tcp 10.43.0.1:443:
+    i/o timeout". Scoped SOLO a los pods del Cluster pg — los pods Odoo del
+    tenant siguen sin poder hablar con el API server.
+    """
+    return {
+        "apiVersion": "cilium.io/v2",
+        "kind": "CiliumNetworkPolicy",
+        "metadata": {
+            "name": "pg-egress-kube-apiserver",
+            "namespace": _ns(tenant_id),
+        },
+        "spec": {
+            "endpointSelector": {"matchLabels": {"cnpg.io/cluster": "pg"}},
+            "egress": [{"toEntities": ["kube-apiserver"]}],
+        },
+    }
+
+
 def configmap_manifest(tenant_id: str, db_password: str, admin_password: str, addons_repos: list = None, plan: str = "starter") -> dict[str, Any]:
     """Odoo config file per tenant — passwords are embedded at provision time."""
     db_name = _dbname(tenant_id)
@@ -170,6 +278,7 @@ def configmap_manifest(tenant_id: str, db_password: str, admin_password: str, ad
     addons_json_str = json.dumps(addons_repos)
 
     res = PLAN_RESOURCES.get(plan, PLAN_RESOURCES["starter"])
+    db_host, db_port = _db_endpoint(tenant_id)
 
     # /mnt/extra-addons is always included: the clone-addons init container
     # (see deployment_manifest) guarantees it's never an empty/invalid addons
@@ -180,8 +289,8 @@ def configmap_manifest(tenant_id: str, db_password: str, admin_password: str, ad
     # take effect — otherwise Odoo never sees the cloned modules at all
     # regardless of "Update Apps List". See DEPLOY.md incident 2026-07-10.
     conf = f"""[options]
-db_host = {POSTGRES_HOST}
-db_port = {POSTGRES_PORT}
+db_host = {db_host}
+db_port = {db_port}
 db_user = odoo-{tenant_id}
 db_password = {db_password}
 admin_passwd = {admin_password}
@@ -214,6 +323,7 @@ without_demo = True
 def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image: str | None = None, plan: str = "starter", install_modules: str = "") -> dict[str, Any]:
     pg_user = f"odoo-{tenant_id}"
     db_name = _dbname(tenant_id)
+    db_host, db_port = _db_endpoint(tenant_id)
     active_image = custom_image if custom_image else f"odoo:{odoo_version}"
     res = PLAN_RESOURCES.get(plan, PLAN_RESOURCES["starter"])
     init_modules = f"base,{install_modules}" if install_modules else "base"
@@ -226,8 +336,8 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
     _env = [
         {"name": "DB_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         {"name": "APP_ADMIN_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "APP_ADMIN_PASSWORD"}}},
-        {"name": "HOST",     "value": POSTGRES_HOST},
-        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
+        {"name": "HOST",     "value": db_host},
+        {"name": "PORT",     "value": str(db_port)},
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         # TCP keepalives — prevent HAProxy from dropping idle connections (default 30min timeout).
@@ -241,8 +351,8 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
     _init_env = [
         {"name": "DB_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         {"name": "APP_ADMIN_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "APP_ADMIN_PASSWORD"}}},
-        {"name": "HOST",     "value": POSTGRES_HOST},
-        {"name": "PORT",     "value": str(POSTGRES_PORT)},          # 5000 HAProxy primary
+        {"name": "HOST",     "value": db_host},
+        {"name": "PORT",     "value": str(db_port)},
         {"name": "USER",     "value": pg_user},
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         # First-boot bootstrap (see first_boot.py heredoc in odoo-init below)
@@ -354,8 +464,8 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                             "image": "busybox:1.36",
                             "command": ["/bin/sh", "-c"],
                             "args": [
-                                f"echo 'Waiting for PostgreSQL HA at {POSTGRES_HOST}:{POSTGRES_PORT}...'; "
-                                f"until nc -z {POSTGRES_HOST} {POSTGRES_PORT}; do "
+                                f"echo 'Waiting for PostgreSQL at {db_host}:{db_port}...'; "
+                                f"until nc -z {db_host} {db_port}; do "
                                 "  echo 'PostgreSQL not ready, retrying in 3s...'; sleep 3; "
                                 "done; "
                                 "echo 'PostgreSQL is ready.'"
@@ -374,7 +484,7 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 # ir_module_module. A freshly created empty DB would pass the
                                 # old "SELECT FROM pg_database" check but still need --init=base.
                                 f"DB_INIT=$(PGPASSWORD=$DB_PASSWORD psql "
-                                f"-h {POSTGRES_HOST} -p {POSTGRES_PORT} "
+                                f"-h {db_host} -p {db_port} "
                                 f"-U {pg_user} -d {db_name} -tAc "
                                 "\"SELECT 1 FROM information_schema.tables "
                                 "WHERE table_schema='public' AND table_name='ir_module_module'\" "
@@ -423,7 +533,7 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 # with mismatched content and break "loadBundle" bundles like
                                 # portal.assets_chatter (Missing template errors). Assets recompile
                                 # automatically on next request, so this is always safe.
-                                f"PGPASSWORD=$DB_PASSWORD psql -h {POSTGRES_HOST} -p {POSTGRES_PORT} "
+                                f"PGPASSWORD=$DB_PASSWORD psql -h {db_host} -p {db_port} "
                                 f"-U {pg_user} -d {db_name} "
                                 "-c \"DELETE FROM ir_attachment WHERE url LIKE '/web/assets/%'\" "
                                 "2>/dev/null || echo 'flush-asset-cache: skipped (DB not ready yet)'; "
@@ -520,6 +630,69 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
 def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
     """Isolate tenant namespace: deny all, allow Traefik for 8069/8072 and Postgres for 5432."""
     ns = _ns(tenant_id)
+    ingress = [
+        {   # Allow Ingress Controller (Traefik)
+            "from": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}}],
+            "ports": [{"protocol": "TCP", "port": 8069}, {"protocol": "TCP", "port": 8072}]
+        },
+        {   # Allow Portal FastAPI → backup endpoint (prod: aeisoftware, staging: staging)
+            "from": [
+                {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}},
+                {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "staging"}}},
+            ],
+            "ports": [{"protocol": "TCP", "port": 8069}]
+        }
+    ]
+    egress = [
+        {   # DNS
+            "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}, "podSelector": {"matchLabels": {"k8s-app": "kube-dns"}}}],
+            "ports": [{"protocol": "UDP", "port": 53}, {"protocol": "TCP", "port": 53}]
+        },
+        {   # GitHub addons HTTPS
+            "to": [{"ipBlock": {"cidr": "0.0.0.0/0"}}],
+            "ports": [{"protocol": "TCP", "port": 443}]
+        }
+    ]
+    if PG_TOPOLOGY == "cnpg":
+        # Postgres vive DENTRO del namespace (pods del Cluster CNPG "pg"):
+        ingress += [
+            {   # odoo (y cualquier pod del tenant) → pg :5432, intra-namespace
+                "from": [{"podSelector": {}}],
+                "ports": [{"protocol": "TCP", "port": 5432}]
+            },
+            {   # Operador CNPG (status/instance-manager :8000 + mantenimiento :5432)
+                "from": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "cnpg-system"}}}],
+                "ports": [{"protocol": "TCP", "port": 8000}, {"protocol": "TCP", "port": 5432}]
+            },
+            {   # Portal → pg :5432 (sync de user-count, health checks)
+                "from": [
+                    {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}},
+                    {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "staging"}}},
+                ],
+                "ports": [{"protocol": "TCP", "port": 5432}]
+            },
+        ]
+        egress += [
+            {   # odoo → pg intra-namespace
+                "to": [{"podSelector": {}}],
+                "ports": [{"protocol": "TCP", "port": 5432}]
+            },
+        ]
+    else:
+        egress += [
+            {   # Service postgres en aeisoftware (ClusterIP → Endpoints → HAProxy)
+                "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}}],
+                "ports": [
+                    {"protocol": "TCP", "port": POSTGRES_PORT},
+                ]
+            },
+            {   # Egress directo a la red del clúster PG externo
+                "to": [{"ipBlock": {"cidr": PG_NETWORK_CIDR}}],
+                "ports": [
+                    {"protocol": "TCP", "port": POSTGRES_PORT},
+                ]
+            },
+        ]
     return {
         "apiVersion": "networking.k8s.io/v1",
         "kind": "NetworkPolicy",
@@ -527,41 +700,8 @@ def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
         "spec": {
             "podSelector": {},
             "policyTypes": ["Ingress", "Egress"],
-            "ingress": [
-                {   # Allow Ingress Controller (Traefik)
-                    "from": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}}],
-                    "ports": [{"protocol": "TCP", "port": 8069}, {"protocol": "TCP", "port": 8072}]
-                },
-                {   # Allow Portal FastAPI → backup endpoint (prod: aeisoftware, staging: staging)
-                    "from": [
-                        {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}},
-                        {"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "staging"}}},
-                    ],
-                    "ports": [{"protocol": "TCP", "port": 8069}]
-                }
-            ],
-            "egress": [
-                {   # Service postgres en aeisoftware (ClusterIP → Endpoints → HAProxy)
-                    "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}}],
-                    "ports": [
-                        {"protocol": "TCP", "port": POSTGRES_PORT},
-                    ]
-                },
-                {   # Egress directo a la red del clúster PG externo
-                    "to": [{"ipBlock": {"cidr": PG_NETWORK_CIDR}}],
-                    "ports": [
-                        {"protocol": "TCP", "port": POSTGRES_PORT},
-                    ]
-                },
-                {   # DNS
-                    "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}, "podSelector": {"matchLabels": {"k8s-app": "kube-dns"}}}],
-                    "ports": [{"protocol": "UDP", "port": 53}, {"protocol": "TCP", "port": 53}]
-                },
-                {   # GitHub addons HTTPS
-                    "to": [{"ipBlock": {"cidr": "0.0.0.0/0"}}],
-                    "ports": [{"protocol": "TCP", "port": 443}]
-                }
-            ]
+            "ingress": ingress,
+            "egress": egress,
         }
     }
 
@@ -654,21 +794,32 @@ def limitrange_manifest(tenant_id: str) -> dict[str, Any]:
     }
 
 
-def resourcequota_manifest(tenant_id: str, plan: str = "starter") -> dict[str, Any]:
-    """Namespace-level resource cap per plan tier.
+def resourcequota_manifest(tenant_id: str, plan: str = "starter", storage_gi: int = 10) -> dict[str, Any]:
+    """Namespace-level ceiling per plan tier — EL TECHO VENDIBLE del tenant.
 
-    Prevents a misconfigured operator or portal bug from creating additional
-    pods or PVCs beyond what the plan allows. Values are sized to fit exactly
-    1 running Odoo pod (with its init containers) + 1 data PVC.
+    Nueva arquitectura (docs/CLOUD-STRATEGY-2026-08.md §2): el namespace es el
+    producto, y esta quota es su techo contractual. Cubre TODO lo que corre en
+    el namespace del tenant: el pod Odoo, el pod del AI agent (default en todos
+    los tenants) y — con PG_TOPOLOGY=cnpg — su instancia Postgres propia.
+
+    - `requests.storage` suma los tamaños SOLICITADOS de todos los PVC del
+      namespace (odoo-data + agent-workspace + PVC de pg). Con Longhorn
+      thin-provisioned nada de esto se reserva por adelantado: el techo existe,
+      el uso real es el que ocupa disco. Caveat honesto: la quota limita lo
+      solicitado, no el uso vivo dentro de un PVC ya creado.
+    - `limits.cpu/memory` es el techo de cómputo del namespace completo —
+      dimensionado para odoo+agent+pg más el overlap transitorio de un rollout
+      y los init containers (que toman defaults del LimitRange).
     """
-    # Per-plan namespace caps: generous enough for the workload, tight enough
-    # to catch runaway resource creation (extra pods, duplicate PVCs, etc.)
     _quotas = {
-        "starter":    {"cpu": "2",   "memory": "4Gi"},
-        "pro":        {"cpu": "4",   "memory": "8Gi"},
-        "enterprise": {"cpu": "8",   "memory": "16Gi"},
+        "starter":    {"cpu": "4",  "memory": "6Gi"},
+        "pro":        {"cpu": "6",  "memory": "10Gi"},
+        "enterprise": {"cpu": "8",  "memory": "16Gi"},
     }
     q = _quotas.get(plan, _quotas["starter"])
+    storage_ceiling = storage_gi + AGENT_WORKSPACE_GI
+    if PG_TOPOLOGY == "cnpg":
+        storage_ceiling += CNPG_STORAGE_GI
     return {
         "apiVersion": "v1",
         "kind": "ResourceQuota",
@@ -678,16 +829,18 @@ def resourcequota_manifest(tenant_id: str, plan: str = "starter") -> dict[str, A
         },
         "spec": {
             "hard": {
-                # Compute — 4× plan limits to allow init containers + headroom
                 "limits.cpu":    q["cpu"],
                 "limits.memory": q["memory"],
-                # Storage — 1 data PVC + 1 spare for edge cases
-                "persistentvolumeclaims": "2",
-                # Object count — prevents runaway pod/service creation
-                "pods": "5",
-                "services": "3",
-                "secrets": "10",
-                "configmaps": "5",
+                # Techo de storage del namespace = suma de todos sus PVCs.
+                "requests.storage": f"{storage_ceiling}Gi",
+                # odoo-data + agent-workspace + pg + 1 margen para PVCs en
+                # Terminating durante ciclos disable/enable del agente.
+                "persistentvolumeclaims": "4",
+                # odoo (x2 en rollout) + agent (x2) + pg + job initdb de CNPG
+                "pods": "8",
+                "services": "8",   # odoo + agent + pg-r/-ro/-rw
+                "secrets": "15",   # odoo/git/agent + pg-app-user + los TLS de CNPG
+                "configmaps": "8",
             }
         },
     }
@@ -917,12 +1070,21 @@ def all_manifests(
     manifests = [
         namespace_manifest(tenant_id),
         limitrange_manifest(tenant_id),
-        resourcequota_manifest(tenant_id, plan=plan),
+        resourcequota_manifest(tenant_id, plan=plan, storage_gi=storage_gi),
         network_policy_manifest(tenant_id),
         pvc_manifest(tenant_id, storage_gi),
         secret_manifest(tenant_id, db_password, admin_password, app_admin_password, support_password),
         configmap_manifest(tenant_id, db_password, admin_password, addons_repos, plan=plan),
     ]
+    if PG_TOPOLOGY == "cnpg":
+        # La instancia PG del tenant va ANTES del Deployment: el init container
+        # wait-for-postgres del pod Odoo espera a pg-rw:5432 hasta que el
+        # Cluster CNPG esté listo, igual que esperaba al HAProxy externo.
+        manifests += [
+            pg_credentials_secret_manifest(tenant_id, db_password),
+            pg_cilium_apiserver_policy_manifest(tenant_id),
+            pg_cluster_manifest(tenant_id),
+        ]
     if git_token:
         manifests.append(git_secret_manifest(tenant_id, git_token))
     manifests += [
@@ -938,6 +1100,13 @@ def all_manifests(
 # ── helpers ──────────────────────────────────────────────────────────────────
 def _ns(tenant_id: str) -> str:
     return f"odoo-{tenant_id}"
+
+
+def _db_endpoint(tenant_id: str) -> tuple[str, int]:
+    """(host, port) del Postgres del tenant según PG_TOPOLOGY."""
+    if PG_TOPOLOGY == "cnpg":
+        return (f"pg-rw.{_ns(tenant_id)}.svc.cluster.local", 5432)
+    return (POSTGRES_HOST, POSTGRES_PORT)
 
 
 def _dbname(tenant_id: str) -> str:

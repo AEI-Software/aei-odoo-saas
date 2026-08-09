@@ -160,6 +160,38 @@ def apply_manifest(manifest: dict) -> None:
             if e.status != 409:
                 raise
 
+    elif kind == "CiliumNetworkPolicy":
+        _load_config()
+        co = client.CustomObjectsApi()
+        try:
+            co.create_namespaced_custom_object(
+                group="cilium.io", version="v2", namespace=ns,
+                plural="ciliumnetworkpolicies", body=manifest,
+            )
+        except client.exceptions.ApiException as e:
+            if e.status != 409:
+                raise
+
+    elif kind == "Cluster" and str(manifest.get("apiVersion", "")).startswith("postgresql.cnpg.io"):
+        # CNPG per-tenant Postgres (PG_TOPOLOGY=cnpg). Custom resource → va por
+        # CustomObjectsApi, no por los clientes tipados. 409 = ya existe (ok);
+        # NO se hace replace en 409: el spec de un Cluster vivo se cambia solo
+        # a propósito (upgrade de plan/imagen), nunca como side-effect de un
+        # re-provisión idempotente.
+        _load_config()
+        co = client.CustomObjectsApi()
+        try:
+            co.create_namespaced_custom_object(
+                group="postgresql.cnpg.io",
+                version="v1",
+                namespace=ns,
+                plural="clusters",
+                body=manifest,
+            )
+        except client.exceptions.ApiException as e:
+            if e.status != 409:
+                raise
+
     else:
         logger.warning("apply_manifest: unhandled kind %s", kind)
 

@@ -22,7 +22,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 import re
 
-from k8s_utils.manifests import all_manifests, pdb_manifest, agent_secret_manifest, agent_pvc_manifest, agent_deployment_manifest, agent_service_manifest, agent_network_policy_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN
+from k8s_utils.manifests import all_manifests, pdb_manifest, agent_secret_manifest, agent_pvc_manifest, agent_deployment_manifest, agent_service_manifest, agent_network_policy_manifest, PLAN_RESOURCES, BASE_DOMAIN, URL_SCHEME, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_PORT_PRIMARY, GIT_TOKEN, SUPPORT_USER_LOGIN, PG_TOPOLOGY
 from k8s_utils.client import apply_manifest, delete_namespace, get_deployment_status, delete_pdb, delete_agent_resources, patch_deployment_env, read_namespaced_secret, persistent_volume_claim_exists
 from metrics import record_operation, record_error
 
@@ -178,18 +178,22 @@ def check_availability(tenant_id: str):
 
     db_name = f"odoo_{tenant_id}"
     db_taken = False
-    try:
-        conn = _pg_conn()
-        conn.autocommit = True
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
-            db_taken = cur.fetchone() is not None
-        conn.close()
-    except psycopg2.OperationalError as e:
-        logger.warning("check_availability: PG connectivity failed for %s: %s", tenant_id, e)
-        # Cannot confirm DB state — assume not taken so provisioning can proceed
-    except Exception as e:
-        logger.error("check_availability: unexpected error checking DB for %s: %s", tenant_id, e)
+    if PG_TOPOLOGY != "cnpg":
+        # Topología external: la BD vive en el clúster PG compartido y puede
+        # existir aunque el namespace no (huérfana). Con cnpg la BD vive DENTRO
+        # del namespace, así que namespace_exists ya lo cubre todo.
+        try:
+            conn = _pg_conn()
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+                db_taken = cur.fetchone() is not None
+            conn.close()
+        except psycopg2.OperationalError as e:
+            logger.warning("check_availability: PG connectivity failed for %s: %s", tenant_id, e)
+            # Cannot confirm DB state — assume not taken so provisioning can proceed
+        except Exception as e:
+            logger.error("check_availability: unexpected error checking DB for %s: %s", tenant_id, e)
 
     available = not ns_taken and not db_taken
     return {
@@ -224,12 +228,16 @@ def create_instance(req: CreateInstanceRequest, background_tasks: BackgroundTask
     pg_user = f"odoo-{req.tenant_id}"
     db_name = f"odoo_{req.tenant_id}"
 
-    # Step 1 — Postgres user + database
-    try:
-        _create_pg_user(pg_user, db_password, db_name)
-    except Exception as exc:
-        logger.exception("Failed to create Postgres user %s", pg_user)
-        raise HTTPException(status_code=500, detail=f"Postgres setup failed: {exc}") from exc
+    # Step 1 — Postgres user + database.
+    # Solo en topología external: con PG_TOPOLOGY=cnpg el rol y la BD los crea
+    # el propio Cluster CNPG (bootstrap.initdb + secret pg-app-user) dentro del
+    # namespace del tenant — no hay ningún PG compartido que tocar.
+    if PG_TOPOLOGY != "cnpg":
+        try:
+            _create_pg_user(pg_user, db_password, db_name)
+        except Exception as exc:
+            logger.exception("Failed to create Postgres user %s", pg_user)
+            raise HTTPException(status_code=500, detail=f"Postgres setup failed: {exc}") from exc
 
     # Step 2 — K8s manifests
     manifests = all_manifests(
@@ -257,10 +265,11 @@ def create_instance(req: CreateInstanceRequest, background_tasks: BackgroundTask
                 delete_namespace(namespace)
             except Exception:
                 logger.warning("Rollback: could not delete namespace %s", namespace)
-            try:
-                _drop_pg_user(pg_user, db_name)
-            except Exception:
-                logger.warning("Rollback: could not drop pg user %s", pg_user)
+            if PG_TOPOLOGY != "cnpg":
+                try:
+                    _drop_pg_user(pg_user, db_name)
+                except Exception:
+                    logger.warning("Rollback: could not drop pg user %s", pg_user)
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     record_operation("provision")
@@ -322,13 +331,16 @@ def delete_instance(tenant_id: str):
 
     record_operation("delete")
     threading.Thread(target=_fire_webhook, args=(tenant_id, "deleted"), daemon=True).start()
-    # Drop Postgres user and database (best-effort; don't block the response)
-    pg_user = f"odoo-{tenant_id}"
-    db_name = f"odoo_{tenant_id}"
-    try:
-        _drop_pg_user(pg_user, db_name)
-    except Exception as exc:
-        logger.warning("Could not drop Postgres user %s: %s", pg_user, exc)
+    # Drop Postgres user and database (best-effort; don't block the response).
+    # Con cnpg no hay nada externo que borrar: la instancia PG, su PVC y sus
+    # secrets caen junto con el namespace.
+    if PG_TOPOLOGY != "cnpg":
+        pg_user = f"odoo-{tenant_id}"
+        db_name = f"odoo_{tenant_id}"
+        try:
+            _drop_pg_user(pg_user, db_name)
+        except Exception as exc:
+            logger.warning("Could not drop Postgres user %s: %s", pg_user, exc)
 
 @router.post("/{tenant_id}/stop")
 def stop_instance(tenant_id: str):
@@ -631,7 +643,27 @@ def _get_user_count(tenant_id: str) -> int:
     """
     db_name = f"odoo_{tenant_id}"
     try:
-        conn = _pg_conn(dbname=db_name)
+        if PG_TOPOLOGY == "cnpg":
+            # La BD vive en el namespace del tenant: conectar al service pg-rw
+            # con las credenciales del propio tenant (leídas de su odoo-secret;
+            # no existe un usuario admin compartido en esta topología). La
+            # NetworkPolicy del tenant permite aeisoftware/staging → :5432.
+            from k8s_utils.client import read_namespaced_secret
+            secret = read_namespaced_secret(f"odoo-{tenant_id}", "odoo-secret")
+            db_password = secret.get("DB_PASSWORD", "")
+            if not db_password:
+                logger.error("_get_user_count: odoo-secret sin DB_PASSWORD para %s", tenant_id)
+                return -1
+            conn = psycopg2.connect(
+                host=f"pg-rw.odoo-{tenant_id}.svc.cluster.local",
+                port=5432,
+                dbname=db_name,
+                user=f"odoo-{tenant_id}",
+                password=db_password,
+                connect_timeout=5,
+            )
+        else:
+            conn = _pg_conn(dbname=db_name)
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT count(*) FROM res_users

@@ -71,7 +71,7 @@ techos por namespace. Desplegado en el **proyecto IT911** de la nube COTAS
 | Inventario | `infra/environments/cotas-staging.env` |
 | K3s | v1.36.3, 3 servers HA + Cilium + Traefik + Longhorn (validado con PVC de prueba) |
 | Longhorn | réplica **2**, overprovisioning **200%**, minimal-available **10%**, `storageReserved` **5 GB**/disco, RecurringJobs `snapshot-delete` (diario, retain 2) + `filesystem-trim` (semanal) |
-| Postgres | **ninguno** — pendiente CNPG por tenant (follow-up del reporte §3) |
+| Postgres | **CNPG por tenant** (operador CloudNativePG 1.30.0 instalado en ns `cnpg-system`): cada tenant lleva un Cluster `pg` single-instance en su namespace, creado por el portal con `PG_TOPOLOGY=cnpg` — validado en vivo 2026-08-09 (initdb con credenciales del portal, quota `requests.storage` 16Gi enforced, PVC en exceso rechazado). ⚠ Los pods CNPG necesitan `CiliumNetworkPolicy` → `kube-apiserver` (generada por el portal, `pg_cilium_apiserver_policy_manifest`) |
 | Tunnel/dominios | pendiente — se opera solo por VPN/kubectl; el comodín `*.aeisoftware.com` sigue en el tunnel del testbed cruzoil |
 
 Convivencia: el **testbed cruzoil sigue vivo** (arquitectura anterior, tunnel comodín, admin
