@@ -288,6 +288,15 @@ def configmap_manifest(tenant_id: str, db_password: str, admin_password: str, ad
     # only ever touches addons.json, never re-renders odoo.conf) actually
     # take effect — otherwise Odoo never sees the cloned modules at all
     # regardless of "Update Apps List". See DEPLOY.md incident 2026-07-10.
+    #
+    # limit_time_*: sin esto Odoo usa el default limit_time_real=120s, y con
+    # workers>0 el master MATA al worker HTTP a los 120s. Instalar varias apps
+    # a la vez (11 apps + dependencias > 120s) hace que el worker muera a media
+    # carga del grafo y los módulos que no alcanzaron a commitear quedan en
+    # estado "to install" — genera tickets de soporte innecesarios. Confirmado
+    # en vivo (tenant SUB00259, 2026-08-10: "WorkerHTTP timeout after 120s").
+    # 1200s real deja terminar instalaciones batch grandes; el commit del
+    # install ocurre server-side aunque el browser corte antes (Cloudflare ~100s).
     conf = f"""[options]
 db_host = {db_host}
 db_port = {db_port}
@@ -304,6 +313,9 @@ max_cron_threads = {res["cron_threads"]}
 gevent_port = 8072
 proxy_mode = True
 without_demo = True
+limit_time_cpu = 600
+limit_time_real = 1200
+limit_time_real_cron = 1800
 """
     return {
         "apiVersion": "v1",
