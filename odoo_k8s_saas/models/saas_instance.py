@@ -8,6 +8,7 @@ No dependency on sale, contract, or subscription modules.
 import json
 import logging
 import os
+import re
 import requests
 
 from odoo import models, fields, api, _, SUPERUSER_ID
@@ -26,10 +27,12 @@ PORTAL_KEY = os.getenv("SAAS_PORTAL_KEY", "")
 # for. Each tenant's own users pay for their own AI-provider key (BYOK);
 # the platform doesn't pay for or resell LLM usage.
 AI_AGENT_DEFAULT_MODULES = ["muk_mcp", "saas_ai_agent"]
-AI_AGENT_DEFAULT_REPO = {
-    "url": "https://github.com/AEI-Software/aei-odoo-saas-agent.git",
-    "branch": "18.0",
-}
+AI_AGENT_REPO_URL = "https://github.com/AEI-Software/aei-odoo-saas-agent.git"
+# The agent addon's manifest version is series-pinned (an 18.0 addon is
+# installable=False on Odoo 19), so the delivery repo is cloned at the branch
+# matching the tenant's Odoo series. Branches published on the agent repo:
+AI_AGENT_BRANCHES = {"17.0", "18.0", "19.0"}
+AI_AGENT_FALLBACK_BRANCH = "18.0"
 
 
 class SaasInstance(models.Model):
@@ -180,6 +183,23 @@ class SaasInstance(models.Model):
                 % (self.tenant_id, ", ".join(reasons) or _("already taken"))
             )
 
+    def _agent_repo(self):
+        """AEI Assistant delivery repo, pinned to the branch matching this
+        tenant's Odoo series. For official images the series is ``odoo_version``;
+        for a custom image we parse it from the image tag (e.g.
+        ``…/aei-custom-odoo-images:19.0-abc123`` → ``19.0``). Falls back to
+        AI_AGENT_FALLBACK_BRANCH when the series can't be determined."""
+        series = None
+        if self.odoo_version and self.odoo_version != "custom":
+            series = self.odoo_version
+        elif self.custom_image:
+            tag = self.custom_image.rsplit(":", 1)[-1] if ":" in self.custom_image else ""
+            match = re.search(r"(\d+\.\d+)", tag)
+            if match:
+                series = match.group(1)
+        branch = series if series in AI_AGENT_BRANCHES else AI_AGENT_FALLBACK_BRANCH
+        return {"url": AI_AGENT_REPO_URL, "branch": branch}
+
     def action_provision(self):
         self.ensure_one()
         if self.state not in ("draft", "error"):
@@ -255,8 +275,9 @@ class SaasInstance(models.Model):
                     repos = json.loads(self.addons_repos_json) or []
                 except (json.JSONDecodeError, TypeError):
                     repos = []
-            if not any(r.get("url") == AI_AGENT_DEFAULT_REPO["url"] for r in repos):
-                repos.append(AI_AGENT_DEFAULT_REPO)
+            agent_repo = self._agent_repo()
+            if not any(r.get("url") == agent_repo["url"] for r in repos):
+                repos.append(agent_repo)
             body["addons_repos"] = repos
             resp = requests.post(
                 f"{PORTAL_URL}/api/v1/instances",
