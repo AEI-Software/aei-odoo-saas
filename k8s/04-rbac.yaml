@@ -28,6 +28,15 @@ rules:
   - apiGroups: [policy]
     resources: [poddisruptionbudgets]
     verbs: [get, list, watch, create, update, patch, delete]
+  # Topología PG_TOPOLOGY=cnpg: el portal crea el Cluster CNPG del tenant y la
+  # CiliumNetworkPolicy de egress al API server (pg_cluster_manifest /
+  # pg_cilium_apiserver_policy_manifest). Sin esto: 403 al provisionar.
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [get, list, watch, create, delete]
+  - apiGroups: [cilium.io]
+    resources: [ciliumnetworkpolicies]
+    verbs: [get, list, watch, create, delete]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
