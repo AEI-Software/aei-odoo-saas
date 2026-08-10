@@ -78,6 +78,26 @@ Starter: 2 workers, 100m-500m CPU, 512Mi-1Gi RAM
 Pro: 4 workers, 250m-1 CPU, 1Gi-2Gi RAM
 Enterprise: 8 workers, 500m-2 CPU, 2Gi-4Gi RAM
 
+## Imagen de producto Odoo 19 (track 2026-08-10)
+
+El **producto vendible** que se lanza a los tenants es una **imagen custom Odoo 19 CE horneada** con el set
+vendible de `aei-l10n-bo` (localización SIAT + POS/SBA + reportes), **sin el kit de Cybrosys**. Vive en el
+repo `AEI-Software/aei-custom-odoo-images` (`19.0/Dockerfile` + `19.0/AEI_L10N_BO_MODULES` +
+`19.0/stage-addons.sh`); el CI (job `build-and-push-19`) clona `aei-l10n-bo@19.0` con el secret
+`AEI_L10N_BO_TOKEN` y publica `:19.0` + `:19.0-<sha>`. Un producto SaaS apunta su `custom_image` al tag
+inmutable `:19.0-<sha>`; `install_modules` decide qué se instala por plan. **Verificado**: los 9 módulos +
+el stack del agente instalan limpio en `odoo:19`.
+
+- **Rama del agente por serie Odoo**: `saas.instance._agent_repo()` (en `odoo_k8s_saas`) elige la rama de
+  `aei-odoo-saas-agent` según la serie del tenant — `odoo_version` para imágenes oficiales, y para `custom`
+  **parsea la serie del tag** de `custom_image` (`…:19.0-<sha>` → rama `19.0`). Cada `kind`/serie nueva del
+  agente necesita su rama publicada (`17.0`/`18.0`/`19.0`).
+- **Actualizar código en tenants vivos**: horneado ⇒ rebuild de imagen + repointar Deployment + `odoo -u`;
+  ver `aei-custom-odoo-images/docs/UPDATING-TENANTS.md`. **Gap**: el endpoint `upgrade` del portal sólo
+  cambia el plan (no imagen/módulos) — falta una acción gestionada.
+- Coordinación cross-repo y handoff del track: `~/aeisoftware/aei-catalog` (`CATALOG.md` "Estado 2026-08-10",
+  `NEXT_SESSION.md`). Gotchas de porte 18→19 documentados en `aei-l10n-bo/docs/PORT-ODOO-19.md`.
+
 ## Topología de base de datos por tenant — `PG_TOPOLOGY` (desde 2026-08-09)
 
 El portal soporta dos topologías de Postgres, elegidas por el env var `PG_TOPOLOGY` del portal
