@@ -104,9 +104,29 @@ tenant's Odoo database: `GET /ai_agent/llm_config` hands back a `trial_available
 running spend total, nothing else, when no BYOK key is set. The agent pod reports each trial turn's
 real SDK-billed cost (`ResultMessage.total_cost_usd`) back via `/ai_agent/reply`; Odoo accumulates it.
 
-The first time a user opens the "AEI Assistant" menu, the agent introduces itself proactively
-(same `/hook` path, `welcome: true`, a canned prompt instead of user text) instead of waiting for
-the first message — mirrors OdooBot's own unprompted greeting.
+### Welcome proactivo — patrón OdooBot (reescrito 2026-08-10)
+
+El welcome **ya no depende del pod del agente ni de abrir un menú**. El diseño original
+(dispatch HTTP al pod con `welcome: true`) hacía no-op silencioso si el pod/secret/LLM no estaban
+listos → canal vacío, justo lo contrario de "anunciarse". Reescrito para replicar exactamente el
+mecanismo de OdooBot (`mail_bot`):
+
+- **Disparo**: override de `res.users._on_webclient_bootstrap()` (el mismo hook que usa OdooBot,
+  corre en cada carga del webclient — confirmado en Odoo 18 `web/models/res_users.py`), con latch
+  por-usuario `aei_assistant_welcomed` (Boolean, dispara una vez) y `try/except` para NUNCA romper
+  el webclient. Así el canal del asistente **aparece y saluda solo en el primer login**, sin que
+  el usuario abra nada.
+- **Contenido**: `_agent_trigger_welcome` postea un saludo **LOCAL inline** del bot
+  (`channel.sudo().message_post(author_id=bot, silent=True)`, HTML con `Markup`) — siempre
+  aparece, sin dependencia externa. La conversación dinámica con el agente arranca cuando el
+  usuario responde (ese mensaje sí va por `_maybe_notify_agent` → `_dispatch_to_agent`).
+- El menú "AEI Assistant" comparte el mismo latch, así que el usuario nunca recibe saludo doble.
+
+### Idioma de la UI
+
+La pantalla **Ajustes > AEI Assistant** y los mensajes del bot están en **español** (los tenants
+corren `es_BO`, sin catálogo `.po`) — los strings se hardcodean en español en el source de
+`saas_ai_agent/views/res_config_settings_views.xml` y `models/res_config_settings.py`.
 
 ## Billing (desactivado — ver pivote arriba)
 

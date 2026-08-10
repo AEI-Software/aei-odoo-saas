@@ -78,9 +78,63 @@ Starter: 2 workers, 100m-500m CPU, 512Mi-1Gi RAM
 Pro: 4 workers, 250m-1 CPU, 1Gi-2Gi RAM
 Enterprise: 8 workers, 500m-2 CPU, 2Gi-4Gi RAM
 
-## Cluster Access — testbed cruzoil (único entorno)
+## Topología de base de datos por tenant — `PG_TOPOLOGY` (desde 2026-08-09)
 
-A diferencia de COTAS, aquí **kubectl corre local** contra el VIP; no hace falta salto SSH:
+El portal soporta dos topologías de Postgres, elegidas por el env var `PG_TOPOLOGY` del portal
+(viene del inventario del entorno). Diseño en `docs/CLOUD-STRATEGY-2026-08.md`:
+
+- **`external`** (default; COTAS histórico, testbed cruzoil): clúster PG compartido FUERA de K8s
+  (HAProxy/Patroni). El portal crea rol+BD por `psycopg2` contra `POSTGRES_HOST`.
+- **`cnpg`** (cotas-staging, **nueva arquitectura**): una instancia PostgreSQL single **por
+  tenant** dentro de su namespace (CloudNativePG). El portal NO toca `psycopg2`: el `Cluster` CR
+  hace `initdb` con las credenciales que el portal genera (secret `pg-app-user`), así
+  `odoo-secret`/`odoo.conf` son idénticos en ambas topologías. El PG de la **plataforma** (BD
+  `staging`/admin) también es un `Cluster` CNPG (`k8s/04b-postgres-cnpg.yaml`). Patroni HA queda
+  descartado en ambas variantes.
+
+**Techo vendible por namespace**: `resourcequota_manifest` (en `manifests.py`) es el `ResourceQuota`
+que suma TODO el namespace del tenant — `requests.storage` = odoo (`storage_gi`) + agente (1Gi) +
+pg (5Gi en cnpg); más `limits.cpu/memory`. Con Longhorn thin nada se reserva por adelantado.
+
+**Generadores CNPG/quota** viven en `manifests.py`: `pg_cluster_manifest`,
+`pg_credentials_secret_manifest`, `pg_cilium_apiserver_policy_manifest` (los pods CNPG necesitan
+el API server y el ipBlock 0.0.0.0/0 NO cubre entidades de clúster en Cilium),
+`resourcequota_manifest`. `apply_manifest` (client.py) aplica los custom resources vía
+`CustomObjectsApi`. El `ClusterRole` `saas-portal-role` (`k8s/04-rbac.yaml`) DEBE incluir
+`clusters.postgresql.cnpg.io` y `ciliumnetworkpolicies.cilium.io` — cada kind nuevo en
+`manifests.py` necesita su regla RBAC.
+
+**`odoo.conf` de tenant — `limit_time_*`**: `configmap_manifest` fija `limit_time_real=1200`,
+`limit_time_cpu=600`, `limit_time_real_cron=1800`. Sin esto, con `workers>0`, instalar varias
+apps a la vez excede el default de 120s y el master mata al worker HTTP → módulos quedan en
+"to install" (confirmado en vivo, SUB00259).
+
+## Cluster Access — dos entornos vivos
+
+**`cotas-staging` (PRINCIPAL, desde 2026-08-09)** — 3 VMs en el proyecto IT911 de la nube COTAS
+(`cloudscz.cotas.com.bo`, requiere VPN). Aquí viven el stack SaaS, los dominios y la BD `staging`.
+kubectl corre local contra la floating IP del VIP:
+
+```bash
+export KUBECONFIG=infra/k3s-ha/.kubeconfig.cotas-staging   # server: https://10.40.2.210:6443
+kubectl get nodes
+```
+
+| Parámetro | Valor |
+|-----------|-------|
+| Kubeconfig | `infra/k3s-ha/.kubeconfig.cotas-staging` (gitignored) |
+| API server | `https://10.40.2.210:6443` (floating IP del kube-vip 192.168.0.150) |
+| VMs / floating IPs | `aei-stg-1/2/3` = `10.40.2.248 / .245 / .220` (SSH `ubuntu` + `.secrets/k3s_rsa`) |
+| Inventario | `infra/environments/cotas-staging.env` (`PG_TOPOLOGY="cnpg"`, `AGENT_IMAGE` pin) |
+| Secretos | `.secrets.env.cotas-staging`, `infra/k3s-ha/.env.cotas-staging` (gitignored) |
+| Cloud OpenStack | proyecto **IT911** en `cloudscz.cotas.com.bo`; acceso/creds en `~/it911/cloud.cotas.com/ACCESS.md` |
+
+> ⚠️ **NO tocar en el proyecto IT911** las VMs `catastro` / `azucar_app` (cargas reales previas)
+> ni ningún otro tenant de clientes de la nube `cloudscz` (FERROTODO, JESUS-NAZARENO, SINTESIS…).
+> Provisionar/borrar SIEMPRE por el portal o el módulo SaaS, nunca kubectl directo.
+
+**`testbed cruzoil` (SECUNDARIO, laboratorio)** — sigue vivo pero ya sin dominios ni rol de admin
+SaaS (su cloudflared quedó en `replicas=0` cuando el tunnel se movió a cotas-staging):
 
 ```bash
 export KUBECONFIG=infra/k3s-ha/.kubeconfig.testbed   # server: https://10.9.13.20:6443
@@ -93,9 +147,6 @@ kubectl get nodes
 | API server | `https://10.9.13.20:6443` (kube-vip, alcanzable desde la workstation) |
 | SSH a las VMs / host | usuario `ubuntu`, clave `/home/kali/it911/pentest_it911/hardening/keys/it911_admin_ed25519` |
 | Secretos por entorno | `.secrets.env.testbed`, `infra/k3s-ha/.env.testbed`, `infra/postgres-ha/.env.testbed`, `infra/postgres-ha/.secrets.generated.testbed` (todos gitignored) |
-
-> **kubectl:** el binario que vivía en `~/.local/bin/kubectl` ya no está — reinstalarlo antes
-> de operar el testbed.
 
 > **Invariantes del host cruzoil (`10.9.13.2`):** NO tocar `comodin-win7`, `pangolin_it911`,
 > `pcd.qcow2`, la red `br0` ni los ~28 contenedores docker del host (Odoo 17 de clientes,
