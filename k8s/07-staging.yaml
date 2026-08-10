@@ -398,6 +398,8 @@ spec:
               value: ${PG_NETWORK_CIDR}
             - name: PG_TOPOLOGY
               value: ${PG_TOPOLOGY}        # external | cnpg (Postgres por tenant, CloudNativePG)
+            - name: AGENT_IMAGE
+              value: ${AGENT_IMAGE}        # imagen del agente AEI Assistant por tenant
             - name: URL_SCHEME
               value: http
             - name: GIT_TOKEN

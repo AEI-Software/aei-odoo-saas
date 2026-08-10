@@ -57,7 +57,8 @@ fi
 # that must reach the cluster untouched.
 export STORAGE_CLASS BASE_DOMAIN PG_NETWORK_CIDR
 export PG_TOPOLOGY="${PG_TOPOLOGY:-external}"
-RENDER_VARS='${STORAGE_CLASS} ${BASE_DOMAIN} ${PG_NETWORK_CIDR} ${PG_TOPOLOGY}'
+export AGENT_IMAGE="${AGENT_IMAGE:-ghcr.io/aei-software/aei-odoo-saas/agent:stable}"
+RENDER_VARS='${STORAGE_CLASS} ${BASE_DOMAIN} ${PG_NETWORK_CIDR} ${PG_TOPOLOGY} ${AGENT_IMAGE}'
 
 KUBECTL_ARGS=""
 if $DRY_RUN; then
