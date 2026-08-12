@@ -492,6 +492,19 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                             "imagePullPolicy": "Always",
                             "command": ["/bin/sh", "-c"],
                             "args": [
+                                # Product images (aei-custom-odoo-images 19.0+) bake the AEI
+                                # localization at /opt/aei-addons and inject it into the addons
+                                # path via their ENTRYPOINT (/entrypoint-custom.sh) — which only
+                                # the MAIN container goes through. This init container invokes
+                                # `odoo` directly, so it must build the same addons path itself;
+                                # otherwise --init/update_list can't see the baked modules
+                                # (SUB00262 2026-08-12: l10n_bo_core absent from ir_module_module).
+                                # Runtime detection keeps plain odoo:XX.0 images working.
+                                "AEI_ADDONS_PATH='/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons'; "
+                                "if [ -d /opt/aei-addons ]; then "
+                                "  AEI_ADDONS_PATH=\"/opt/aei-addons,$AEI_ADDONS_PATH\"; "
+                                "fi; "
+                                "echo \"odoo-init: addons_path=$AEI_ADDONS_PATH\"; "
                                 # Check if Odoo schema exists (not just the DB) by looking for
                                 # ir_module_module. A freshly created empty DB would pass the
                                 # old "SELECT FROM pg_database" check but still need --init=base.
@@ -506,6 +519,7 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "else "
                                 "  echo 'Initializing Odoo schema for the first time...'; "
                                 f"  odoo --config=/etc/odoo/odoo.conf --init={init_modules} "
+                                "    --addons-path=\"$AEI_ADDONS_PATH\" "
                                 f"    --load-language={TENANT_DEFAULT_LANG} --stop-after-init && "
                                 # First-boot bootstrap: set admin password, default language
                                 # (TENANT_LANG for existing + future users/partners) and create
@@ -536,7 +550,7 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "env.cr.commit()\n"
                                 "print('first-boot: lang=%s applied' % lang)\n"
                                 "PYEOF\n"
-                                "  odoo shell --config=/etc/odoo/odoo.conf --no-http < /tmp/first_boot.py; "
+                                "  odoo shell --config=/etc/odoo/odoo.conf --addons-path=\"$AEI_ADDONS_PATH\" --no-http < /tmp/first_boot.py; "
                                 "fi; "
                                 # Flush cached asset bundles on every start (not just first boot).
                                 # With imagePullPolicy=Always the running Odoo build can legitimately
@@ -560,7 +574,7 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 # one is a deliberate follow-up action, not automatic). See
                                 # DEPLOY.md incident 2026-07-10.
                                 "echo \"env['ir.module.module'].update_list(); env.cr.commit()\" "
-                                "| odoo shell --config=/etc/odoo/odoo.conf --no-http "
+                                "| odoo shell --config=/etc/odoo/odoo.conf --addons-path=\"$AEI_ADDONS_PATH\" --no-http "
                                 "|| echo 'update-apps-list: skipped (DB not ready yet)'"
                             ],
                             "env": _init_env,
