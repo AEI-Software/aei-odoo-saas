@@ -204,8 +204,8 @@ def _build_options(llm_config: dict, mcp_key: str, resume: str | None) -> Claude
     )
 
 
-async def _post_reply(channel_id: int, text: str, is_error: bool, cost_usd: float = 0.0, trial: bool = False) -> None:
-    body = {"channel_id": channel_id, "text": text, "is_error": is_error, "cost_usd": cost_usd, "trial": trial}
+async def _post_reply(channel_id: int, text: str, is_error: bool, cost_usd: float = 0.0, trial: bool = False, code: str | None = None) -> None:
+    body = {"channel_id": channel_id, "text": text, "is_error": is_error, "cost_usd": cost_usd, "trial": trial, "code": code}
     import json
 
     raw = json.dumps(body).encode()
@@ -231,13 +231,17 @@ async def _run_turn(payload: HookPayload) -> None:
             remote_config = {}
         llm_config = _resolve_effective_config(remote_config)
         if llm_config is None:
-            # Odoo's own pre-check (saas_ai_agent's _dispatch_to_agent)
-            # already messages the user in this case before ever calling
-            # /hook — reaching here means a race (config changed between
-            # the webhook firing and this fetch) or this pod has no
-            # DEFAULT_LLM_API_KEY configured at all. Stay quiet rather than
-            # duplicate a message Odoo likely already posted.
-            logger.warning("agent(channel=%s): no usable llm config, skipping turn", payload.channel_id)
+            # Odoo's pre-check (_dispatch_to_agent) only knows the tenant
+            # side: it messages the user when there's no BYOK key AND the
+            # trial budget is exhausted. It can NOT know whether this pod
+            # actually holds a DEFAULT_LLM_API_KEY, so when the platform
+            # trial key is unconfigured the dispatch still happens and
+            # staying quiet here meant dead air for the user (SUB00265,
+            # 2026-08-12). Send a typed reply instead — the Odoo controller
+            # translates code=not_configured into the proper message in the
+            # user's language and posts it as the bot.
+            logger.warning("agent(channel=%s): no usable llm config — replying not_configured", payload.channel_id)
+            await _post_reply(payload.channel_id, "", is_error=True, code="not_configured")
             return
 
         prompt = WELCOME_PROMPT if payload.welcome else payload.message
