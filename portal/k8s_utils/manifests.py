@@ -520,13 +520,24 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "  echo 'Initializing Odoo schema for the first time...'; "
                                 f"  odoo --config=/etc/odoo/odoo.conf --init={init_modules} "
                                 "    --addons-path=\"$AEI_ADDONS_PATH\" "
-                                f"    --load-language={TENANT_DEFAULT_LANG} --stop-after-init && "
+                                f"    --load-language={TENANT_DEFAULT_LANG} --stop-after-init "
+                                "  || echo 'odoo-init: WARNING --init exited non-zero; attempting first-boot anyway'; "
                                 # First-boot bootstrap: set admin password, default language
                                 # (TENANT_LANG for existing + future users/partners) and create
                                 # the per-instance support user (skipped if SUPPORT_PASSWORD is
                                 # empty). Heredoc is quoted ('PYEOF') so the shell does NOT
                                 # expand anything — the script reads env vars via os.environ,
                                 # which is also safe for passwords with special characters.
+                                #
+                                # ⚠️ odoo shell exec()s piped stdin as ONE block: any exception
+                                # aborts the WHOLE script, including earlier writes and the final
+                                # commit (SUB00262/263 2026-08-12: Odoo 19 renamed res.users
+                                # groups_id -> group_ids; the ValueError on the support-user
+                                # create rolled back the admin password too, so the credentials
+                                # email carried a password that was never applied while the
+                                # tenant kept admin/admin). Hence the version-agnostic
+                                # groups_field lookup and the loud '|| echo FAILED' below —
+                                # never let this step fail silently again.
                                 "  cat > /tmp/first_boot.py <<'PYEOF'\n"
                                 "import os\n"
                                 "lang = os.environ.get('TENANT_LANG') or 'es_BO'\n"
@@ -537,20 +548,23 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "env.ref('base.user_admin').write({'password': os.environ['APP_ADMIN_PASSWORD']})\n"
                                 "support_pwd = os.environ.get('SUPPORT_PASSWORD')\n"
                                 "support_login = os.environ.get('SUPPORT_LOGIN') or 'soporte@aeisoftware.com'\n"
-                                "if support_pwd and not env['res.users'].with_context(active_test=False).search([('login', '=', support_login)]):\n"
-                                "    env['res.users'].create({\n"
+                                "Users = env['res.users'].with_context(active_test=False)\n"
+                                "if support_pwd and not Users.search([('login', '=', support_login)]):\n"
+                                "    groups_field = 'group_ids' if 'group_ids' in Users._fields else 'groups_id'\n"
+                                "    Users.create({\n"
                                 "        'name': 'Soporte AEI',\n"
                                 "        'login': support_login,\n"
                                 "        'email': support_login,\n"
                                 "        'password': support_pwd,\n"
                                 "        'lang': lang,\n"
-                                "        'groups_id': [(6, 0, [env.ref('base.group_user').id, env.ref('base.group_system').id])],\n"
+                                "        groups_field: [(6, 0, [env.ref('base.group_user').id, env.ref('base.group_system').id])],\n"
                                 "    })\n"
                                 "    print('first-boot: support user created')\n"
                                 "env.cr.commit()\n"
                                 "print('first-boot: lang=%s applied' % lang)\n"
                                 "PYEOF\n"
-                                "  odoo shell --config=/etc/odoo/odoo.conf --addons-path=\"$AEI_ADDONS_PATH\" --no-http < /tmp/first_boot.py; "
+                                "  odoo shell --config=/etc/odoo/odoo.conf --addons-path=\"$AEI_ADDONS_PATH\" --no-http < /tmp/first_boot.py "
+                                "  || echo 'first-boot: FAILED — tenant credentials NOT applied'; "
                                 "fi; "
                                 # Flush cached asset bundles on every start (not just first boot).
                                 # With imagePullPolicy=Always the running Odoo build can legitimately
