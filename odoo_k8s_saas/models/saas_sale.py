@@ -162,6 +162,12 @@ class AccountMove(models.Model):
                     "sale_order_id": order.id,
                     "odoo_version": product.odoo_version or "18.0",
                     "custom_image": product.custom_image,
+                    # Same product fields the subscription path copies
+                    # (odoo_k8s_saas_subscription/models/sale_subscription.py). Without
+                    # them an instance born on this path provisions with no localization
+                    # and no tenant addons, and nothing says why.
+                    "install_modules": product.install_modules,
+                    "addons_repos_json": product.addons_repos_json or "[]",
                     # Set subscription_id at create-time so the ORM flushes it
                     # to the DB before the stage-advance write() fires the
                     # SaleSubscription.write() hook below.

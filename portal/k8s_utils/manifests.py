@@ -369,6 +369,7 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
         {"name": "PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "DB_PASSWORD"}}},
         # First-boot bootstrap (see first_boot.py heredoc in odoo-init below)
         {"name": "TENANT_LANG",   "value": TENANT_DEFAULT_LANG},
+        {"name": "TENANT_BASE_URL", "value": f"{URL_SCHEME}://{tenant_id}.{BASE_DOMAIN}"},
         {"name": "SUPPORT_LOGIN", "value": SUPPORT_USER_LOGIN},
         {"name": "SUPPORT_PASSWORD", "valueFrom": {"secretKeyRef": {"name": "odoo-secret", "key": "SUPPORT_PASSWORD"}}},
     ]
@@ -517,11 +518,80 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "if [ \"$DB_INIT\" = \"1\" ]; then "
                                 f"  echo 'DB {db_name} already has Odoo schema, skipping --init={init_modules}'; "
                                 "else "
-                                "  echo 'Initializing Odoo schema for the first time...'; "
-                                f"  odoo --config=/etc/odoo/odoo.conf --init={init_modules} "
-                                "    --addons-path=\"$AEI_ADDONS_PATH\" "
-                                f"    --load-language={TENANT_DEFAULT_LANG} --stop-after-init "
-                                "  || echo 'odoo-init: WARNING --init exited non-zero; attempting first-boot anyway'; "
+                                # Product images from 19.0 on ship a pre-seeded master DB at
+                                # /opt/aei-master (see aei-custom-odoo-images 19.0/build-master-db.sh).
+                                # Restoring it is both faster (~30s vs ~5min) and the only way to get
+                                # the Bolivian chart of accounts: Odoo 19 picks the chart in
+                                # account/models/ir_module.py::write(), and on a company with no
+                                # country the `or tname == 'generic_coa'` branch always wins — which
+                                # also pins account_fiscal_country_id to base.us and the currency to
+                                # USD (SUB00263/264, 2026-08-12). The master DB was seeded with the
+                                # country set BEFORE `account` was installed, so it carries chart
+                                # 'bo' / BOB. Images without the dump keep the --init path.
+                                "  if [ -f /opt/aei-master/master.sql.gz ]; then "
+                                f"    echo 'Seeding DB {db_name} from baked master template...'; "
+                                f"    gunzip -c /opt/aei-master/master.sql.gz | PGPASSWORD=$DB_PASSWORD psql -q "
+                                f"      -h {db_host} -p {db_port} -U {pg_user} -d {db_name} "
+                                "      -v ON_ERROR_STOP=1 > /dev/null "
+                                "    && echo 'master-restore: schema+data done' "
+                                "    || echo 'master-restore: FAILED — tenant DB may be incomplete'; "
+                                # The master filestore is small (~1 MB) but not optional: a fresh
+                                # Odoo DB already references ~530 files from ir_attachment (payment
+                                # method icons, menu icons, avatars, language flags). Skipping it
+                                # leaves those images broken in the tenant.
+                                "    if [ -f /opt/aei-master/filestore.tar.gz ]; then "
+                                f"      mkdir -p /var/lib/odoo/filestore/{db_name} "
+                                f"      && tar xzf /opt/aei-master/filestore.tar.gz -C /var/lib/odoo/filestore/{db_name} "
+                                "      && echo 'master-restore: filestore done' "
+                                "      || echo 'master-restore: filestore FAILED — broken images in tenant'; "
+                                "    fi; "
+                                # The baked modules are frozen at image build time, but the addons in
+                                # /mnt/extra-addons are git-cloned at provision time and can be newer.
+                                # Upgrade only those whose on-disk version differs — a full -u all
+                                # would cost minutes and touch modules that never changed.
+                                "    cat > /tmp/sync_addons.py <<'PYEOF'\n"
+                                "import os\n"
+                                "from odoo.modules.module import Manifest\n"
+                                "stale = []\n"
+                                "for mod in env['ir.module.module'].sudo().search([('state', '=', 'installed')]):\n"
+                                "    try:\n"
+                                "        manifest = Manifest.for_addon(mod.name, display_warning=False)\n"
+                                "    except Exception:\n"
+                                "        manifest = None\n"
+                                "    on_disk = manifest and manifest.get('version')\n"
+                                "    if on_disk and mod.latest_version and on_disk != mod.latest_version:\n"
+                                "        stale.append(mod.name)\n"
+                                "print('sync-addons: stale=%s' % (','.join(stale) or 'none'))\n"
+                                "PYEOF\n"
+                                "    STALE=$(odoo shell --config=/etc/odoo/odoo.conf "
+                                "      --addons-path=\"$AEI_ADDONS_PATH\" --no-http < /tmp/sync_addons.py 2>/dev/null "
+                                "      | sed -n 's/^sync-addons: stale=//p' | tail -1); "
+                                "    if [ -n \"$STALE\" ] && [ \"$STALE\" != 'none' ]; then "
+                                "      echo \"odoo-init: upgrading drifted addons: $STALE\"; "
+                                "      odoo --config=/etc/odoo/odoo.conf --update=\"$STALE\" "
+                                "        --addons-path=\"$AEI_ADDONS_PATH\" --stop-after-init "
+                                "      || echo 'sync-addons: FAILED — drifted addons kept their DB version'; "
+                                "    fi; "
+                                # Modules the product asks for that the template doesn't carry.
+                                f"    MISSING=$(PGPASSWORD=$DB_PASSWORD psql -h {db_host} -p {db_port} "
+                                f"      -U {pg_user} -d {db_name} -tAc \""
+                                f"SELECT string_agg(m, ',') FROM unnest(string_to_array('{init_modules}', ',')) AS m "
+                                "WHERE m NOT IN (SELECT name FROM ir_module_module WHERE state='installed')\" "
+                                "      2>/dev/null || true); "
+                                "    if [ -n \"$MISSING\" ]; then "
+                                "      echo \"odoo-init: installing modules missing from template: $MISSING\"; "
+                                "      odoo --config=/etc/odoo/odoo.conf --init=\"$MISSING\" "
+                                "        --addons-path=\"$AEI_ADDONS_PATH\" "
+                                f"        --load-language={TENANT_DEFAULT_LANG} --stop-after-init "
+                                "      || echo 'odoo-init: WARNING extra --init exited non-zero'; "
+                                "    fi; "
+                                "  else "
+                                "    echo 'Initializing Odoo schema for the first time...'; "
+                                f"    odoo --config=/etc/odoo/odoo.conf --init={init_modules} "
+                                "      --addons-path=\"$AEI_ADDONS_PATH\" "
+                                f"      --load-language={TENANT_DEFAULT_LANG} --stop-after-init "
+                                "    || echo 'odoo-init: WARNING --init exited non-zero; attempting first-boot anyway'; "
+                                "  fi; "
                                 # First-boot bootstrap: set admin password, default language
                                 # (TENANT_LANG for existing + future users/partners) and create
                                 # the per-instance support user (skipped if SUPPORT_PASSWORD is
@@ -539,7 +609,19 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 # groups_field lookup and the loud '|| echo FAILED' below —
                                 # never let this step fail silently again.
                                 "  cat > /tmp/first_boot.py <<'PYEOF'\n"
-                                "import os\n"
+                                "import os, secrets, uuid\n"
+                                # De-cloning FIRST, before anything touches res.users: when the DB
+                                # comes from the baked master template every tenant would otherwise
+                                # share database.uuid (instance identity) and database.secret (the
+                                # key sessions and access tokens are signed with). The master dump
+                                # ships without them, and Odoo does NOT lazily recreate database.secret
+                                # — creating a user with it missing dies in tools.misc.hmac with
+                                # "TypeError: secret must be a str or bytes" (avatar access token).
+                                # Harmless on the --init path: they were just generated, we replace them.
+                                "ICP = env['ir.config_parameter'].sudo()\n"
+                                "ICP.set_param('database.uuid', str(uuid.uuid4()))\n"
+                                "ICP.set_param('database.secret', secrets.token_hex(32))\n"
+                                "env.cr.commit()\n"
                                 "lang = os.environ.get('TENANT_LANG') or 'es_BO'\n"
                                 "env['res.lang']._activate_lang(lang)\n"
                                 "env['res.users'].with_context(active_test=False).search([]).write({'lang': lang})\n"
@@ -560,6 +642,14 @@ def deployment_manifest(tenant_id: str, odoo_version: str = "18.0", custom_image
                                 "        groups_field: [(6, 0, [env.ref('base.group_user').id, env.ref('base.group_system').id])],\n"
                                 "    })\n"
                                 "    print('first-boot: support user created')\n"
+                                # Without web.base.url Odoo derives links from whatever host the
+                                # first request carried, which is how password-reset mails ended up
+                                # pointing at internal hosts. Freeze it to the tenant's own URL.
+                                "base_url = os.environ.get('TENANT_BASE_URL')\n"
+                                "if base_url:\n"
+                                "    ICP.set_param('web.base.url', base_url)\n"
+                                "    ICP.set_param('web.base.url.freeze', 'True')\n"
+                                "    print('first-boot: web.base.url=%s' % base_url)\n"
                                 "env.cr.commit()\n"
                                 "print('first-boot: lang=%s applied' % lang)\n"
                                 "PYEOF\n"
