@@ -287,26 +287,55 @@ async def _run_turn(payload: HookPayload) -> None:
         final_text = ""
         is_error = False
         cost_usd = 0.0
-        try:
+
+        async def _run(opts):
+            """One turn. Returns (session_id, final_text, is_error, cost)."""
+            sid, text, err, cost = None, "", False, 0.0
             # can_use_tool (our guardrail handler) requires streaming mode —
             # the one-shot query() helper only accepts a plain string prompt
             # and rejects can_use_tool with "requires streaming mode".
-            async with ClaudeSDKClient(options=options) as client:
+            async with ClaudeSDKClient(options=opts) as client:
                 await client.query(prompt)
                 async for message in client.receive_response():
                     cls_name = type(message).__name__
                     if cls_name == "SystemMessage" and getattr(message, "subtype", None) == "init":
-                        session_id = message.data.get("session_id")
+                        sid = message.data.get("session_id")
                     elif cls_name == "ResultMessage":
-                        is_error = bool(getattr(message, "is_error", False))
-                        cost_usd = float(getattr(message, "total_cost_usd", 0.0) or 0.0)
-                        final_text = getattr(message, "result", None) or (
-                            "No pude completar la solicitud." if is_error else ""
+                        err = bool(getattr(message, "is_error", False))
+                        cost = float(getattr(message, "total_cost_usd", 0.0) or 0.0)
+                        text = getattr(message, "result", None) or (
+                            "No pude completar la solicitud." if err else ""
                         )
+            return sid, text, err, cost
+
+        try:
+            session_id, final_text, is_error, cost_usd = await _run(options)
         except Exception as exc:  # noqa: BLE001 — always report back to the user
-            logger.exception("agent(channel=%s): turn failed", payload.channel_id)
-            is_error = True
-            final_text = "Ocurrió un error procesando tu mensaje. Inténtalo de nuevo en un momento."
+            # The conversation history lives in the CLI's own storage inside this
+            # pod, while the session id is persisted per channel. A pod restart
+            # (redeploy, eviction, OOM) therefore leaves a stored id the CLI no
+            # longer knows, and EVERY existing channel's next message died with
+            # "No conversation found with session ID" (SUB00268, 2026-08-13).
+            # Drop the stale id and retry once, fresh — the user loses the
+            # thread's context, not the answer.
+            if resume and "No conversation found" in str(exc):
+                logger.warning(
+                    "agent(channel=%s): stale session %s, retrying without resume",
+                    payload.channel_id, resume,
+                )
+                await session_store.clear(payload.channel_id)
+                try:
+                    session_id, final_text, is_error, cost_usd = await _run(
+                        _build_options(llm_config, payload.mcp_key, None)
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("agent(channel=%s): retry failed", payload.channel_id)
+                    is_error = True
+                    final_text = "Ocurrió un error procesando tu mensaje. Inténtalo de nuevo en un momento."
+            else:
+                logger.exception("agent(channel=%s): turn failed", payload.channel_id)
+                is_error = True
+                final_text = "Ocurrió un error procesando tu mensaje. Inténtalo de nuevo en un momento."
 
         if session_id:
             await session_store.set(payload.channel_id, session_id)

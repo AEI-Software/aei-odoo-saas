@@ -1,8 +1,12 @@
 """Maps a Discuss channel to its Claude Agent SDK session id.
 
-Backed by a single JSON file on the agent's workspace PVC so a pod restart
-doesn't lose conversation continuity. One tenant, one small file — no need
-for a database for the MVP.
+Backed by a single JSON file on the agent's workspace PVC. One tenant, one
+small file — no need for a database for the MVP.
+
+⚠️ The id survives a pod restart but the conversation it points at may not:
+the CLI keeps its own history inside the container. A resumed id the CLI no
+longer knows raises "No conversation found with session ID", so callers must
+be ready to clear() it and start a fresh turn (see main.py::_run_turn).
 """
 import asyncio
 import json
@@ -43,3 +47,16 @@ async def set(channel_id: int, sdk_session_id: str) -> None:
         data = _read()
         data[str(channel_id)] = sdk_session_id
         _write(data)
+
+
+async def clear(channel_id: int) -> None:
+    """Forget a channel's session id.
+
+    Used when the CLI reports the session no longer exists: the id outlives the
+    conversation it points at (see the module docstring), and a stale id makes
+    every further message in that channel fail.
+    """
+    async with _lock:
+        data = _read()
+        if data.pop(str(channel_id), None) is not None:
+            _write(data)
