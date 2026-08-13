@@ -130,6 +130,33 @@ Cada hito se marca `[ ]` pendiente, `[~]` en progreso, `[x]` completado, `[→]`
 - **Problema:** bucket `pg-backups` reside en el mismo Ceph del cluster.
 - **Entregable:** `rclone sync` nocturno del bucket a ubicación externa (cloud S3 / NAS / segundo Ceph).
 
+### 14. [ ] SBA in-cluster: facturación SIAT como parte de la solución (añadido 2026-08-13)
+- **Problema:** el producto vendible (Starter 19.0, `l10n_bo_core`) emite facturas **delegando en SBA**,
+  que hoy vive solo en un VPS remoto (contenedores `sba-app-1` prod / `sba-staging-app-1` PILOTO,
+  ligados a localhost y alcanzados por túnel SSH). Los tenants del cluster no tienen un SBA alcanzable:
+  sin esto el producto no factura. Además `/pub/*` **no tiene autenticación** — su única protección
+  actual es el binding a localhost del VPS, así que no puede exponerse tal cual.
+- **Entregable:** namespace `sba` en el cluster con Deployment + Service **ClusterIP** (sin Ingress
+  público) y su propia BD (Cluster CNPG en el ns, mismo patrón que los tenants). Una instancia
+  **staging/PILOTO (CodAmb=2)** primero; la de producción (CodAmb=1) como despliegue separado cuando
+  el QA del producto cierre.
+  - **NetworkPolicy obligatoria:** solo los namespaces de tenants (`odoo-*`) alcanzan el puerto de
+    SBA; todo lo demás denegado. Es la mitigación de la falta de auth de `/pub/*` mientras no exista
+    una API key (hardening de `/pub` ya diferido en el track SBA).
+  - **Integración con el aprovisionamiento:** el first-boot / portal fija
+    `l10n_bo_core.service_url = http://<svc>.sba.svc.cluster.local:<puerto>` en cada tenant nuevo
+    (hoy el ICP queda vacío y el tenant no puede emitir sin configuración manual).
+  - **Alta de emisor por tenant:** cada tenant necesita su empresa/emisor (NIT, CUIS/CUFD, actividades)
+    dada de alta en SBA. Definir si se automatiza en el provisioning o queda como paso operativo
+    manual — el alta hoy tiene bugs conocidos documentados (commit `3252085` del track SBA, sin
+    parchear porque el código desplegado es compilado).
+  - **Imagen:** empaquetar SBA para el cluster y publicarla en GHCR. ⚠️ Prerrequisito: el código
+    fuente TS real de SBA está en un repo aún sin identificar (en el VPS corre un build compilado) —
+    localizarlo o, como puente, exportar la imagen que corre en el VPS.
+- **Criterio de aceptación:** un tenant recién aprovisionado emite una factura de prueba contra SIAT
+  **PILOTO** end-to-end (CUF + PDF/XML) usando el SBA del cluster, sin túneles SSH ni configuración
+  manual del `service_url`; un pod fuera de `odoo-*` no puede conectarse al Service de SBA.
+
 ---
 
 ## Go / No-Go para 100 clientes
