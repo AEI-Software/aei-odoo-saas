@@ -18,6 +18,7 @@ import logging
 import os
 
 import httpx
+import markdown as markdown_lib
 from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, HookMatcher
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
@@ -45,6 +46,34 @@ DEFAULT_LLM_PROVIDER = os.environ.get("DEFAULT_LLM_PROVIDER", "")
 DEFAULT_LLM_API_KEY = os.environ.get("DEFAULT_LLM_API_KEY", "")
 DEFAULT_LLM_BASE_URL = os.environ.get("DEFAULT_LLM_BASE_URL", "")
 DEFAULT_LLM_MODEL = os.environ.get("DEFAULT_LLM_MODEL", "deepseek-chat")
+
+# Discuss renders a message body as HTML, so the model's Markdown used to land
+# verbatim in the chat: "**bold**" shown literally, tables collapsed into one
+# unreadable run of pipes, and every newline lost (SUB00268, 2026-08-13).
+# Converting here (rather than in Odoo) keeps the fix where we own the image —
+# the Odoo side sanitizes whatever it receives before posting it.
+MARKDOWN_EXTENSIONS = ["tables", "fenced_code", "nl2br", "sane_lists"]
+
+# Appended to the SDK's default preset, not replacing it. The chat panel is a
+# narrow column: wide tables are painful there even once they render properly.
+FORMAT_INSTRUCTIONS = (
+    "You are answering inside Odoo's Discuss chat panel, a narrow column. "
+    "Write in Markdown (it is converted to HTML before display). Prefer short "
+    "paragraphs and bullet lists; use a table only for genuinely tabular data "
+    "and keep it to 3 columns or fewer. Be concise — a few sentences beats a "
+    "long report. Always answer in the same language the user wrote in."
+)
+
+
+def _to_html(text: str) -> str:
+    """Markdown -> HTML for the Discuss message body."""
+    try:
+        return markdown_lib.markdown(text, extensions=MARKDOWN_EXTENSIONS)
+    except Exception:
+        # Never lose the answer over a formatting problem.
+        logger.exception("agent: markdown conversion failed, sending plain text")
+        return text
+
 
 WELCOME_PROMPT = (
     "This is the very first time this user has opened a chat with you — "
@@ -178,6 +207,13 @@ def _build_options(llm_config: dict, mcp_key: str, resume: str | None) -> Claude
     return ClaudeAgentOptions(
         model=llm_config["model"],
         env=env,
+        # Preset + append: keep the SDK's own system prompt and add how to write
+        # for the Discuss panel (see FORMAT_INSTRUCTIONS).
+        system_prompt={
+            "type": "preset",
+            "preset": "claude_code",
+            "append": FORMAT_INSTRUCTIONS,
+        },
         mcp_servers={
             "odoo": {
                 "type": "http",
@@ -277,7 +313,7 @@ async def _run_turn(payload: HookPayload) -> None:
         if not final_text:
             final_text = "No tengo una respuesta para eso todavía."
 
-        await _post_reply(payload.channel_id, final_text, is_error, cost_usd=cost_usd, trial=llm_config.get("trial", False))
+        await _post_reply(payload.channel_id, _to_html(final_text), is_error, cost_usd=cost_usd, trial=llm_config.get("trial", False))
 
 
 @app.post("/hook", status_code=202)
