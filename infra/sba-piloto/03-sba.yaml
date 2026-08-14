@@ -35,6 +35,11 @@ spec:
     metadata:
       labels: {app: sba}
     spec:
+      # ghcr.io/aei-software/sba es privado (código propietario) y el cluster
+      # tira anónimo de GHCR: Secret docker-registry `ghcr-pull` (token
+      # read:packages), creado imperativamente — no está en el repo.
+      imagePullSecrets:
+        - name: ghcr-pull
       containers:
         - name: sba
           # Tag inmutable publicado por el workflow del repo SBA (commit 3268457).
@@ -42,23 +47,22 @@ spec:
           envFrom:
             - secretRef: {name: sba-app}
           env:
-            # 443 a propósito: el egress de los tenants solo permite TCP/443 (ver README).
-            - {name: PORT, value: "443"}
+            - {name: PORT, value: "3001"}
             - {name: NODE_ENV, value: production}
             - {name: JWT_EXPIRES, value: 12h}
             - {name: LOG_LEVEL, value: info}
           ports:
-            - containerPort: 443
+            - containerPort: 3001
           volumeMounts:
             - {name: sfl-key, mountPath: /app/sfl/key, readOnly: true}
             - {name: sba-xml, mountPath: /app/sfl/xml}
             - {name: sba-pdf, mountPath: /app/sfl/pdf}
             - {name: logs, mountPath: /app/logs}
           readinessProbe:
-            httpGet: {path: /health, port: 443}
+            httpGet: {path: /health, port: 3001}
             periodSeconds: 15
           livenessProbe:
-            httpGet: {path: /health, port: 443}
+            httpGet: {path: /health, port: 3001}
             initialDelaySeconds: 30
             periodSeconds: 30
           resources:
@@ -87,4 +91,4 @@ metadata:
 spec:
   selector: {app: sba}
   ports:
-    - {port: 443, targetPort: 443}
+    - {port: 3001, targetPort: 3001}

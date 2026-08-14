@@ -16,7 +16,7 @@ spec:
         - namespaceSelector:
             matchLabels: {kubernetes.io/metadata.name: staging}
       ports:
-        - {port: 443, protocol: TCP}
+        - {port: 3001, protocol: TCP}
   egress:
     - to:
         - namespaceSelector:

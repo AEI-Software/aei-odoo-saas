@@ -781,6 +781,13 @@ def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
         {   # GitHub addons HTTPS
             "to": [{"ipBlock": {"cidr": "0.0.0.0/0"}}],
             "ports": [{"protocol": "TCP", "port": 443}]
+        },
+        {   # Facturador SBA in-cluster (hito 14). Regla propia porque con Cilium
+            # un ipBlock NUNCA matchea pods del cluster (ver nota de
+            # pg-egress-kube-apiserver arriba): el 0.0.0.0/0:443 no sirve para
+            # llegar al ns sba-*.
+            "to": [{"namespaceSelector": {"matchLabels": {"app": "sba"}}}],
+            "ports": [{"protocol": "TCP", "port": 3001}]
         }
     ]
     if PG_TOPOLOGY == "cnpg":
