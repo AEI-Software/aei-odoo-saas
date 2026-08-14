@@ -130,7 +130,15 @@ Cada hito se marca `[ ]` pendiente, `[~]` en progreso, `[x]` completado, `[→]`
 - **Problema:** bucket `pg-backups` reside en el mismo Ceph del cluster.
 - **Entregable:** `rclone sync` nocturno del bucket a ubicación externa (cloud S3 / NAS / segundo Ceph).
 
-### 14. [ ] SBA in-cluster: facturación SIAT como parte de la solución (añadido 2026-08-13)
+### 14. [~] SBA in-cluster: facturación SIAT como parte de la solución (añadido 2026-08-13)
+- **Avance 2026-08-14 — instancia PILOTO operativa en staging:** ns `sba-piloto` con postgres:17 +
+  restore del dump de `sba_v1_staging` (3 emisores CodAmb=2, endpoints piloto verificados), imagen
+  `ghcr.io/aei-software/sba:3268457` (workflow nuevo en el repo SBA; paquete privado → Secret
+  `ghcr-pull`), certs del NIT DEMO en Secret, NetworkPolicy validada en vivo (tenant → 200; ns no
+  autorizado → bloqueado). Template del tenant con regla de egreso `app: sba → 3001` (los ipBlock
+  de Cilium no matchean pods del cluster). `sub00271` conectado (`service_url` al Service).
+  Manifests: `infra/sba-piloto/`. **Queda:** emisión PILOTO end-to-end (humano, B5 del QA-PLAN),
+  auth de `/pub`, onboarding de emisores no-manual, localizar el repo TS fuente.
 - **Problema:** el producto vendible (Starter 19.0, `l10n_bo_core`) emite facturas **delegando en SBA**,
   que hoy vive solo en un VPS remoto (contenedores `sba-app-1` prod / `sba-staging-app-1` PILOTO,
   ligados a localhost y alcanzados por túnel SSH). Los tenants del cluster no tienen un SBA alcanzable:
