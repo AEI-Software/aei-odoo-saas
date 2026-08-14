@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sba-xml
+  namespace: sba-piloto
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sba-pdf
+  namespace: sba-piloto
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sba
+  namespace: sba-piloto
+  labels: {app: sba}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: sba}
+  template:
+    metadata:
+      labels: {app: sba}
+    spec:
+      containers:
+        - name: sba
+          # Tag inmutable publicado por el workflow del repo SBA (commit 3268457).
+          image: ghcr.io/aei-software/sba:3268457
+          envFrom:
+            - secretRef: {name: sba-app}
+          env:
+            # 443 a propósito: el egress de los tenants solo permite TCP/443 (ver README).
+            - {name: PORT, value: "443"}
+            - {name: NODE_ENV, value: production}
+            - {name: JWT_EXPIRES, value: 12h}
+            - {name: LOG_LEVEL, value: info}
+          ports:
+            - containerPort: 443
+          volumeMounts:
+            - {name: sfl-key, mountPath: /app/sfl/key, readOnly: true}
+            - {name: sba-xml, mountPath: /app/sfl/xml}
+            - {name: sba-pdf, mountPath: /app/sfl/pdf}
+            - {name: logs, mountPath: /app/logs}
+          readinessProbe:
+            httpGet: {path: /health, port: 443}
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: {path: /health, port: 443}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+      volumes:
+        - name: sfl-key
+          secret:
+            secretName: sba-sfl-key
+            # Las claves de un Secret no admiten '/'; items reconstruye key/<NIT>/*.pem.
+            items:
+              - {key: nit-494581027-pk, path: 494581027/pk.pem}
+              - {key: nit-494581027-cer, path: 494581027/cer.pem}
+        - name: sba-xml
+          persistentVolumeClaim: {claimName: sba-xml}
+        - name: sba-pdf
+          persistentVolumeClaim: {claimName: sba-pdf}
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sba
+  namespace: sba-piloto
+spec:
+  selector: {app: sba}
+  ports:
+    - {port: 443, targetPort: 443}

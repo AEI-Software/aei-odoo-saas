@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgdata
+  namespace: sba-piloto
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: sba-piloto
+  labels: {app: sba-db}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: sba-db}
+  template:
+    metadata:
+      labels: {app: sba-db}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          envFrom:
+            - secretRef: {name: sba-db}
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - {name: pgdata, mountPath: /var/lib/postgresql/data, subPath: pgdata}
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 1Gi}
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim: {claimName: pgdata}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: sba-piloto
+spec:
+  selector: {app: sba-db}
+  ports:
+    - {port: 5432, targetPort: 5432}

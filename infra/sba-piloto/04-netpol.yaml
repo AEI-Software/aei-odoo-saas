@@ -1,0 +1,55 @@
+# /pub/* de SBA no tiene autenticación: la única protección in-cluster es esta policy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sba-isolation
+  namespace: sba-piloto
+spec:
+  podSelector:
+    matchLabels: {app: sba}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Tenants (los ns del portal llevan managed-by=saas-portal) y el ns staging (admin Odoo).
+    - from:
+        - namespaceSelector:
+            matchLabels: {managed-by: saas-portal}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: staging}
+      ports:
+        - {port: 443, protocol: TCP}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+    # SIN piloto (pilotosiatservicios.impuestos.gob.bo) + SMTP si algún emisor lo usa.
+    - to:
+        - ipBlock: {cidr: 0.0.0.0/0}
+      ports:
+        - {port: 443, protocol: TCP}
+        - {port: 587, protocol: TCP}
+    - to:
+        - podSelector:
+            matchLabels: {app: sba-db}
+      ports:
+        - {port: 5432, protocol: TCP}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-isolation
+  namespace: sba-piloto
+spec:
+  podSelector:
+    matchLabels: {app: sba-db}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app: sba}
+      ports:
+        - {port: 5432, protocol: TCP}
