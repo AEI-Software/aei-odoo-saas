@@ -10,6 +10,10 @@ Multi-node K3s platform that hosts multiple Odoo 18 tenants with automated provi
 
 **Launch date:** 2026-04-15 — www.aeisoftware.com (offline desde 2026-07-28)
 
+> 📘 **Manuales del producto** (cliente final + operador, español, 2026-08-14):
+> [`docs/manuales/`](../manuales/README.md) — compra/primeros pasos, facturación SIAT, nómina,
+> reportes, AEI Assistant, portal del cliente, y runbooks de alta de cliente y SBA in-cluster.
+
 ## Architecture
 
 - [Environment Status](Environment-Status.md) — **qué infraestructura existe hoy** (fuente de verdad)
