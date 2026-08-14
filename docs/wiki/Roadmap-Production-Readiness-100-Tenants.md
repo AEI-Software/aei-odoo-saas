@@ -137,8 +137,13 @@ Cada hito se marca `[ ]` pendiente, `[~]` en progreso, `[x]` completado, `[→]`
   `ghcr-pull`), certs del NIT DEMO en Secret, NetworkPolicy validada en vivo (tenant → 200; ns no
   autorizado → bloqueado). Template del tenant con regla de egreso `app: sba → 3001` (los ipBlock
   de Cilium no matchean pods del cluster). `sub00271` conectado (`service_url` al Service).
-  Manifests: `infra/sba-piloto/`. **Queda:** emisión PILOTO end-to-end (humano, B5 del QA-PLAN),
-  auth de `/pub`, onboarding de emisores no-manual, localizar el repo TS fuente.
+  Manifests: `infra/sba-piloto/`. **Criterio de aceptación CUMPLIDO 2026-08-14:** `sub00271`
+  (tenant recién aprovisionado) emitió una factura PILOTO end-to-end vía el SBA del cluster —
+  CUF obtenido, documento `EstDoc=V` en `SFL_TabDoc`, anulación y reversión de anulación también
+  verificadas; sin túneles SSH. Emisor URZACOM (CodAmb=2), actividad hoja `4530000`, producto SIN
+  `1002379`. Observación menor: la respuesta v2 no trajo `file_pdf/file_xml` inline (la descarga
+  desde Odoo queda por resolver — existen `docs.obtenerPdf/Xml` en SBA). **Queda del hito:** auth
+  de `/pub`, onboarding de emisores no-manual, localizar el repo TS fuente.
 - **Problema:** el producto vendible (Starter 19.0, `l10n_bo_core`) emite facturas **delegando en SBA**,
   que hoy vive solo en un VPS remoto (contenedores `sba-app-1` prod / `sba-staging-app-1` PILOTO,
   ligados a localhost y alcanzados por túnel SSH). Los tenants del cluster no tienen un SBA alcanzable:
