@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- noupdate: prices are edited from the backend afterwards. Existing databases
+         get new values through migrations/, not by reloading this file. -->
+    <data noupdate="1">
+
+        <record id="product_saas_plan_starter" model="product.template">
+            <field name="name">Starter</field>
+            <field name="type">service</field>
+            <field name="categ_id" ref="odoo_k8s_saas.product_category_odoo_saas"/>
+            <field name="list_price">349.00</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="website_published" eval="True"/>
+            <field name="subscribable" eval="True"/>
+            <field name="subscription_template_id" ref="odoo_k8s_saas_subscription.subscription_template_saas_starter"/>
+            <field name="odoo_version">18.0</field>
+            <field name="description_sale">Odoo 18 en la nube con facturación electrónica SIAT incluida. Para ordenar finanzas y prestar servicios a precio fijo.</field>
+        </record>
+
+        <record id="product_saas_plan_pro" model="product.template">
+            <field name="name">Pro</field>
+            <field name="type">service</field>
+            <field name="categ_id" ref="odoo_k8s_saas.product_category_odoo_saas"/>
+            <field name="list_price">649.00</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="website_published" eval="True"/>
+            <field name="subscribable" eval="True"/>
+            <field name="subscription_template_id" ref="odoo_k8s_saas_subscription.subscription_template_saas_pro"/>
+            <field name="odoo_version">18.0</field>
+            <field name="description_sale">Todo Starter, más inventario, proyectos, centros de costos y multimoneda. Para comercio y trabajo por proyectos.</field>
+        </record>
+
+        <!-- Technical key stays "enterprise" (portal PLAN_RESOURCES depends on it);
+             the public name is "Advanced". -->
+        <record id="product_saas_plan_enterprise" model="product.template">
+            <field name="name">Advanced</field>
+            <field name="type">service</field>
+            <field name="categ_id" ref="odoo_k8s_saas.product_category_odoo_saas"/>
+            <field name="list_price">1290.00</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="website_published" eval="True"/>
+            <field name="subscribable" eval="True"/>
+            <field name="subscription_template_id" ref="odoo_k8s_saas_subscription.subscription_template_saas_enterprise"/>
+            <field name="odoo_version">18.0</field>
+            <field name="description_sale">Todo Pro, más fabricación básica, costos y producción en curso. Para industria.</field>
+        </record>
+
+    </data>
+</odoo>

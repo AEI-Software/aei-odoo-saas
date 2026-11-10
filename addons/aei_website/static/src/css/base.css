@@ -1,0 +1,133 @@
+/* base
+   Scoped reset for the aei_website pages. Nothing here touches elements outside .aei-site,
+   so the shop, the portal and the backend keep their own look. */
+
+.aei-site {
+  box-sizing: border-box;
+  margin: 0;
+  color: var(--aei-ink);
+  font-family: Inter, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  background: #fff;
+  -webkit-text-size-adjust: 100%;
+}
+
+.aei-site *,
+.aei-site *::before,
+.aei-site *::after {
+  box-sizing: inherit;
+}
+
+.aei-site img {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.aei-site [hidden] {
+  display: none !important;
+}
+
+/* Typography defaults of the published design (its base.css). Scoped to the .aei-site pages so
+   the shop, the portal and the backend keep Odoo's. :where() gives them the specificity of a
+   bare element selector, so any .aei- class rule overrides them, as in the design. */
+:where(.aei-site) h1,
+:where(.aei-site) h2,
+:where(.aei-site) h3,
+:where(.aei-site) h4,
+:where(.aei-site) h5,
+:where(.aei-site) h6 {
+  margin: 0 0 .5rem;
+  color: inherit;
+  font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+:where(.aei-site) h1 { font-size: 2.5rem; }
+:where(.aei-site) h2 { font-size: 2rem; }
+:where(.aei-site) h3 { font-size: 1.75rem; }
+:where(.aei-site) h4 { font-size: 1.5rem; }
+:where(.aei-site) h5 { font-size: 1.25rem; }
+:where(.aei-site) h6 { font-size: 1rem; }
+
+:where(.aei-site) p,
+:where(.aei-site) ol,
+:where(.aei-site) ul,
+:where(.aei-site) dl {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+:where(.aei-site) ol,
+:where(.aei-site) ul {
+  padding-left: 2rem;
+}
+
+:where(.aei-site) small {
+  font-size: .875em;
+}
+
+:where(.aei-site) strong {
+  font-weight: bolder;
+}
+
+:where(.aei-site) a {
+  color: #2766df;
+}
+
+:where(.aei-site) button,
+:where(.aei-site) input,
+:where(.aei-site) select,
+:where(.aei-site) textarea {
+  margin: 0;
+  font: inherit;
+}
+
+:where(.aei-site) summary {
+  display: list-item;
+  cursor: pointer;
+}
+
+/* Page container: centered, with the design's responsive widths. The 1250px cap for the
+   header, main and footer lives in layout/structure.css. */
+.aei-container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 15px;
+}
+
+@media (min-width: 576px) {
+  .aei-container { max-width: 540px; }
+}
+
+@media (min-width: 768px) {
+  .aei-container { max-width: 720px; }
+}
+
+@media (min-width: 992px) {
+  .aei-container { max-width: 960px; }
+}
+
+@media (min-width: 1200px) {
+  .aei-container { max-width: 1140px; }
+}
+
+@media (min-width: 1400px) {
+  .aei-container { max-width: 1320px; }
+}
+
+.aei-skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  padding: 10px 16px;
+  color: #fff;
+  background: var(--aei-ink);
+  transform: translateY(-120%);
+}
+
+.aei-skip-link:focus {
+  transform: none;
+}

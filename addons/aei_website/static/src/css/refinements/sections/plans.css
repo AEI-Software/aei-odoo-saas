@@ -1,0 +1,460 @@
+/* refinements/sections/plans
+   Plan cards: price, capacity, highlights and actions.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-billing-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  border-bottom: 1px solid #e0e9f5;
+  padding-bottom: 29px;
+  margin-bottom: 36px;
+}
+
+.aei-billing-bar p {
+  font-size: 16px;
+  font-weight: 600;
+  color: #283f62;
+  margin: 0;
+}
+
+.aei-billing-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid #d7e5f6;
+  background: #edf4fd;
+  border-radius: 12px;
+  flex: none;
+}
+
+.aei-billing-choice button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: #446184;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.aei-billing-choice button[aria-pressed=true] {
+  background: #fff;
+  color: #205bbb;
+  box-shadow: 0 3px 8px #24598f0d;
+}
+
+.aei-billing-choice button span {
+  font-size: 10px;
+  background: #d7f0ff;
+  color: #1464a4;
+  padding: 3px 5px;
+  border-radius: 5px;
+  font-weight: 800;
+}
+
+.aei-trial-caption {
+  font-size: 12px;
+  color: #41668d;
+}
+
+.aei-plan-grid {
+  gap: 23px;
+  align-items: stretch;
+  padding-top: 6px;
+}
+
+.aei-plan {
+  padding: 28px;
+  border-radius: 20px;
+  border: 1px solid #d5e3f6;
+  box-shadow: 0 10px 40px #254d7f07;
+  overflow: hidden;
+  color: #152a4b;
+}
+
+.aei-plan-ribbon {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: #527298;
+  padding-bottom: 21px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e2ecf7;
+}
+
+.aei-plan-top {
+  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  margin-bottom: 12px;
+}
+
+.aei-plan-top h3 {
+  font-size: 28px;
+  font-weight: 750;
+}
+
+.aei-plan-symbol {
+  color: #8db9f1;
+  font-size: 35px;
+  line-height: 1;
+}
+
+.aei-plan-headline {
+  font-size: 13px;
+  color: #486281;
+  min-height: 22px;
+  margin: 0 0 25px;
+}
+
+.aei-plan-price {
+  gap: 6px;
+  margin-bottom: 7px;
+}
+
+.aei-plan-price strong {
+  font-size: 44px;
+  letter-spacing: -.06em;
+  line-height: 1.2;
+}
+
+.aei-plan-price>span {
+  font-size: 15px;
+}
+
+.aei-plan-price small {
+  font-size: 12px;
+  color: #456080;
+}
+
+.aei-billing-detail {
+  font-size: 11px !important;
+  font-weight: 500;
+  color: #567292;
+  min-height: 20px;
+  margin: 0 0 17px;
+  line-height: 1.6 !important;
+}
+
+.aei-saving {
+  display: inline-block;
+  padding: 5px 9px;
+  background: #e4f7ff;
+  color: #0d6097;
+  font-size: 11px !important;
+  font-weight: 700;
+  border-radius: 5px;
+  line-height: 1.5 !important;
+  margin: -7px 0 14px;
+}
+
+.aei-plan-description {
+  font-size: 13px !important;
+  line-height: 1.8 !important;
+  min-height: 73px;
+  color: #3f597b;
+  margin: 0 0 20px;
+}
+
+.aei-capacity {
+  gap: 8px 14px;
+  font-size: 11px;
+  padding: 16px 0;
+  color: #3e5d7f;
+}
+
+.aei-capacity i {
+  color: #4285cf;
+}
+
+.aei-inherits {
+  font-size: 12px;
+  color: #244e81;
+  margin-bottom: 15px;
+}
+
+.aei-plan-highlights li {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #314d70;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.aei-plan-highlights i {
+  color: #2585cb;
+}
+
+.aei-plan-featured {
+  border: 2px solid #72abfa;
+  background: linear-gradient(#fff, #f6fbff);
+  box-shadow: 0 10px 35px #3978f30b;
+}
+
+.aei-plan-featured .aei-plan-ribbon {
+  color: #296ad1;
+}
+
+.aei-plan-featured .aei-plan-symbol {
+  color: #3978f3;
+}
+
+.aei-plan-star {
+  border: 1px solid #456684;
+  background: var(--aei-star-surface);
+  color: #fff;
+  box-shadow: 0 15px 45px #163d6b24;
+}
+
+.aei-plan:is(:hover,:focus-within) {
+  border-color: var(--aei-selected-border);
+  box-shadow: 0 0 0 2px var(--aei-selected-border), 0 12px 32px #205fe226;
+}
+
+.aei-plan-star .aei-plan-ribbon {
+  color: #9ee5ff;
+  border-bottom-color: #ffffff26;
+}
+
+.aei-plan-star .aei-plan-symbol {
+  color: #7bdcff;
+}
+
+.aei-plan-star .aei-plan-headline,
+.aei-plan-star .aei-plan-description,
+.aei-plan-star .aei-capacity,
+.aei-plan-star .aei-plan-highlights li,
+.aei-plan-star .aei-plan-price small,
+.aei-plan-star .aei-billing-detail {
+  color: #edf6ff;
+}
+
+.aei-plan-star .aei-plan-price,
+.aei-plan-star .aei-inherits {
+  color: white;
+}
+
+.aei-plan-star .aei-capacity {
+  border-color: #ffffff24;
+}
+
+.aei-plan-star .aei-capacity i,
+.aei-plan-star .aei-plan-highlights i {
+  color: #80d6ff;
+}
+
+.aei-plan-star .aei-saving {
+  color: #a4e4ff;
+  background: #ffffff12;
+}
+
+.aei-plan-star .aei-plan-top h3 {
+  color: white;
+}
+
+@media (max-width: 1199px) {
+  .aei-plan {
+    padding: 24px;
+  }
+
+  .aei-plan-description {
+    min-height: 94px;
+  }
+
+  .aei-plan-price strong {
+    font-size: 38px;
+  }
+
+  .aei-plan-top h3 {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-billing-bar p {
+    font-size: 13px;
+  }
+
+  .aei-trial-caption {
+    display: none;
+  }
+
+  .aei-plan-grid {
+    gap: 15px;
+  }
+
+  .aei-plan {
+    padding: 20px 17px;
+  }
+
+  .aei-plan-price strong {
+    font-size: 33px;
+  }
+
+  .aei-plan-headline {
+    min-height: 43px;
+    font-size: 12px;
+  }
+
+  .aei-plan-top h3 {
+    font-size: 23px;
+  }
+
+  .aei-plan-ribbon {
+    font-size: 9px;
+    margin-bottom: 22px;
+  }
+
+  .aei-plan-description {
+    font-size: 12px !important;
+    min-height: 110px;
+  }
+
+  .aei-plan-highlights li {
+    font-size: 12px;
+  }
+
+  .aei-capacity {
+    font-size: 10px;
+  }
+
+  .aei-plan-price>span {
+    font-size: 12px;
+  }
+
+  .aei-plan-price small {
+    font-size: 11px;
+  }
+
+  .aei-billing-detail {
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-billing-bar {
+    display: block;
+    margin-bottom: 29px;
+    padding-bottom: 25px;
+  }
+
+  .aei-billing-bar>div:first-child {
+    margin-bottom: 20px;
+  }
+
+  .aei-billing-bar p {
+    font-size: 15px;
+  }
+
+  .aei-billing-bar .aei-billing-choice {
+    display: flex;
+  }
+
+  .aei-billing-bar .aei-billing-choice button {
+    flex: 1;
+    font-size: 13px;
+  }
+
+  .aei-billing-choice {
+    flex-shrink: 1;
+  }
+
+  .aei-plan-grid {
+    gap: 23px;
+  }
+
+  .aei-plan {
+    padding: 28px;
+    border-radius: 19px;
+  }
+
+  .aei-plan-top h3 {
+    font-size: 29px;
+  }
+
+  .aei-plan-symbol {
+    font-size: 40px;
+  }
+
+  .aei-plan-ribbon {
+    font-size: 11px;
+    padding-bottom: 19px;
+    margin-bottom: 23px;
+  }
+
+  .aei-plan-headline {
+    font-size: 14px;
+    min-height: 0;
+    margin-bottom: 22px;
+  }
+
+  .aei-plan-price strong {
+    font-size: 46px;
+  }
+
+  .aei-plan-price>span {
+    font-size: 16px;
+  }
+
+  .aei-plan-price small {
+    font-size: 13px;
+  }
+
+  .aei-plan-description {
+    min-height: 0;
+    font-size: 14px !important;
+  }
+
+  .aei-billing-detail {
+    font-size: 12px !important;
+  }
+
+  .aei-capacity {
+    font-size: 12px;
+  }
+
+  .aei-plan-highlights li {
+    font-size: 14px;
+  }
+
+  .aei-plan .aei-saving {
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .aei-plan {
+    padding: 25px;
+  }
+
+  .aei-plan-price strong {
+    font-size: 43px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-plan {
+    transition: none;
+    transform: none !important;
+  }
+}
+
+.aei-plan-form {
+  display: contents;
+}
+
+/* Amounts of the inactive billing period stay out of the page. */
+.aei-plan [data-aei-cycle][hidden] {
+  display: none;
+}

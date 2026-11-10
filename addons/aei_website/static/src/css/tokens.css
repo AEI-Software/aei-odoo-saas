@@ -1,0 +1,15 @@
+/* tokens
+   Design tokens: colors and gradients. Every other file reads these variables. */
+
+:root {
+  --aei-ink: #152a4b;
+  --aei-cyan: #3978f3;
+  --aei-violet: #04b9ef;
+  --aei-soft: #f1f7ff;
+  --aei-muted: #4f6582;
+  --aei-line: #dce7f5;
+  --aei-sky: #dff4ff;
+  --aei-blue: #3978f3;
+  --aei-selected-border: #205fe2;
+  --aei-star-surface: linear-gradient(135deg, #456684, #385673);
+}

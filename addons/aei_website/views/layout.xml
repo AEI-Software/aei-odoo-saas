@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Shared page chrome. Used by every public page of this module. -->
+
+    <template id="header" name="AEI Software: site header">
+        <header class="aei-site-header">
+            <div class="aei-container aei-nav">
+                <a href="/" class="aei-nav-brand" aria-label="AEI Software, inicio">
+                    <img src="/aei_website/static/src/img/aei-logo.png" alt="AEI Software" width="139" height="62"/>
+                </a>
+                <button class="aei-menu-toggle" type="button" data-aei-menu-toggle="" aria-expanded="false" aria-controls="aei-site-nav" aria-label="Abrir menú">☰</button>
+                <nav id="aei-site-nav" aria-label="Navegación principal">
+                    <a href="/">Inicio</a>
+                    <a href="/#planes">Planes y precios</a>
+                    <a href="/#procesos">Módulos</a>
+                    <a href="https://www.ribentek.com/nosotros">Nosotros</a>
+                    <a href="/contactus">Contáctanos</a>
+                </nav>
+                <div class="aei-nav-actions">
+                    <t t-if="request.env.user._is_public()">
+                        <a class="aei-portal-link" href="/web/login">Iniciar sesión</a>
+                    </t>
+                    <t t-else="">
+                        <a class="aei-portal-link" href="/my">Mi cuenta</a>
+                    </t>
+                    <a href="/#planes" class="aei-btn aei-btn-primary">Pruébalo gratis ↗</a>
+                </div>
+            </div>
+        </header>
+    </template>
+
+    <template id="footer" name="AEI Software: site footer">
+        <footer class="aei-footer">
+            <div class="aei-container">
+                <div class="aei-footer-grid">
+                    <div>
+                        <a class="aei-footer-brand" href="/">AEI<span>Software</span></a>
+                        <p>Conectamos procesos para simplificar la gestión de tu empresa.</p>
+                        <span class="aei-footer-region">Pensado para pymes de Latinoamérica.</span>
+                    </div>
+                    <div>
+                        <h3>Explora AEI</h3>
+                        <a href="/">Inicio, misión y visión</a>
+                        <a href="/#planes">Planes y precios</a>
+                        <a href="/#procesos">Módulos y procesos</a>
+                        <a href="/shop">Elige tu plan</a>
+                        <a href="https://www.ribentek.com/nosotros">Nosotros</a>
+                    </div>
+                    <div>
+                        <h3>Conversemos</h3>
+                        <a href="/contactus">Contáctanos</a>
+                        <a href="mailto:ebendek@ribentek.com">ebendek@ribentek.com</a>
+                        <a href="https://wa.me/59178081947" target="_blank" rel="noopener">+591 78081947 · WhatsApp ↗</a>
+                        <p>Oficinas en Santa Cruz y atención en línea.<br/>Lunes a viernes · 08:30 a 18:00</p>
+                        <a href="https://maps.app.goo.gl/YAR3N2eSuXYH6h4A6" target="_blank" rel="noopener">Ver ubicación ↗</a>
+                    </div>
+                </div>
+                <div class="aei-footer-bottom">
+                    <span>© 2026 AEI Software.</span>
+                    <a href="/terms">Términos y condiciones</a>
+                </div>
+            </div>
+        </footer>
+    </template>
+
+    <template id="invoice_badge" name="AEI Software: e-invoicing badge">
+        <div class="aei-invoice-badge aei-invoice-plan">
+            <i class="fa fa-file-text-o" aria-hidden="true"></i>
+            <div>
+                <strong>Facturación electrónica incluida</strong>
+                <span>SIAT · Integrada con tus ventas</span>
+            </div>
+            <i class="fa fa-check-circle" aria-hidden="true"></i>
+        </div>
+    </template>
+</odoo>
+

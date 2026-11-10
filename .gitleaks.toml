@@ -1,0 +1,20 @@
+title = "Gitleaks Configuration — AEI Software Odoo 18 SaaS"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow local dev placeholders, template tokens, and documentation examples"
+paths = [
+  '''^\.env\.example$''',
+  '''^docker/odoo/odoo\.conf$''',
+  '''^docker-compose\.dev\.yml$''',
+  '''^docs/.*''',
+  '''^k8s/01-secrets\.yaml$''',
+]
+regexes = [
+  '''REPLACE_DB_PASSWORD''',
+  '''REPLACE_ADMIN_PASSWD''',
+  '''admin123''',
+]
+

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Billing period bar above the plan cards: monthly or annual (-20%).
+         UI only for now (owner decision, 2026-11-05). The widget shows the amounts of the
+         chosen period; no billing is wired to it yet. -->
+
+    <template id="home_billing_bar" name="AEI Software home: billing period bar">
+        <div class="aei-billing-bar">
+            <div>
+                <span class="aei-eyebrow">A TU RITMO</span>
+                <p>15 días para conocer tu próximo sistema.</p>
+            </div>
+            <div class="aei-billing-choice" role="group" aria-label="Periodo de facturación">
+                <button type="button" data-billing="monthly" aria-pressed="true">Mensual</button>
+                <button type="button" data-billing="annual" aria-pressed="false">Anual <span>−20%</span></button>
+            </div>
+            <span class="aei-trial-caption">Sin tarjeta para empezar</span>
+        </div>
+    </template>
+</odoo>
+

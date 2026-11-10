@@ -1,0 +1,13 @@
+# Bandit SAST configuration for AEI Software (Odoo 18 SaaS)
+exclude_dirs:
+  - /.git
+  - /.venv
+  - /venv
+  - /external_addons
+  - /docs
+  - /backups
+
+skips:
+  - B101  # assert_used
+  - B311  # random (non-cryptographic UI/jitter uses)
+

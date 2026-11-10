@@ -98,11 +98,10 @@ spec:
               echo "==> Cloning branch: $ADDON_GIT_BRANCH"
               AUTH="${GIT_TOKEN:+${GIT_TOKEN}@}"
               git clone --depth=1 -b "$ADDON_GIT_BRANCH" "https://${AUTH}github.com/AEI-Software/aei-odoo-saas.git" /tmp/repo
-              cp -r /tmp/repo/odoo_k8s_saas /mnt/extra-addons/
-              cp -r /tmp/repo/odoo_k8s_saas_subscription /mnt/extra-addons/
-              cp -r /tmp/repo/odoo_k8s_saas_support /mnt/extra-addons/
-              cp -r /tmp/repo/payment_qr_mercantil /mnt/extra-addons/
-              cp -r /tmp/repo/saas_security_hardening /mnt/extra-addons/
+              # Copy all custom modules from addons/ automatically
+              if [ -d /tmp/repo/addons ]; then
+                cp -r /tmp/repo/addons/* /mnt/extra-addons/
+              fi
               # Copy all modules from external_addons automatically
               if [ -d /tmp/repo/external_addons ]; then
                 cp -r /tmp/repo/external_addons/* /mnt/extra-addons/

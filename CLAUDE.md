@@ -129,13 +129,19 @@ kubectl rollout restart deployment/portal -n aeisoftware
 - Models extend Odoo base via `_inherit` pattern
 - Subscription addon depends on `subscription_oca` (OCA module, not in this repo)
 
-## CI/CD (.github/workflows/ci.yaml)
+## CI/CD
 
-GitHub Actions builds portal Docker image on push to main/18.0. Tags: `:main`, `:18.0`, `:stable` (on 18.0 push), `:$SHA`. Pushes to GHCR. K8s deploy is manual (rollout restart).
+- `.github/workflows/ci.yaml` builds portal and Odoo images on push to main/18.0 (tags: `:main`, `:18.0`, `:stable` on 18.0, `:$SHA`) and pushes to GHCR.
+- `.github/workflows/ci-cd.yml` runs DevSecOps gates on every push and PR (supply-chain guard, Gitleaks, Bandit, Semgrep, pip-audit, Trivy, syntax and manifest validation) and a staging rollout on `main`.
+- Production K8s deploy is manual (rollout restart).
+
+## Repository layout
+
+Custom Odoo modules live in `addons/` (the K8s init containers copy `addons/*` and `external_addons/*` into `/mnt/extra-addons`). Local development: `docker compose -f docker-compose.dev.yml up -d` serves Odoo 18 at `http://localhost:8075`. Agent rules: root `AGENTS.md` (orchestrator) plus `addons/<module>/AGENTS.md` (one sub-agent per module).
 
 ## Testing
 
-No automated test suite in the main repo. QA is manual per the test battery in README.md (admin + tenant perspective). OCA modules in `external_addons/` have their own Odoo test framework tests.
+Automated tests are being introduced module by module with TDD (see `AGENTS.md`). Until a module has a `tests/` folder, QA is manual per the test battery in README.md (admin + tenant perspective). OCA modules in `external_addons/` have their own Odoo test framework tests.
 
 ## CDN / Cloudflare
 
@@ -177,7 +183,7 @@ analysis reports live in `docs/` directly.
 | `portal/k8s_utils/manifests.py` | K8s manifest generators + PLAN_RESOURCES |
 | `k8s/06-odoo-admin.yaml` | Production Odoo admin deployment (init containers, probes, volumes) |
 | `k8s/07-staging.yaml` | Staging environment manifest |
-| `odoo_k8s_saas/models/saas_instance.py` | Core tenant model + K8s sync logic |
-| `odoo_k8s_saas_subscription/models/sale_subscription.py` | Subscription → provisioning hooks |
-| `payment_qr_mercantil/models/payment_transaction.py` | QR payment flow + webhook handler |
+| `addons/odoo_k8s_saas/models/saas_instance.py` | Core tenant model + K8s sync logic |
+| `addons/odoo_k8s_saas_subscription/models/sale_subscription.py` | Subscription → provisioning hooks |
+| `addons/payment_qr_mercantil/models/payment_transaction.py` | QR payment flow + webhook handler |
 | `DEPLOY.md` | Production deployment procedures and diagnostics |

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Detail dialogs. The server renders every dialog closed; the widget only opens and
+         closes them with showModal() and close(). Nothing is built from strings in JS. -->
+
+    <!-- Frame shared by every dialog. Inputs: aei_dialog_id, aei_dialog_kicker,
+         aei_dialog_title and aei_dialog_footer (markup). The call body is the dialog body. -->
+    <template id="dialog_frame" name="AEI Software: dialog frame">
+        <dialog class="aei-detail-dialog" t-att-id="aei_dialog_id" t-att-aria-labelledby="aei_dialog_id + '-title'">
+            <div class="aei-dialog-head">
+                <div>
+                    <span class="aei-eyebrow"><t t-out="aei_dialog_kicker"/></span>
+                    <h2 t-att-id="aei_dialog_id + '-title'"><t t-out="aei_dialog_title"/></h2>
+                </div>
+                <button class="aei-detail-close" type="button" data-aei-dialog-close="" aria-label="Cerrar detalle">×</button>
+            </div>
+            <div class="aei-dialog-body"><t t-out="0"/></div>
+            <div class="aei-dialog-footer"><t t-out="aei_dialog_footer"/></div>
+        </dialog>
+    </template>
+
+    <!-- One module as a collapsible block. Inputs: aei_module and aei_level (None shows
+         every extra process, with the plan it starts in). -->
+    <template id="module_details" name="AEI Software: module details block">
+        <t t-set="aei_catalog" t-value="request.env['aei.website.catalog']"/>
+        <details class="aei-product-module">
+            <summary>
+                <span><i t-attf-class="fa fa-#{aei_module['icon']}" aria-hidden="true"></i> <t t-out="aei_module['title']"/></span>
+                <span aria-hidden="true">+</span>
+            </summary>
+            <t t-call="aei_website.process_list"/>
+        </details>
+    </template>
+
+    <!-- Process list of a module: the base processes plus the extras that apply. -->
+    <template id="process_list" name="AEI Software: module process list">
+        <t t-set="aei_catalog" t-value="request.env['aei.website.catalog']"/>
+        <ul class="aei-processes">
+            <li t-foreach="aei_module['processes']" t-as="aei_process"><t t-out="aei_process"/></li>
+            <li t-foreach="aei_catalog.visible_extras(aei_module, aei_level)" t-as="aei_extra">
+                <t t-out="aei_extra['text']"/><span class="aei-inline-note"><t t-out="aei_catalog.scope_label(aei_extra['level'])"/></span>
+            </li>
+        </ul>
+    </template>
+</odoo>
+

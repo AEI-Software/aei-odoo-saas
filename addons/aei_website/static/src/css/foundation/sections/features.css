@@ -1,0 +1,110 @@
+/* foundation/sections/features
+   Connected processes: feature cards.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.aei-feature {
+  padding: 26px;
+  border: 1px solid var(--aei-line);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+  background: white;
+}
+
+.aei-feature:hover {
+  transform: translateY(-3px);
+  border-color: #acd5e1;
+  box-shadow: 0 10px 30px #203b5b08;
+}
+
+.aei-feature-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.aei-feature-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dbebf1;
+  border-radius: 9px;
+  color: #348195;
+  background: #f6fbfd;
+  font-size: 17px;
+}
+
+.aei-feature h3 {
+  font-size: 19px;
+  margin: 0 0 11px;
+}
+
+.aei-feature p {
+  color: var(--aei-muted);
+  font-size: 13px;
+  line-height: 1.8;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 991px) {
+  .aei-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-feature-grid {
+    gap: 14px;
+  }
+
+  .aei-feature {
+    padding: 20px;
+  }
+
+  .aei-feature-top {
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 17px;
+  }
+
+  .aei-feature h3 {
+    font-size: 18px;
+  }
+
+  .aei-feature p {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 400px) {
+  .aei-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aei-feature-top {
+    flex-wrap: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-feature {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+.aei-feature p {
+  color: #34465d;
+  font-size: 14px;
+  font-weight: 500;
+}

@@ -1,0 +1,8 @@
+/* refinements/sections/cta
+   Final call to action.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-final-cta {
+  background: radial-gradient(ellipse at 100% 0, #2f5c96, transparent 70%), #142f53;
+}

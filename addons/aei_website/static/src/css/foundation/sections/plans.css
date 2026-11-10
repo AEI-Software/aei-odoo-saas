@@ -1,0 +1,378 @@
+/* foundation/sections/plans
+   Plan cards: price, capacity, highlights and actions.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  align-items: stretch;
+}
+
+.aei-plan {
+  border: 1px solid #dce3ec;
+  border-radius: 13px;
+  background: #fff;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: border-color .25s, box-shadow .25s, transform .25s;
+}
+
+.aei-plan:hover {
+  border-color: #9dbece;
+  box-shadow: 0 12px 36px #233c5b0b;
+  transform: translateY(-3px);
+}
+
+.aei-plan-featured {
+  border: 1.5px solid #47bfd9;
+  box-shadow: 0 8px 35px #0ab9d80a;
+}
+
+.aei-plan-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.aei-plan-top h3 {
+  font-size: 21px;
+  margin: 0;
+}
+
+.aei-plan-headline {
+  color: #607087;
+  font-size: 12px;
+  margin: 0 0 18px;
+  line-height: 1.5 !important;
+}
+
+.aei-plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--aei-ink);
+  margin-bottom: 17px;
+  white-space: nowrap;
+}
+
+.aei-plan-price>span {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.aei-plan-price strong {
+  font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+  font-size: 41px;
+  letter-spacing: -.06em;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+.aei-plan-price small {
+  font-size: 11px;
+  color: #7b879a;
+  margin-left: 2px;
+}
+
+.aei-plan-description {
+  color: #66768c;
+  font-size: 12px;
+  line-height: 1.8 !important;
+  min-height: 64px;
+  margin: 0 0 20px;
+}
+
+.aei-capacity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 13px;
+  border-top: 1px solid #e8edf3;
+  border-bottom: 1px solid #e8edf3;
+  padding: 14px 0;
+  margin-bottom: 20px;
+  color: #52647a;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.aei-capacity span {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.aei-capacity i {
+  color: #7393a6;
+}
+
+.aei-inherits {
+  font-size: 10px;
+  font-weight: 650;
+  color: #64748c;
+  margin-bottom: 12px;
+  letter-spacing: .01em;
+}
+
+.aei-plan-highlights {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+
+.aei-plan-highlights li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  color: #44566e;
+  font-size: 12px;
+  line-height: 1.65;
+  margin-bottom: 10px;
+}
+
+.aei-plan-highlights i {
+  color: #685ff0;
+  font-size: 10px;
+  flex: none;
+}
+
+.aei-plan-actions {
+  margin-top: auto;
+}
+
+.aei-plan-highlights i {
+  color: var(--aei-violet);
+}
+
+@media (max-width: 1199px) {
+  .aei-plan {
+    padding: 20px;
+  }
+
+  .aei-plan-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .aei-plan-grid {
+    gap: 16px;
+  }
+
+  .aei-plan-price strong {
+    font-size: 36px;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-plan {
+    padding: 17px;
+  }
+
+  .aei-plan-description {
+    font-size: 11px;
+    min-height: 78px;
+  }
+
+  .aei-plan-top h3 {
+    font-size: 18px;
+  }
+
+  .aei-plan-price strong {
+    font-size: 32px;
+  }
+
+  .aei-plan-highlights li {
+    font-size: 11px;
+  }
+
+  .aei-capacity {
+    font-size: 9px;
+  }
+
+  .aei-plan-headline {
+    font-size: 11px;
+    min-height: 34px;
+  }
+
+  .aei-plan-top {
+    min-height: 55px;
+  }
+
+  .aei-plan-price>span {
+    font-size: 12px;
+  }
+
+  .aei-inherits {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-plan-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .aei-plan {
+    padding: 25px;
+  }
+
+  .aei-plan-top {
+    flex-direction: row;
+    min-height: 0;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .aei-plan-top h3 {
+    font-size: 23px;
+  }
+
+  .aei-plan-headline {
+    min-height: 0;
+    font-size: 12px;
+  }
+
+  .aei-plan-price strong {
+    font-size: 43px;
+  }
+
+  .aei-plan-price>span {
+    font-size: 15px;
+  }
+
+  .aei-plan-description {
+    font-size: 13px;
+    min-height: 0;
+    margin-bottom: 20px;
+  }
+
+  .aei-capacity {
+    font-size: 11px;
+    gap: 10px 18px;
+  }
+
+  .aei-inherits {
+    font-size: 11px;
+  }
+
+  .aei-plan-highlights li {
+    font-size: 13px;
+    margin-bottom: 11px;
+  }
+}
+
+@media (max-width: 400px) {
+  .aei-plan-top {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-plan {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+.aei-plan h3 {
+  color: #17263d;
+  font-weight: 700;
+  font-size: 23px;
+}
+
+.aei-plan-headline {
+  color: #35465e;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.aei-plan-description {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.75 !important;
+  min-height: 82px;
+}
+
+.aei-plan-price {
+  color: #14233a;
+}
+
+.aei-plan-price strong {
+  font-weight: 700;
+}
+
+.aei-plan-price small {
+  color: #43536a;
+  font-size: 13px;
+}
+
+.aei-capacity {
+  color: #34475e;
+  font-size: 12px;
+  font-weight: 500;
+  gap: 10px 14px;
+}
+
+.aei-capacity i {
+  color: #16647d;
+}
+
+.aei-inherits {
+  color: #263c56;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.aei-plan-highlights li {
+  color: #283b54;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.75;
+}
+
+.aei-plan-highlights i {
+  font-size: 12px;
+}
+
+@media (max-width: 991px) {
+  .aei-plan-top {
+    min-height: 65px;
+  }
+
+  .aei-plan-description {
+    min-height: 115px;
+  }
+
+  .aei-capacity {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-plan-top {
+    min-height: 0;
+  }
+
+  .aei-plan-description {
+    min-height: 0;
+  }
+
+  .aei-plan-headline {
+    font-size: 13.5px;
+  }
+
+  .aei-plan-highlights li {
+    font-size: 14px;
+  }
+
+  .aei-plan-price small {
+    font-size: 13px;
+  }
+}

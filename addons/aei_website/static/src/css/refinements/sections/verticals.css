@@ -1,0 +1,374 @@
+/* refinements/sections/verticals
+   Company profiles: tabs and the profile panel.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-verticals {
+  background: linear-gradient(180deg, #eff7ff, #f7fbff);
+  overflow: hidden;
+}
+
+.aei-vertical-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 40px;
+  margin-bottom: 34px;
+}
+
+.aei-vertical-heading h2 {
+  font-size: clamp(35px, 3.8vw, 51px);
+  line-height: 1.15;
+  margin: 0;
+  letter-spacing: -.05em;
+}
+
+.aei-vertical-heading>p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #4e6481;
+  max-width: 360px;
+  margin-bottom: 4px;
+}
+
+.aei-vertical-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.12fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+  position: relative;
+  padding-top: 10px;
+}
+
+.aei-vertical-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 310px;
+  padding: 34px 28px;
+  text-align: left;
+  border: 2px solid #ccdef4;
+  border-radius: 20px;
+  color: #152e54;
+  background: #fff;
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.aei-vertical-tab:hover {
+  transform: translateY(-4px);
+  border-color: #6997e3;
+  box-shadow: 0 10px 28px #295ea719;
+}
+
+.aei-vertical-tab>strong {
+  font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+  font-size: 27px;
+  letter-spacing: -.04em;
+  line-height: 1.3;
+  font-weight: 700;
+  margin: 13px 0 20px;
+}
+
+.aei-vertical-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: #edf5ff;
+  color: #3477f3;
+  font-size: 30px;
+  margin-bottom: 25px;
+}
+
+.aei-vertical-kicker {
+  font-size: 10px;
+  letter-spacing: .11em;
+  font-weight: 750;
+  color: #52779f;
+}
+
+.aei-vertical-tab>span:not([class]) {
+  font-size: 13px;
+  color: #50698b;
+  line-height: 1.8;
+}
+
+.aei-vertical-star {
+  background: var(--aei-star-surface);
+  color: white;
+  border-color: #456684;
+  padding-top: 51px;
+  box-shadow: 0 15px 40px #163d6b26;
+}
+
+.aei-vertical-star:hover {
+  border-color: #7b9dc0;
+  box-shadow: 0 14px 36px #284d7330;
+}
+
+.aei-vertical-tab[aria-selected="true"] {
+  border-color: var(--aei-selected-border);
+  box-shadow: 0 0 0 2px var(--aei-selected-border), 0 12px 32px #205fe226;
+}
+
+.aei-vertical-tab[aria-selected="true"]:not(.aei-vertical-star) {
+  background: #f5f9ff;
+}
+
+.aei-verticals .aei-vertical-tab:focus-visible {
+  outline: 2px solid #152a4b;
+  outline-offset: 6px;
+}
+
+.aei-vertical-star .aei-vertical-kicker {
+  color: #deefff;
+}
+
+.aei-vertical-star .aei-vertical-icon {
+  background: #ffffff1c;
+  color: #c6ebff;
+}
+
+.aei-vertical-star>span:not([class]) {
+  color: #edf6ff;
+}
+
+.aei-star-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 9px;
+  text-align: center;
+  background: #b8e5f9;
+  color: #14385e;
+  font-size: 10px;
+  letter-spacing: .08em;
+  font-weight: 800;
+}
+
+.aei-profile-wide {
+  display: grid;
+  grid-template-columns: .9fr 1.3fr auto;
+  align-items: center;
+  gap: 28px;
+  margin-top: 27px;
+  border-radius: 18px;
+  padding: 27px 30px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.aei-profile-wide h3 {
+  font-size: 21px;
+  line-height: 1.4;
+  margin: 12px 0 0;
+}
+
+.aei-profile-wide .aei-flow-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 0;
+  counter-reset: flow;
+}
+
+.aei-profile-wide .aei-flow-steps li {
+  font-size: 12px;
+  flex: 1 1 42%;
+  padding: 4px 0 4px 31px;
+  margin: 0;
+  min-height: 31px;
+}
+
+.aei-profile-wide .aei-flow-steps li::after {
+  display: none;
+}
+
+.aei-profile-wide .aei-profile-note {
+  grid-column: 1/-1;
+  padding: 12px 0 0;
+  margin: 0;
+  order: 5;
+}
+
+@media (max-width: 1199px) {
+  .aei-vertical-tab {
+    padding: 28px 23px;
+  }
+
+  .aei-vertical-star {
+    padding-top: 50px;
+  }
+
+  .aei-vertical-tab>strong {
+    font-size: 24px;
+  }
+
+  .aei-profile-wide {
+    grid-template-columns: .9fr 1.2fr;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-vertical-heading {
+    gap: 25px;
+  }
+
+  .aei-vertical-heading>p {
+    font-size: 14px;
+    max-width: 280px;
+  }
+
+  .aei-vertical-grid {
+    gap: 13px;
+  }
+
+  .aei-vertical-tab {
+    padding: 26px 19px;
+    min-height: 305px;
+  }
+
+  .aei-vertical-star {
+    padding-top: 50px;
+  }
+
+  .aei-vertical-tab>strong {
+    font-size: 22px;
+  }
+
+  .aei-vertical-tab>span:not([class]) {
+    font-size: 12px;
+  }
+
+  .aei-vertical-kicker {
+    font-size: 8px;
+  }
+
+  .aei-star-label {
+    font-size: 8px;
+  }
+
+  .aei-vertical-icon {
+    width: 39px;
+    height: 39px;
+    font-size: 25px;
+  }
+
+  .aei-profile-wide {
+    padding: 24px;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-vertical-heading {
+    display: block;
+    margin-bottom: 24px;
+  }
+
+  .aei-vertical-heading h2 {
+    font-size: 38px;
+  }
+
+  .aei-vertical-heading>p {
+    font-size: 14px;
+    margin: 20px 0 0;
+    max-width: 100%;
+  }
+
+  .aei-vertical-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aei-vertical-tab {
+    min-height: 225px;
+    padding: 27px;
+    gap: 0;
+  }
+
+  .aei-vertical-star {
+    padding-top: 51px;
+  }
+
+  .aei-vertical-tab>strong {
+    font-size: 29px;
+    margin: 13px 0 15px;
+  }
+
+  .aei-vertical-tab>span:not([class]) {
+    font-size: 13px;
+  }
+
+  .aei-vertical-icon {
+    position: absolute;
+    right: 25px;
+    top: 29px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .aei-vertical-star .aei-vertical-icon {
+    top: 52px;
+  }
+
+  .aei-vertical-kicker {
+    font-size: 9px;
+    padding-right: 45px;
+    margin-top: 8px;
+  }
+
+  .aei-star-label {
+    font-size: 9px;
+  }
+
+  .aei-profile-wide {
+    display: block;
+    padding: 25px;
+    margin-top: 21px;
+  }
+
+  .aei-profile-wide .aei-flow-steps {
+    display: block;
+    margin: 25px 0;
+  }
+
+  .aei-profile-wide .aei-flow-steps li {
+    padding: 4px 0 14px 34px;
+    font-size: 13px;
+  }
+
+  .aei-profile-wide .aei-flow-steps li::after {
+    display: block;
+  }
+
+  .aei-profile-wide h3 {
+    font-size: 23px;
+  }
+
+  .aei-profile-wide .aei-profile-note {
+    margin-top: 15px;
+  }
+}
+
+@media (max-width: 400px) {
+  .aei-vertical-tab>strong {
+    font-size: 27px;
+  }
+
+  .aei-vertical-tab {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-vertical-tab {
+    transition: none;
+    transform: none !important;
+  }
+}

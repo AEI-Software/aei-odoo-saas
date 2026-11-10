@@ -1,0 +1,78 @@
+/* foundation/sections/verticals
+   Company profiles: tabs and the profile panel.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-profile-panel {
+  padding: 30px 33px;
+  border: 1px solid var(--aei-line);
+  border-radius: 13px;
+  background: white;
+  box-shadow: 0 10px 30px #19304c04;
+}
+
+.aei-profile-panel h3 {
+  font-size: 22px;
+  line-height: 1.4;
+  margin: 16px 0 23px;
+}
+
+.aei-flow-steps {
+  list-style: none;
+  counter-reset: flow;
+  padding: 0;
+  margin: 0 0 25px;
+}
+
+.aei-flow-steps li {
+  position: relative;
+  counter-increment: flow;
+  padding: 0 0 19px 35px;
+  color: #50627a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.aei-flow-steps li::before {
+  content: counter(flow, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #3e8ca0;
+  background: #edf8fa;
+  border-radius: 50%;
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+
+.aei-flow-steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  height: calc(100% - 24px);
+  width: 1px;
+  background: #dbeaf0;
+}
+
+.aei-profile-note {
+  font-size: 12px;
+  color: #6a778a;
+  border-top: 1px solid #e5ebf2;
+  margin: 0 0 20px;
+  padding-top: 15px;
+}
+
+@media (max-width: 767px) {
+  .aei-profile-panel {
+    padding: 24px;
+  }
+
+  .aei-profile-panel h3 {
+    font-size: 21px;
+  }
+}

@@ -1,0 +1,317 @@
+/* foundation/sections/hero
+   Hero: headline, mission and vision cards, orbit decoration.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-hero {
+  background: var(--aei-ink);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.aei-hero-grid {
+  display: grid;
+  grid-template-columns: .98fr 1.02fr;
+  gap: 64px;
+  align-items: center;
+  padding-top: 62px;
+  padding-bottom: 62px;
+  position: relative;
+  z-index: 1;
+}
+
+.aei-hero-copy h1 {
+  font-size: clamp(42px, 4.25vw, 57px);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -.06em;
+  margin: 0 0 23px;
+}
+
+.aei-hero-copy h1 em {
+  font-style: normal;
+  color: #71e4ff;
+}
+
+.aei-hero-copy>p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #bcc8dc;
+  max-width: 440px;
+  margin: 0 0 28px;
+}
+
+.aei-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.aei-purpose-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.aei-purpose-card {
+  position: relative;
+  padding: 23px 25px;
+  background: #ffffff04;
+  border: 1px solid #ffffff1f;
+  border-radius: 13px;
+  transition: border-color .3s, background .3s;
+}
+
+.aei-purpose-card:hover {
+  border-color: #00d2ff66;
+  background: #ffffff07;
+}
+
+.aei-purpose-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.aei-purpose-label h2 {
+  font-family: Inter, Arial, sans-serif;
+  font-size: 13px;
+  letter-spacing: 0;
+  font-weight: 600;
+  margin: 0;
+  color: #fff;
+}
+
+.aei-purpose-label>span:last-child {
+  margin-left: auto;
+  font: 11px Inter, Arial;
+  color: #91a2bf;
+}
+
+.aei-purpose-dot {
+  width: 7px;
+  height: 7px;
+  background: #00d2ff;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 12px #00d2ff26;
+}
+
+.aei-vision .aei-purpose-dot {
+  background: #a89fff;
+  box-shadow: 0 0 12px #afa4ff26;
+}
+
+.aei-purpose-card>p {
+  margin: 0;
+  color: #c3cede;
+  font-size: 13px;
+  line-height: 1.85;
+  letter-spacing: 0;
+}
+
+.aei-future-label {
+  display: block;
+  margin-top: 13px;
+  color: #b4adff;
+  font-size: 10px;
+  letter-spacing: .02em;
+}
+
+.aei-hero-orbit {
+  position: absolute;
+  left: -130px;
+  top: -280px;
+  border: 1px solid #00d2ff0a;
+  width: 750px;
+  height: 750px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.aei-hero-orbit::after {
+  content: '';
+  position: absolute;
+  inset: 70px;
+  border: 1px solid #00d2ff0a;
+  border-radius: 50%;
+}
+
+.aei-hero-orbit span {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #5dd7f1;
+  border-radius: 50%;
+  opacity: .35;
+  animation: aei-breathe 7s ease-in-out infinite;
+}
+
+.aei-hero-orbit span:nth-child(1) {
+  top: 18%;
+  right: 11%;
+}
+
+.aei-hero-orbit span:nth-child(2) {
+  bottom: 15%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.aei-hero-orbit span:nth-child(3) {
+  bottom: 2%;
+  left: 37%;
+  animation-delay: 4s;
+}
+
+.aei-intro {
+  animation: aei-entrance .8s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.aei-purpose-stack.aei-intro {
+  animation-delay: .12s;
+}
+
+@media (min-width: 1450px) {
+  .aei-hero-grid {
+    padding-top: 76px;
+    padding-bottom: 76px;
+  }
+
+  .aei-purpose-card>p {
+    font-size: 14px;
+  }
+
+  .aei-hero-copy h1 {
+    font-size: 60px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .aei-hero-grid {
+    gap: 35px;
+  }
+
+  .aei-hero-copy h1 {
+    font-size: 46px;
+  }
+
+  .aei-purpose-card {
+    padding: 20px;
+  }
+
+  .aei-purpose-card>p {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-hero-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    padding-top: 43px;
+    padding-bottom: 43px;
+  }
+
+  .aei-hero-copy h1 {
+    font-size: 37px;
+  }
+
+  .aei-hero-copy>p {
+    font-size: 13px;
+  }
+
+  .aei-hero-actions {
+    gap: 9px;
+  }
+
+  .aei-purpose-card {
+    padding: 16px 18px;
+  }
+
+  .aei-purpose-card>p {
+    font-size: 11px;
+    line-height: 1.8;
+  }
+
+  .aei-purpose-label h2 {
+    font-size: 11px;
+  }
+
+  .aei-future-label {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-hero-grid {
+    grid-template-columns: 1fr;
+    gap: 35px;
+    padding-top: 37px;
+    padding-bottom: 35px;
+  }
+
+  .aei-hero-copy h1 {
+    font-size: 43px;
+    max-width: 440px;
+    letter-spacing: -.055em;
+  }
+
+  .aei-hero-copy>p {
+    font-size: 14px;
+    max-width: 460px;
+    margin-bottom: 22px;
+  }
+
+  .aei-purpose-stack {
+    gap: 12px;
+  }
+
+  .aei-purpose-card {
+    padding: 20px;
+  }
+
+  .aei-purpose-card>p {
+    font-size: 12px;
+    line-height: 1.85;
+  }
+
+  .aei-purpose-label h2 {
+    font-size: 12px;
+  }
+
+  .aei-future-label {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 400px) {
+  .aei-hero-copy h1 {
+    font-size: 37px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-intro,
+  .aei-hero-orbit span {
+    animation: none !important;
+  }
+
+  .aei-purpose-card {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+.aei-hero-clients {
+  margin-top: 25px;
+  font-size: 12px;
+}
+
+@media (max-width: 767px) {
+  .aei-hero-clients {
+    margin-top: 20px;
+  }
+}

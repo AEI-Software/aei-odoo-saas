@@ -12,7 +12,7 @@
 | Deployment portal | `portal` |
 | Imagen portal | `ghcr.io/aei-software/aei-odoo-saas/portal:latest` |
 | Repo en initContainer | `https://github.com/AEI-Software/aei-odoo-saas.git` (branch `18.0`, `--depth=1`) |
-| Addons copiados | `payment_qr_mercantil`, `odoo_k8s_saas`, `odoo_k8s_saas_subscription` (del repo principal) + `subscription_oca` (local en `external_addons/`) |
+| Addons copiados | `addons/*` (`aei_website`, `odoo_k8s_saas`, `odoo_k8s_saas_subscription`, `odoo_k8s_saas_support`, `payment_qr_mercantil`, `saas_security_hardening`) + `external_addons/*` (`subscription_oca`, etc.) |
 [cert-manager]: https://cert-manager.io/
 
 ---
@@ -100,7 +100,7 @@ kubectl exec -n odoo-admin $POD -- \
 
 # 3. Para actualizar TODOS los módulos del repo:
 kubectl exec -n odoo-admin $POD -- \
-  odoo -u payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,subscription_oca \
+  odoo -u payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,odoo_k8s_saas_support,saas_security_hardening,aei_website,subscription_oca \
   -d admin --stop-after-init --no-http
 
 # 4. Restart limpio tras el update
@@ -120,7 +120,7 @@ kubectl exec -n staging $POD -- \
 
 # 3. Para actualizar TODOS los módulos del repo:
 kubectl exec -n staging $POD -- \
-  odoo -u payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,subscription_oca \
+  odoo -u payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,odoo_k8s_saas_support,saas_security_hardening,aei_website,subscription_oca \
   -d staging --stop-after-init --no-http
 
 # 4. Restart limpio tras el update
@@ -170,12 +170,15 @@ kubectl logs -n aeisoftware statefulset/postgres -f --tail=50
 
 ## Módulos del repo
 
-| Módulo | Update en restart | Descripción |
-|---|---|---|
-| `payment_qr_mercantil` | Manual | Pago por QR — Banco Mercantil Santa Cruz (mc4.com.bo) |
-| `odoo_k8s_saas` | Manual | UI admin de instancias SaaS sobre K8s |
-| `odoo_k8s_saas_subscription` | Manual | Bridge suscripciones OCA ↔ SaaS instances |
-| `subscription_oca` | Manual | Contratos recurrentes (local en `external_addons/`) |
+| Módulo | Ruta | Update en restart | Descripción |
+|---|---|---|---|
+| `aei_website` | `addons/aei_website` | Manual | Sitio web público y Landing Page de AEI Software (CSS puro sin Bootstrap) |
+| `odoo_k8s_saas` | `addons/odoo_k8s_saas` | Manual | UI admin de instancias SaaS sobre K8s |
+| `odoo_k8s_saas_subscription` | `addons/odoo_k8s_saas_subscription` | Manual | Bridge suscripciones OCA ↔ instancias SaaS, checkout y portal |
+| `odoo_k8s_saas_support` | `addons/odoo_k8s_saas_support` | Manual | Bolsa de horas de soporte mensual y tickets Helpdesk |
+| `payment_qr_mercantil` | `addons/payment_qr_mercantil` | Manual | Pago por QR — Banco Mercantil Santa Cruz (mc4.com.bo) |
+| `saas_security_hardening` | `addons/saas_security_hardening` | Manual | Endurecimiento de cookies de sesión y protección en `/web/reset_password` |
+| `subscription_oca` | `external_addons/subscription_oca` | Manual | Contratos recurrentes (local en `external_addons/`) |
 
 ---
 

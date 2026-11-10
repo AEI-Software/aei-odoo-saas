@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- "Explorar procesos": one dialog per feature card of the processes section. Every
+         process is listed; the extras say which plan they start in. -->
+
+    <template id="module_dialogs" name="AEI Software home: module dialogs">
+        <t t-set="aei_catalog" t-value="request.env['aei.website.catalog']"/>
+        <!-- Same ids as the feature cards of views/home/processes.xml. A test keeps them aligned. -->
+        <t t-set="aei_feature_modules" t-value="['sales', 'banking', 'inventory', 'projects', 'manufacturing', 'continuity']"/>
+        <t t-foreach="aei_feature_modules" t-as="aei_module_id">
+            <t t-set="aei_module" t-value="aei_catalog.module(aei_module_id)"/>
+            <t t-set="aei_level" t-value="None"/>
+            <t t-call="aei_website.dialog_frame">
+                <t t-set="aei_dialog_id" t-value="'aei-module-dialog-' + aei_module_id"/>
+                <t t-set="aei_dialog_kicker" t-value="aei_catalog.scope_label(aei_module['level'])"/>
+                <t t-set="aei_dialog_title" t-value="aei_module['title']"/>
+                <t t-set="aei_dialog_footer">
+                    <p>Consulta la cobertura de cada plan.</p>
+                    <a class="aei-btn aei-btn-primary" href="/pricing#modulos">Comparar planes <span aria-hidden="true">↗</span></a>
+                </t>
+                <p><t t-out="aei_module['summary']"/></p>
+                <t t-if="aei_module_id in ('sales', 'tax')" t-call="aei_website.invoice_badge"/>
+                <t t-call="aei_website.process_list"/>
+            </t>
+        </t>
+    </template>
+</odoo>

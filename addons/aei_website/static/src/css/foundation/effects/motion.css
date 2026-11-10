@@ -1,0 +1,23 @@
+/* foundation/effects/motion
+   Reveal-on-scroll behavior and its reduced-motion fallback.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-reveal {
+  opacity: 1;
+  transform: none;
+  transition: opacity .7s ease, transform .7s cubic-bezier(.2, .8, .2, 1);
+}
+
+.aei-motion .aei-reveal:not(.aei-is-visible) {
+  opacity: 0;
+  transform: translateY(15px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-reveal,
+  .aei-motion .aei-reveal:not(.aei-is-visible) {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}

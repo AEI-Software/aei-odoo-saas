@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Home, section 7: final call to action. Links to the plans and to the contact page. -->
+
+    <template id="home_cta" name="AEI Software home: final call to action">
+        <section class="aei-section aei-final-cta">
+            <div class="aei-container">
+                <span class="aei-eyebrow">EL SIGUIENTE PASO</span>
+                <h2>Empecemos por lo que tu negocio necesita.</h2>
+                <div class="aei-hero-actions">
+                    <a class="aei-btn aei-btn-primary" href="#planes">Ver planes y alcance <span aria-hidden="true">↗</span></a>
+                    <a class="aei-btn aei-btn-light" href="/contactus">Hablar con AEI <span aria-hidden="true">↗</span></a>
+                </div>
+            </div>
+        </section>
+    </template>
+</odoo>
+

@@ -1,0 +1,281 @@
+[
+ {
+  "id": "access",
+  "title": "Suscripción, usuarios y permisos",
+  "group": "platform",
+  "level": 0,
+  "icon": "users",
+  "summary": "Tu espacio, tu equipo y el acceso de tu contador.",
+  "processes": [
+   "Activación del espacio privado, inicio de sesión y recuperación de acceso.",
+   "Invitación de colaboradores y contador externo con roles y cupos del plan.",
+   "Consulta de capacidades, cambio de plan y renovación desde el portal de AEI Software.",
+   "Cancelación y salida ordenada con exportación de información."
+  ],
+  "extra": []
+ },
+ {
+  "id": "setup",
+  "title": "Configuración y puesta en marcha",
+  "group": "platform",
+  "level": 0,
+  "icon": "sliders",
+  "summary": "Prepara tu empresa y sus datos para empezar.",
+  "processes": [
+   "Datos de la empresa, perfil operativo, país y moneda base.",
+   "Plan contable, diarios, plazos y políticas de facturación.",
+   "Importación validada de contactos y productos; carga de saldos de apertura.",
+   "Asistente de preparación antes de iniciar la operación."
+  ],
+  "extra": []
+ },
+ {
+  "id": "catalog",
+  "title": "Clientes, proveedores y catálogo",
+  "group": "operation",
+  "level": 0,
+  "icon": "address-book-o",
+  "summary": "Toda tu información comercial en un solo lugar.",
+  "processes": [
+   "Directorio de clientes y proveedores con datos fiscales y condiciones.",
+   "Productos, servicios y unidades de medida.",
+   "Precios y descuentos simples según permisos.",
+   "Archivo de registros conservando su historial."
+  ],
+  "extra": []
+ },
+ {
+  "id": "sales",
+  "title": "Ventas, facturación y cobranza",
+  "group": "finance",
+  "level": 0,
+  "icon": "file-text-o",
+  "summary": "De la cotización al cobro, con facturación electrónica integrada en todos los planes.",
+  "processes": [
+   "Cotización, aceptación del cliente y confirmación del pedido.",
+   "Facturación electrónica integrada, anticipos y cobros completos o parciales.",
+   "Notas de crédito, compensaciones y reembolsos.",
+   "Seguimiento manual de vencidos y portal de documentos del cliente."
+  ],
+  "extra": [
+   {
+    "level": 1,
+    "text": "Facturación según las entregas parciales de productos."
+   }
+  ]
+ },
+ {
+  "id": "purchases",
+  "title": "Compras y cuentas por pagar",
+  "group": "finance",
+  "level": 0,
+  "icon": "shopping-basket",
+  "summary": "Del pedido al proveedor a la obligación resuelta.",
+  "processes": [
+   "Órdenes de compra y conformidades de servicios, totales o parciales.",
+   "Factura del proveedor y revisión de diferencias de detalle con el pedido.",
+   "Pagos completos o parciales, anticipos y notas de débito.",
+   "Vencimientos, cancelaciones y resolución de débitos pendientes."
+  ],
+  "extra": [
+   {
+    "level": 1,
+    "text": "Recepción física de bienes vinculada al inventario."
+   }
+  ]
+ },
+ {
+  "id": "expenses",
+  "title": "Gastos y reembolsos",
+  "group": "finance",
+  "level": 0,
+  "icon": "credit-card",
+  "summary": "Comprobantes, aprobación y reembolso con respaldo.",
+  "processes": [
+   "Registro manual de gastos directos con comprobante.",
+   "Rendición de gastos pagados.",
+   "Revisión, aprobación o devolución de la rendición.",
+   "Contabilización y pago del reembolso."
+  ],
+  "extra": []
+ },
+ {
+  "id": "banking",
+  "title": "Caja, bancos y conciliación",
+  "group": "finance",
+  "level": 0,
+  "icon": "university",
+  "summary": "Conoce tus fondos y confirma los movimientos.",
+  "processes": [
+   "Cuentas bancarias y cajas con sus diarios.",
+   "Importación de archivos bancarios y revisión de duplicados.",
+   "Conciliación de cobros y pagos con revisión del usuario.",
+   "Corrección trazable de conciliaciones."
+  ],
+  "extra": []
+ },
+ {
+  "id": "accounting",
+  "title": "Contabilidad y cierre",
+  "group": "finance",
+  "level": 0,
+  "icon": "balance-scale",
+  "summary": "Libros completos para trabajar con tu contador.",
+  "processes": [
+   "Asientos desde documentos operativos, ajustes manuales y reversión.",
+   "Activos y depreciación básica.",
+   "Periodificaciones y ajustes de cierre.",
+   "Cierre mensual y anual; reapertura autorizada de periodos."
+  ],
+  "extra": [
+   {
+    "level": 1,
+    "text": "Distribución por departamentos y centros de costo mediante cuentas analíticas."
+   }
+  ]
+ },
+ {
+  "id": "tax",
+  "title": "Facturación electrónica e impuestos",
+  "group": "finance",
+  "level": 0,
+  "icon": "check-square-o",
+  "summary": "Facturación electrónica SIAT incluida en Starter, Pro y Advanced, junto con la configuración fiscal aplicable.",
+  "processes": [
+   "Facturación electrónica integrada con las ventas de tu empresa.",
+   "Configuración del paquete fiscal aplicable a la empresa.",
+   "Impuestos, retenciones, precisión y redondeos.",
+   "Emisión y corrección de documentos fiscales con su evidencia.",
+   "Revisión de comprobantes de proveedores y reportes tributarios básicos."
+  ],
+  "extra": []
+ },
+ {
+  "id": "currency",
+  "title": "Operación en moneda extranjera",
+  "group": "finance",
+  "level": 1,
+  "icon": "exchange",
+  "summary": "Controla documentos y saldos en otras monedas.",
+  "processes": [
+   "Monedas y tipos de cambio ingresados manualmente.",
+   "Facturas, cobros y pagos en moneda extranjera.",
+   "Diferencias cambiarias y revaluación de saldos abiertos al cierre."
+  ],
+  "extra": []
+ },
+ {
+  "id": "inventory",
+  "title": "Inventario y abastecimiento",
+  "group": "operation",
+  "level": 1,
+  "icon": "cubes",
+  "summary": "Stock y costos conectados con compras y ventas.",
+  "processes": [
+   "Un almacén principal, ubicaciones simples y existencias iniciales.",
+   "Lotes o series cuando el producto lo requiera.",
+   "Recepciones, reservas, entregas y devoluciones.",
+   "Movimientos internos, conteos, ajustes y mermas.",
+   "Valorización, costo de ventas y revisión de mínimos para reposición manual."
+  ],
+  "extra": []
+ },
+ {
+  "id": "manufacturing",
+  "title": "Fabricación básica",
+  "group": "operation",
+  "level": 2,
+  "icon": "cogs",
+  "summary": "De los materiales al producto terminado y su costo.",
+  "processes": [
+   "Lista de materiales de un nivel y orden de fabricación.",
+   "Registro de consumos reales y producción total o parcial.",
+   "Mermas y cancelaciones con materiales utilizados.",
+   "Costo de materiales y transformación por orden.",
+   "Valor del producto terminado y producción en curso al cierre."
+  ],
+  "extra": []
+ },
+ {
+  "id": "projects",
+  "title": "Proyectos, horas e hitos",
+  "group": "operation",
+  "level": 1,
+  "icon": "tasks",
+  "summary": "Trabajo ejecutado, facturado y con margen visible.",
+  "processes": [
+   "Proyecto conectado con el cliente, el presupuesto y la venta.",
+   "Tareas y entregas.",
+   "Registro y aprobación de horas; facturación por horas, hitos o precio fijo.",
+   "Costos directos y gastos refacturables del proyecto.",
+   "Presupuesto, margen directo y cierre con revisión de pendientes."
+  ],
+  "extra": []
+ },
+ {
+  "id": "reports",
+  "title": "Reportes y consulta de gestión",
+  "group": "finance",
+  "level": 0,
+  "icon": "bar-chart",
+  "summary": "Siete reportes en Starter; Pro y Advanced incluyen la base y ocho reportes adicionales.",
+  "processes": [
+   "Libro mayor",
+   "Reporte fiscal",
+   "Balance",
+   "Estado de resultados",
+   "Flujo de efectivo",
+   "Libro de compras de Bolivia",
+   "Libro de ventas de Bolivia"
+  ],
+  "extra": [
+   {
+    "level": 1,
+    "text": "Ganancias y Pérdidas Cambiarias No Realizadas"
+   },
+   {
+    "level": 1,
+    "text": "Reporte Financiero"
+   },
+   {
+    "level": 1,
+    "text": "Balance de Comprobación (Sumas y Saldos)"
+   },
+   {
+    "level": 1,
+    "text": "Resumen Ejecutivo"
+   },
+   {
+    "level": 1,
+    "text": "Estado de Flujo de Efectivo"
+   },
+   {
+    "level": 1,
+    "text": "Antigüedad de Cuentas por Pagar"
+   },
+   {
+    "level": 1,
+    "text": "Antigüedad de Cuentas por Cobrar"
+   },
+   {
+    "level": 1,
+    "text": "Libro Mayor de Terceros / Empresa"
+   }
+  ]
+ },
+ {
+  "id": "continuity",
+  "title": "Seguridad, ayuda y continuidad",
+  "group": "platform",
+  "level": 0,
+  "icon": "shield",
+  "summary": "Acceso por roles y continuidad de la información.",
+  "processes": [
+   "Exportación de datos, documentos y adjuntos propios.",
+   "Historial de cambios y controles para evitar duplicaciones.",
+   "Respaldos y recuperación a cargo del proveedor.",
+   "Ayuda y soporte para operar desde el navegador."
+  ],
+  "extra": []
+ }
+]
