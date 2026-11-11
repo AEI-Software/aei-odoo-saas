@@ -47,7 +47,18 @@ async def lifespan(app: FastAPI):
     logger.info("SaaS portal shutting down …")
 
 
-app = FastAPI(title="Odoo SaaS Portal", lifespan=lifespan)
+# Swagger / ReDoc / openapi.json quedan CERRADOS por defecto: el portal es
+# alcanzable desde internet (portal.aeisoftware.com) y no debe publicar el
+# esquema de la API sin autenticación. Para desarrollo local: PORTAL_ENABLE_DOCS=true.
+_DOCS_ENABLED = os.getenv("PORTAL_ENABLE_DOCS", "false").lower() in ("1", "true", "yes")
+
+app = FastAPI(
+    title="Odoo SaaS Portal",
+    lifespan=lifespan,
+    docs_url="/docs" if _DOCS_ENABLED else None,
+    redoc_url="/redoc" if _DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if _DOCS_ENABLED else None,
+)
 
 # ── Prometheus metrics ─────────────────────────────────────────────────────────
 Instrumentator(
