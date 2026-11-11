@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Form view extension on payment.provider for Banco Ganadero QR Empresarial credentials. -->
+<odoo>
+
+    <!-- Inject Banco Ganadero API credentials into the standard Credentials tab of payment.provider. -->
+    <record id="payment_provider_form_qr_ganadero_credentials" model="ir.ui.view">
+        <field name="name">payment.provider.form.qr_ganadero.credentials</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='credentials']" position="inside">
+                <group invisible="code != 'qr_ganadero'">
+                    <group string="Credenciales API — Banco Ganadero Bolivia">
+                        <field name="qr_ganadero_base_url"
+                               string="URL Base API"
+                               placeholder="https://sandbox.bg.com.bo"/>
+                        <field name="qr_ganadero_api_key"
+                               string="API Key"
+                               password="True"/>
+                        <field name="qr_ganadero_api_key_header"
+                               string="Cabecera API Key"/>
+                        <field name="qr_ganadero_username"
+                               string="Usuario API"/>
+                        <field name="qr_ganadero_password"
+                               string="Contraseña API"
+                               password="True"/>
+                        <field name="qr_ganadero_account_ref"
+                               string="Referencia de Cuenta"/>
+                        <field name="qr_ganadero_ssl_verify"
+                               string="Verificar SSL"/>
+                    </group>
+                    <group string="Notificaciones del Banco (Webhook)">
+                        <field name="qr_ganadero_bank_user"
+                               string="Usuario Entrante"/>
+                        <field name="qr_ganadero_bank_password"
+                               string="Contraseña Entrante"
+                               password="True"/>
+                        <field name="qr_ganadero_inbound_jwt_ttl"
+                               string="Vigencia Token (segundos)"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Developer-only debug tab displaying the cached outbound JWT and expiration timestamp. -->
+    <record id="payment_provider_form_qr_ganadero_debug" model="ir.ui.view">
+        <field name="name">payment.provider.form.qr_ganadero.debug</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="QR Banco Ganadero (Debug)"
+                      invisible="code != 'qr_ganadero'"
+                      groups="base.group_no_one">
+                    <group string="Caché JWT (uso interno — no editar)">
+                        <field name="qr_ganadero_token_cache"
+                               string="JWT Token cacheado"
+                               readonly="True"/>
+                        <field name="qr_ganadero_token_expires"
+                               string="Token expira (UNIX epoch)"
+                               readonly="True"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

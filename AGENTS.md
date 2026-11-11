@@ -15,7 +15,8 @@ touches a module, read that file first and obey its boundaries.
 | Tenant model, K8s sync, provisioning UI | `addons/odoo_k8s_saas/AGENTS.md` |
 | Subscription lifecycle, checkout, customer portal | `addons/odoo_k8s_saas_subscription/AGENTS.md` |
 | Support hours, helpdesk tickets | `addons/odoo_k8s_saas_support/AGENTS.md` |
-| QR payment (Banco Mercantil, future Banco Ganadero) | `addons/payment_qr_mercantil/AGENTS.md` |
+| QR payment (Banco Mercantil) | `addons/payment_qr_mercantil/AGENTS.md` |
+| QR payment (Banco Ganadero v1.17.4) | `addons/payment_qr_ganadero/AGENTS.md` |
 | Cookie / auth hardening | `addons/saas_security_hardening/AGENTS.md` |
 | Landing page, plans, public website | `addons/aei_website/AGENTS.md` |
 | `portal/`, `k8s/`, `infra/`, CI | no sub-agent: orchestrator handles it |
