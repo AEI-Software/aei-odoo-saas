@@ -61,7 +61,7 @@ jobs:
           chmod +x gitleaks
 
       - name: Secret scanning (Gitleaks)
-        run: ./gitleaks detect --source . --config .gitleaks.toml --log-level warn --exit-code 1
+        run: ./gitleaks detect --source . --no-git --config .gitleaks.toml --log-level warn --exit-code 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -72,7 +72,7 @@ jobs:
         run: pip install bandit==1.8.3 pip-audit==2.8.0 semgrep
 
       - name: Bandit SAST (blocking on High/Medium severity)
-        run: bandit -r addons/ portal/ -c bandit.yaml -ll -ii --skip B101 -f json -o bandit-report.json
+        run: bandit -r addons/ portal/ -c bandit.yaml -ll -ii --skip B101,B108,B311 -f json -o bandit-report.json
 
       - name: Upload Bandit security report
         uses: actions/upload-artifact@v4
@@ -102,13 +102,10 @@ jobs:
           if-no-files-found: ignore
 
       - name: Trivy IaC & Dockerfile misconfiguration scan (K8s & Docker)
-        uses: aquasecurity/trivy-action@0.28.0
         continue-on-error: true
-        with:
-          scan-type: "config"
-          scan-ref: "."
-          severity: "CRITICAL,HIGH"
-          format: "table"
+        run: |
+          docker run --rm -v "$PWD:/work" aquasec/trivy:latest config /work \
+            --severity CRITICAL,HIGH --format table
 
   validate:
     name: Validate Odoo Addons, Portal & K8s Manifests

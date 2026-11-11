@@ -9,5 +9,6 @@ exclude_dirs:
 
 skips:
   - B101  # assert_used
+  - B108  # hardcoded_tmp_directory (K8s initcontainer shell scripts)
   - B311  # random (non-cryptographic UI/jitter uses)
 

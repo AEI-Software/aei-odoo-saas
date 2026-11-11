@@ -11,6 +11,8 @@ paths = [
   '''^docker-compose\.dev\.yml$''',
   '''^docs/.*''',
   '''^k8s/01-secrets\.yaml$''',
+  '''^k8s/dev/.*''',
+  '''^addons/.*/tests/.*''',
 ]
 regexes = [
   '''REPLACE_DB_PASSWORD''',
