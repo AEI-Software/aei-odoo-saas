@@ -1,0 +1,154 @@
+/* refinements/sections/hero
+   Hero: headline, mission and vision cards, orbit decoration.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-hero {
+  color: #152a4b;
+  background: radial-gradient(ellipse at 93% 15%, #d2efff 0, transparent 55%), linear-gradient(130deg, #f6faff, #edf5ff 65%, #e4f4ff);
+}
+
+.aei-hero-grid {
+  padding-top: 84px;
+  padding-bottom: 86px;
+  gap: 66px;
+}
+
+.aei-hero-copy h1 {
+  font-size: clamp(42px, 4.25vw, 59px);
+  font-weight: 700;
+  letter-spacing: -.06em;
+  line-height: 1.12;
+}
+
+.aei-hero-copy h1 em {
+  color: #3579ef;
+}
+
+.aei-hero-copy>p {
+  color: #445d7e;
+  font-size: 16px;
+  max-width: 480px;
+}
+
+.aei-purpose-card {
+  padding: 25px 27px;
+  border: 1px solid #cfe1f9;
+  background: #ffffffb8;
+  border-radius: 17px;
+  box-shadow: 0 10px 40px #25518706;
+}
+
+.aei-purpose-card:hover {
+  border-color: #7bb8ff;
+  background: #fff;
+}
+
+.aei-purpose-label h2 {
+  color: #173257;
+  font-size: 14px;
+}
+
+.aei-purpose-label>span:last-child {
+  color: #6b8ab4;
+}
+
+.aei-purpose-card>p {
+  color: #3d5678;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.aei-purpose-dot,
+.aei-vision .aei-purpose-dot {
+  background: #377af2;
+  box-shadow: 0 0 0 5px #3978f312;
+}
+
+.aei-vision .aei-purpose-dot {
+  background: #00aee0;
+}
+
+.aei-future-label {
+  color: #326fab;
+  font-size: 11px;
+}
+
+.aei-hero-orbit {
+  border-color: #377af210;
+  top: -430px;
+  left: -200px;
+  width: 1050px;
+  height: 1050px;
+}
+
+.aei-hero-orbit::after {
+  border-color: #377af210;
+}
+
+.aei-hero-orbit span {
+  background: #3978f3;
+}
+
+@media (max-width: 991px) {
+  .aei-hero-grid {
+    gap: 27px;
+  }
+
+  .aei-hero-copy h1 {
+    font-size: 39px;
+  }
+
+  .aei-purpose-card {
+    padding: 21px;
+  }
+
+  .aei-purpose-card>p {
+    font-size: 11.5px;
+  }
+
+  .aei-hero-copy>p {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-hero-grid {
+    padding-top: 48px;
+    padding-bottom: 47px;
+    gap: 32px;
+  }
+
+  .aei-hero-copy h1 {
+    font-size: 44px;
+    line-height: 1.12;
+  }
+
+  .aei-hero-copy>p {
+    font-size: 15px;
+    line-height: 1.8;
+    max-width: 500px;
+  }
+
+  .aei-purpose-card {
+    padding: 23px;
+  }
+
+  .aei-purpose-card>p {
+    font-size: 12.5px;
+  }
+
+  .aei-purpose-label h2 {
+    font-size: 13px;
+  }
+
+  .aei-future-label {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 400px) {
+  .aei-hero-copy h1 {
+    font-size: 38px;
+  }
+}

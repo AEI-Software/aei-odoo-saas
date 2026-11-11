@@ -1,0 +1,36 @@
+/* refinements/components/dialog
+   Detail dialogs: plan scope and module processes.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-inline-note {
+  color: #2c6195;
+  font-size: 10px;
+}
+
+.aei-processes {
+  color: #344d70;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.aei-processes li::marker {
+  color: #3479e8;
+}
+
+.aei-product-module summary {
+  color: #203f67;
+}
+
+.aei-dialog-body>p {
+  color: #3b587c;
+}
+
+.aei-dialog-head h2 {
+  color: #18365d;
+}
+
+.aei-dialog-body .aei-product-module>.aei-processes {
+  font-size: 14px;
+  color: #294668;
+}

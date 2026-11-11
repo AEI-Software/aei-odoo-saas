@@ -1,0 +1,269 @@
+/* foundation/sections/clients
+   Client logos marquee.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-clients-section {
+  padding-top: 56px;
+  padding-bottom: 52px;
+  border-bottom: 1px solid #e5edf3;
+}
+
+.aei-clients-section h2 {
+  font-size: 34px;
+}
+
+.aei-hero-clients .aei-clients-link {
+  margin-left: 0;
+}
+
+.aei-clients-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 15px;
+}
+
+.aei-clients-heading h2 {
+  margin-bottom: 0;
+}
+
+.aei-clients-pause {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: none;
+  color: #24566d;
+  background: #f5fafc;
+  border: 1px solid #cddfe8;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+
+.aei-clients-pause:hover {
+  background: #eaf7fb;
+  border-color: #87c7da;
+}
+
+.aei-clients-pause>span:first-child {
+  width: 13px;
+  font-size: 13px;
+}
+
+.aei-client-marquees {
+  --aei-logo-width: 182px;
+  --aei-logo-gap: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 0;
+}
+
+.aei-client-lane {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  overflow: clip;
+  padding: 19px 0;
+  isolation: isolate;
+  touch-action: pan-y;
+}
+
+.aei-client-lane::before,
+.aei-client-lane::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 30px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.aei-client-lane::before {
+  left: 0;
+  background: linear-gradient(90deg, #fff, #ffffff00);
+}
+
+.aei-client-lane::after {
+  right: 0;
+  background: linear-gradient(270deg, #fff, #ffffff00);
+}
+
+.aei-client-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: aei-clients-left 52s linear infinite;
+  animation-play-state: running;
+}
+
+.aei-client-lane-right .aei-client-track {
+  animation-name: aei-clients-right;
+}
+
+.aei-client-lane-left .aei-client-track {
+  animation-duration: 56s;
+}
+
+.aei-client-group {
+  display: flex;
+  align-items: center;
+  gap: var(--aei-logo-gap);
+  padding-right: var(--aei-logo-gap);
+  flex-shrink: 0;
+}
+
+.aei-client-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: 0 0 var(--aei-logo-width);
+  width: var(--aei-logo-width);
+  height: 114px;
+  background: #fff;
+  border: 1px solid #e0e8f0;
+  border-radius: 12px;
+  text-decoration: none !important;
+  box-shadow: 0 3px 10px #1b385203;
+  transition: transform .24s ease, border-color .24s, box-shadow .24s;
+  transform-origin: center;
+  z-index: 1;
+}
+
+.aei-client-logo img {
+  display: block;
+  width: calc(100% - 14px);
+  height: 96px;
+  object-fit: contain;
+  border-radius: 7px;
+  transition: transform .24s ease;
+}
+
+.aei-client-logo:hover,
+.aei-client-logo:focus-visible {
+  transform: scale(1.07);
+  border-color: #5abed5;
+  box-shadow: 0 8px 24px #174c6e16;
+  z-index: 2;
+  outline-offset: 3px;
+}
+
+.aei-client-logo:hover img,
+.aei-client-logo:focus-visible img {
+  transform: scale(1.05);
+}
+
+.aei-client-marquees:has(.aei-client-logo:focus-visible) .aei-client-track,
+.aei-client-marquees[data-paused=true] .aei-client-track {
+  animation-play-state: paused;
+}
+
+@media (hover: hover) {
+  .aei-client-marquees:has(.aei-client-logo:hover) .aei-client-track {
+    animation-play-state: paused;
+  }
+}
+
+.aei-clients-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: center;
+  margin-top: 9px;
+}
+
+.aei-clients-caption p {
+  margin: 0;
+  color: #4b6279;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.aei-clients-caption a {
+  color: #125b73;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  flex: none;
+}
+
+@media (max-width: 767px) {
+  .aei-clients-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .aei-client-marquees {
+    --aei-logo-width: 156px;
+    --aei-logo-gap: 14px;
+  }
+
+  .aei-client-logo {
+    height: 101px;
+  }
+
+  .aei-client-logo img {
+    height: 84px;
+  }
+
+  .aei-client-lane {
+    padding: 15px 0;
+  }
+
+  .aei-client-lane::before,
+  .aei-client-lane::after {
+    width: 16px;
+  }
+
+  .aei-clients-caption {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+@media (hover: none) {
+  .aei-clients-caption p {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-client-logo,
+  .aei-client-logo img {
+    transition: none !important;
+  }
+}
+
+.aei-clients-link {
+  color: #a8e9f6 !important;
+  white-space: nowrap;
+  text-decoration: none;
+  border-bottom: 1px solid #84bac755;
+  margin-left: 4px;
+}
+
+@media (max-width: 767px) {
+  .aei-clients-section {
+    padding-top: 39px;
+    padding-bottom: 37px;
+  }
+
+  .aei-clients-section h2 {
+    font-size: 29px;
+  }
+
+  .aei-clients-link {
+    margin-left: 0;
+  }
+}

@@ -1,0 +1,114 @@
+/* refinements/components/badges
+   Eyebrow, scope badge and e-invoicing badge.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-eyebrow {
+  font-size: 11px;
+  color: #2c66aa;
+  font-weight: 750;
+  letter-spacing: .13em;
+}
+
+.aei-hero .aei-eyebrow {
+  color: #2e6bcc;
+  font-size: 11px;
+}
+
+.aei-scope-badge {
+  color: #235799;
+  background: #eaf3ff;
+  font-size: 10px;
+  padding: 5px 9px;
+  border-radius: 6px;
+}
+
+.aei-billing-bar .aei-eyebrow {
+  margin: 0 0 5px;
+  font-size: 10px;
+}
+
+.aei-invoice-badge {
+  border: 1px solid #bfdef9;
+  background: #edf7ff;
+  padding: 13px 12px;
+  border-radius: 10px;
+}
+
+.aei-invoice-badge strong {
+  color: #174c85;
+  font-size: 12px;
+}
+
+.aei-invoice-badge span {
+  font-size: 10.5px;
+  color: #3f648b;
+}
+
+.aei-invoice-badge>i:first-child,
+.aei-invoice-badge>i:last-child {
+  color: #3075c6;
+}
+
+.aei-invoice-badge>i:last-child {
+  display: none;
+}
+
+.aei-plan-star .aei-invoice-badge {
+  background: #ffffff0b;
+  border-color: #79bbff55;
+}
+
+.aei-plan-star .aei-invoice-badge strong {
+  color: #a5e6ff;
+}
+
+.aei-plan-star .aei-invoice-badge span {
+  color: #c7def8;
+}
+
+.aei-plan-star .aei-invoice-badge i {
+  color: #8adbff;
+}
+
+.aei-final-cta .aei-eyebrow {
+  color: #9fdbff;
+}
+
+@media (max-width: 991px) {
+  .aei-invoice-badge {
+    gap: 7px;
+    padding: 12px 9px;
+  }
+
+  .aei-invoice-badge strong {
+    font-size: 11px;
+  }
+
+  .aei-invoice-badge span {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-hero .aei-eyebrow {
+    font-size: 9px;
+  }
+
+  .aei-scope-badge {
+    font-size: 8px;
+  }
+
+  .aei-invoice-badge {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .aei-invoice-badge strong {
+    font-size: 13px;
+  }
+
+  .aei-invoice-badge span {
+    font-size: 11px;
+  }
+}

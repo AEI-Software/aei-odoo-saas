@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Home, section 6: frequently asked questions, the eight of the published design.
+         The trial and annual-plan answers describe the offer; the internal wiring behind
+         them comes later (owner decision, 2026-11-05). -->
+
+    <template id="home_faq" name="AEI Software home: FAQ">
+        <t t-set="aei_questions" t-value="[
+            ('¿La facturación electrónica está incluida en los tres planes?',
+             'Sí. Starter, Pro y Advanced incluyen facturación electrónica SIAT integrada con tus ventas. Puedes emitir tus facturas desde el mismo flujo, sin contratar un módulo adicional.'),
+            ('¿Todos los planes incluyen contabilidad?',
+             'Sí. Todos comparten ventas y compras, gastos, cobros y pagos, conciliación, contabilidad de partida doble, activos, cierre e informes financieros. Tu contador trabaja con un perfil propio dentro de los usuarios contratados.'),
+            ('¿Qué plan necesito para manejar stock?',
+             'Pro y Advanced incluyen un almacén principal con ubicaciones simples, compras y recepciones, entregas y devoluciones, conteos y valorización. El costo de ventas forma parte del flujo.'),
+            ('¿Y si vendo servicios por horas o hitos?',
+             'Pro y Advanced incluyen proyectos, tareas y entregas, aprobación de horas, facturación por horas o hitos y consulta del margen directo. Para servicios a precio fijo puedes comenzar con Starter.'),
+            ('¿Qué incluye la fabricación de Advanced?',
+             'Listas de materiales de un nivel, órdenes de fabricación, consumos reales, producción total o parcial, mermas, costos de transformación y producción en curso al cierre.'),
+            ('¿Cómo funciona la prueba gratuita?',
+             'Cada plan ofrece 15 días gratis sin tarjeta. Al finalizar, puedes pagar el periodo mensual o anual para continuar. Tu portal muestra las fechas y el estado de tu suscripción.'),
+            ('¿Cuánto ahorro con el plan anual?',
+             'El pago anual tiene un 20% de descuento frente a doce mensualidades. Las tarjetas y el resumen de compra muestran el total anual y el ahorro en bolivianos.'),
+            ('¿Puedo cambiar de plan?',
+             'Puedes solicitar un cambio conservando tus datos e historial. Si reduces el alcance, se revisan primero los procesos y documentos pendientes para mantener un cierre y consulta ordenados.')]"/>
+        <section class="aei-section aei-soft">
+            <div class="aei-container aei-faq-layout">
+                <div class="aei-section-heading aei-reveal">
+                    <span class="aei-eyebrow">RESUELVE TUS DUDAS</span>
+                    <h2>Un plan claro desde el inicio.</h2>
+                    <p>Elige por lo que tu empresa necesita hacer cada día.</p>
+                </div>
+                <div class="aei-faq">
+                    <details t-foreach="aei_questions" t-as="aei_question">
+                        <summary><t t-out="aei_question[0]"/><span aria-hidden="true">+</span></summary>
+                        <p><t t-out="aei_question[1]"/></p>
+                    </details>
+                </div>
+            </div>
+        </section>
+    </template>
+</odoo>
+

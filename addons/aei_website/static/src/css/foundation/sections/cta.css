@@ -1,0 +1,25 @@
+/* foundation/sections/cta
+   Final call to action.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-final-cta {
+  background: var(--aei-ink);
+  color: white;
+}
+
+.aei-final-cta h2 {
+  max-width: 720px;
+  font-size: 35px;
+  margin-bottom: 26px;
+}
+
+.aei-final-cta p {
+  color: #b9c6dc;
+  font-size: 14px;
+}
+
+@media (max-width: 767px) {
+  .aei-final-cta h2 {
+    font-size: 29px;
+  }
+}

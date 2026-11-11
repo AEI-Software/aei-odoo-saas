@@ -1,0 +1,29 @@
+/* refinements/layout/footer
+   Site footer: brand column, link columns and legal line.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-footer {
+  background: #102744 !important;
+}
+
+.aei-footer-grid>div>a:not(.aei-footer-brand) {
+  font-size: 12px;
+  color: #c0d3eb;
+}
+
+.aei-footer-grid p {
+  color: #b8cce5;
+}
+
+.aei-footer-region {
+  color: #a0bbda;
+}
+
+.aei-footer-bottom {
+  color: #adc6e1;
+}
+
+.aei-footer-bottom a {
+  color: #adc6e1;
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Homepage: replaces the default Odoo homepage body and uses its own header and
+         footer. Other pages (shop, portal, backend) keep Odoo's. -->
+
+    <template id="homepage" inherit_id="website.homepage" name="AEI Software homepage">
+        <xpath expr="//div[@id='wrap']" position="replace">
+            <div id="wrap" class="aei-site">
+                <a class="aei-skip-link" href="#aei-main">Ir al contenido</a>
+                <t t-call="aei_website.header"/>
+                <div id="aei-main" class="aei-main">
+                    <t t-call="aei_website.home_hero"/>
+                    <t t-call="aei_website.home_clients"/>
+                    <t t-call="aei_website.home_processes"/>
+                    <t t-call="aei_website.home_profiles"/>
+                    <t t-call="aei_website.home_plans"/>
+                    <t t-call="aei_website.home_faq"/>
+                    <t t-call="aei_website.home_cta"/>
+                </div>
+                <t t-call="aei_website.footer"/>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Hide Odoo's own header and footer on the homepage (the page carries its own).
+         A function, not a record: website.homepage_page is noupdate, so a record here
+         would be skipped on upgrade and the result would depend on how the module was
+         installed. The method also reaches the per-website copies of the page. -->
+    <function model="website.page" name="aei_use_own_chrome_on_homepage"/>
+</odoo>
+

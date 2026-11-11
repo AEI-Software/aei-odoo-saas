@@ -1,0 +1,55 @@
+/* refinements/sections/features
+   Connected processes: feature cards.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-feature {
+  padding: 29px;
+  border-radius: 17px;
+  border-color: #dce7f5;
+}
+
+.aei-feature:hover {
+  border-color: #8ab4ef;
+  box-shadow: 0 15px 35px #26518a0b;
+}
+
+.aei-feature-icon {
+  background: #edf5ff;
+  color: #3978f3;
+  border-color: #d8e7fb;
+  border-radius: 11px;
+}
+
+.aei-feature p {
+  font-size: 14px;
+  color: #4b6383;
+}
+
+.aei-feature h3 {
+  font-size: 21px;
+}
+
+@media (max-width: 767px) {
+  .aei-feature-grid {
+    gap: 16px;
+  }
+
+  .aei-feature {
+    padding: 23px 19px;
+  }
+
+  .aei-feature h3 {
+    font-size: 20px;
+  }
+
+  .aei-feature p {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 400px) {
+  .aei-feature-grid {
+    grid-template-columns: 1fr;
+  }
+}

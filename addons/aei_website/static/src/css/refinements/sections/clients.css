@@ -1,0 +1,9 @@
+/* refinements/sections/clients
+   Client logos marquee.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-hero-clients .aei-clients-link {
+  color: #2e629e !important;
+  border-color: #a6c8ee;
+}

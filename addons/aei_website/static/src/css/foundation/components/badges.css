@@ -1,0 +1,143 @@
+/* foundation/components/badges
+   Eyebrow, scope badge and e-invoicing badge.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-eyebrow {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: .14em;
+  font-weight: 700;
+  line-height: 1.6;
+  color: #537483;
+  margin-bottom: 16px;
+}
+
+.aei-hero .aei-eyebrow {
+  color: #74d9eb;
+  font-size: 10px;
+}
+
+.aei-scope-badge {
+  display: inline-block;
+  align-self: flex-start;
+  background: #eef5f8;
+  color: #3d7586;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  padding: 4px 7px;
+  line-height: 1.5;
+}
+
+.aei-final-cta .aei-eyebrow {
+  color: #7be4f8;
+}
+
+.aei-dialog-head .aei-eyebrow {
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .aei-hero-copy .aei-eyebrow {
+    font-size: 9px;
+  }
+
+  .aei-eyebrow {
+    font-size: 9px;
+    margin-bottom: 12px;
+  }
+
+  .aei-scope-badge {
+    font-size: 8px;
+  }
+}
+
+.aei-scope-badge {
+  color: #07566e;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.aei-dialog-head .aei-eyebrow {
+  font-size: 11px;
+  color: #1b5870;
+}
+
+.aei-invoice-badge {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 12px;
+  background: #eafaff;
+  border: 1px solid #a1d9e7;
+  border-radius: 9px;
+  margin: 0 0 20px;
+  color: #07566e;
+  text-align: left;
+}
+
+.aei-invoice-badge>i:first-child {
+  font-size: 22px;
+  flex: none;
+  color: #087d99;
+}
+
+.aei-invoice-badge>i:last-child {
+  font-size: 17px;
+  color: #07728b;
+  margin-left: auto;
+  flex: none;
+}
+
+.aei-invoice-badge>div {
+  min-width: 0;
+}
+
+.aei-invoice-badge strong {
+  display: block;
+  color: #064e65;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -.015em;
+  line-height: 1.55;
+}
+
+.aei-invoice-badge span {
+  display: block;
+  color: #215e72;
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 1.65;
+  margin-top: 2px;
+}
+
+@media (max-width: 991px) {
+  .aei-invoice-badge {
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .aei-invoice-badge>i:first-child {
+    font-size: 19px;
+  }
+
+  .aei-invoice-badge>i:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-invoice-badge {
+    padding: 13px 14px;
+    gap: 11px;
+  }
+
+  .aei-invoice-badge>i:first-child {
+    font-size: 22px;
+  }
+
+  .aei-invoice-badge>i:last-child {
+    display: block;
+  }
+}

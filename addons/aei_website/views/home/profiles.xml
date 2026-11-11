@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Home, section 4: company profiles. All three panels are rendered; the widget
+         only toggles which one is visible, so no markup is built in JavaScript. -->
+
+    <template id="home_profiles" name="AEI Software home: company profiles">
+        <t t-set="aei_profiles" t-value="[
+            {'id': 'commerce', 'star': False, 'icon': '▦',
+             'kicker': 'EMPRESAS COMERCIALES',
+             'headline': ('Vende con', 'todo bajo control.'),
+             'caption': 'Pro · Inventario y finanzas conectados',
+             'badge': 'Pro · Comercio con stock',
+             'title': 'Compra, vende y conoce tus existencias.',
+             'steps': ['Compra y recibe mercancía', 'Vende, reserva y entrega', 'Factura y registra el cobro',
+                       'Revisa costos y existencias', 'Concilia y cierra con tu contador'],
+             'note': '', 'cta': 'Conocer Pro'},
+            {'id': 'industry', 'star': True, 'icon': '◇',
+             'kicker': 'EMPRESAS INDUSTRIALES',
+             'headline': ('De la materia prima', 'a nuevas posibilidades.'),
+             'caption': 'Advanced · Producción, costos y gestión',
+             'badge': 'Advanced · Fabricación básica',
+             'title': 'Del material al producto terminado.',
+             'steps': ['Compra y recibe materiales', 'Prepara la lista y la orden de fabricación',
+                       'Registra consumos, terminados y mermas', 'Revisa el costo y la producción en curso',
+                       'Vende, cobra y concilia el cierre'],
+             'note': '', 'cta': 'Conocer Advanced'},
+            {'id': 'services', 'star': False, 'icon': '◷',
+             'kicker': 'EMPRESAS DE SERVICIOS',
+             'headline': ('Tu talento.', 'Mejores resultados.'),
+             'caption': 'Pro · Proyectos, horas y margen',
+             'badge': 'Pro · Proyectos, horas e hitos',
+             'title': 'Convierte el trabajo ejecutado en ingresos.',
+             'steps': ['Cotiza y confirma el acuerdo', 'Organiza tareas y entregas',
+                       'Registra horas o hitos aprobados', 'Factura, cobra y refactura gastos',
+                       'Revisa el margen y cierra el proyecto'],
+             'note': 'Para servicios a precio fijo, puedes empezar con Starter.', 'cta': 'Conocer Pro'}]"/>
+        <section class="aei-section aei-verticals" id="tu-empresa">
+            <div class="aei-container">
+                <div class="aei-vertical-heading">
+                    <div>
+                        <span class="aei-eyebrow">UN SISTEMA. TU FORMA DE TRABAJAR.</span>
+                        <h2>Hecho para tu<br/>próximo gran paso.</h2>
+                    </div>
+                    <p>Comercio, industria o servicios.<br/>Encuentra el alcance que conecta tu operación.</p>
+                </div>
+                <div class="aei-vertical-grid" role="tablist" aria-label="Tipo de empresa" data-aei-profile-tabs="">
+                    <button t-foreach="aei_profiles" t-as="aei_profile" type="button" role="tab"
+                            t-attf-class="aei-vertical-tab #{'aei-vertical-star' if aei_profile['star'] else ''}"
+                            t-att-id="'aei-profile-tab-' + aei_profile['id']"
+                            t-att-aria-selected="'true' if aei_profile_first else 'false'"
+                            t-att-aria-controls="'aei-profile-panel-' + aei_profile['id']"
+                            t-att-tabindex="'0' if aei_profile_first else '-1'"
+                            t-att-data-aei-profile="aei_profile['id']">
+                        <span t-if="aei_profile['star']" class="aei-star-label">★ ADVANCED · PLAN ESTRELLA</span>
+                        <span class="aei-vertical-icon" aria-hidden="true"><t t-out="aei_profile['icon']"/></span>
+                        <span class="aei-vertical-kicker"><t t-out="aei_profile['kicker']"/></span>
+                        <strong><t t-out="aei_profile['headline'][0]"/><br/><t t-out="aei_profile['headline'][1]"/></strong>
+                        <span><t t-out="aei_profile['caption']"/></span>
+                    </button>
+                </div>
+                <div t-foreach="aei_profiles" t-as="aei_profile"
+                     class="aei-profile-panel aei-profile-wide" role="tabpanel"
+                     t-att-id="'aei-profile-panel-' + aei_profile['id']"
+                     t-att-aria-labelledby="'aei-profile-tab-' + aei_profile['id']"
+                     t-att-hidden="None if aei_profile_first else 'hidden'">
+                    <div>
+                        <span class="aei-scope-badge"><t t-out="aei_profile['badge']"/></span>
+                        <h3><t t-out="aei_profile['title']"/></h3>
+                    </div>
+                    <ol class="aei-flow-steps">
+                        <li t-foreach="aei_profile['steps']" t-as="aei_step"><t t-out="aei_step"/></li>
+                    </ol>
+                    <p t-if="aei_profile['note']" class="aei-profile-note"><t t-out="aei_profile['note']"/></p>
+                    <a class="aei-btn aei-btn-primary" href="#planes"><t t-out="aei_profile['cta']"/> ↗</a>
+                </div>
+            </div>
+        </section>
+    </template>
+</odoo>
+

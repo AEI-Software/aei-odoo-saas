@@ -1,0 +1,118 @@
+/* foundation/layout/footer
+   Site footer: brand column, link columns and legal line.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-footer {
+  background: #151d30 !important;
+  color: #b7c2d5 !important;
+  font: 12px/1.7 Inter, Arial, sans-serif;
+  padding: 48px 0 0;
+}
+
+.aei-footer-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 75px;
+}
+
+.aei-footer-brand {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: #fff !important;
+  font-weight: 650;
+  font-size: 29px;
+  letter-spacing: -.04em;
+  display: inline-flex;
+  gap: 8px;
+  align-items: baseline;
+  text-decoration: none !important;
+  margin-bottom: 14px;
+}
+
+.aei-footer-brand>span {
+  font: 11px Inter, sans-serif;
+  color: #8dc8df;
+  letter-spacing: 0;
+}
+
+.aei-footer-grid p {
+  font-size: 12px;
+  color: #91a0ba;
+  line-height: 1.9;
+  max-width: 300px;
+}
+
+.aei-footer-region {
+  font-size: 10px;
+  color: #6f819e;
+}
+
+.aei-footer h3 {
+  font-size: 11px;
+  font-family: Inter, sans-serif;
+  letter-spacing: 0;
+  color: #e4ecf6 !important;
+  font-weight: 600;
+  margin: 9px 0 18px;
+}
+
+.aei-footer-grid>div>a:not(.aei-footer-brand) {
+  display: block;
+  color: #9eafc7;
+  font-size: 11px;
+  margin-bottom: 9px;
+  text-decoration: none;
+}
+
+.aei-footer a:hover {
+  color: #6dd5ee !important;
+}
+
+.aei-footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid #ffffff0d;
+  margin-top: 40px;
+  padding: 18px 0;
+  color: #6e829f;
+  font-size: 10px;
+}
+
+.aei-footer-bottom a {
+  color: #7f94b1;
+  text-decoration: none;
+}
+
+@media (max-width: 991px) {
+  .aei-footer-grid {
+    gap: 35px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-footer {
+    padding-top: 36px;
+  }
+
+  .aei-footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 23px;
+  }
+
+  .aei-footer-grid>div:first-child {
+    grid-column: 1/-1;
+  }
+
+  .aei-footer-grid p {
+    max-width: 350px;
+  }
+
+  .aei-footer-grid>div>a:not(.aei-footer-brand) {
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+
+  .aei-footer-bottom {
+    margin-top: 25px;
+  }
+}

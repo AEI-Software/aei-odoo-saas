@@ -1,0 +1,12 @@
+/* refinements/sections/faq
+   Frequently asked questions.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-faq p {
+  color: #46607f;
+}
+
+.aei-faq summary {
+  color: #1b3b65;
+}

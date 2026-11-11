@@ -30,27 +30,35 @@ Internet → Cloudflare Tunnel → Traefik (K3s ingress)
 
 ## Addons incluidos
 
-| Módulo | Descripción |
-|---|---|
-| `payment_qr_mercantil` | Pago por QR — Banco Mercantil Santa Cruz (mc4.com.bo) |
-| `odoo_k8s_saas` | UI admin de instancias SaaS (kanban, estados, acciones K8s) |
-| `odoo_k8s_saas_subscription` | Bridge de suscripciones OCA ↔ SaaS instances |
-| `subscription_oca` | Contratos de suscripción recurrentes — vendored en `external_addons/` desde [OCA/contract](https://github.com/OCA/contract) (branch `18.0`); sincronizar con `scripts/sync-oca-contract.sh` |
+Todos los módulos propios viven bajo [`addons/`](addons/) (cada uno con su propio subagente `AGENTS.md`) y los de terceros bajo [`external_addons/`](external_addons/):
+
+| Módulo | Ruta | Descripción |
+|---|---|---|
+| `aei_website` | `addons/aei_website` | Sitio web público y Landing Page de AEI Software (CSS puro sin Bootstrap, planes SaaS y catálogo de módulos) |
+| `odoo_k8s_saas` | `addons/odoo_k8s_saas` | UI admin de instancias SaaS (kanban, estados, acciones K8s) |
+| `odoo_k8s_saas_subscription` | `addons/odoo_k8s_saas_subscription` | Bridge de suscripciones OCA ↔ instancias SaaS, checkout y portal de clientes |
+| `odoo_k8s_saas_support` | `addons/odoo_k8s_saas_support` | Bolsa de horas de soporte mensual e integración con tickets Helpdesk |
+| `payment_qr_mercantil` | `addons/payment_qr_mercantil` | Pasarela de pago por QR — Banco Mercantil Santa Cruz (mc4.com.bo) |
+| `saas_security_hardening` | `addons/saas_security_hardening` | Endurecimiento de cookies de sesión (`Secure`, `HttpOnly`, `SameSite=Lax`) y protección anti-enumeración en `/web/reset_password` |
+| `subscription_oca` | `external_addons/subscription_oca` | Contratos de suscripción recurrentes — vendored desde [OCA/contract](https://github.com/OCA/contract) (branch `18.0`); sincronizar con `scripts/sync-oca-contract.sh` |
 
 ---
 
-## Security Features
+## Security & DevSecOps Features
 
 | Feature | Implementation |
 |:--------|:-------------|
 | SQL Injection Protection | DDL queries use `psycopg2.sql.Identifier()` — no f-strings |
+| Session & Auth Hardening | `saas_security_hardening` enforces `Secure/HttpOnly/SameSite=Lax` cookies & generic password-reset responses |
+| CSRF & Safe DOM | Mandatory `csrf_token` on all browser POST forms; zero `innerHTML`/`eval` in frontend JS |
 | NetworkPolicy | Default-deny + whitelist for `odoo-admin`; per-tenant isolation |
 | PodDisruptionBudgets | `minAvailable: 1` for portal and odoo-admin |
 | Liveness Probes | All services: portal (`/healthz`), odoo-admin (`/web/health`), tenants |
 | Tenant ID Validation | `@api.constrains` regex + min 2 chars + SQL `UNIQUE` |
-| Secrets Management | K8s Secrets + ConfigMap (passwords embedded at provision time) |
-| Image Pinning | `cloudflared:2026.3.0`, no `:latest` |
+| Secrets Management | K8s Secrets + ConfigMap (passwords embedded at provision time); Gitleaks blocks secrets in Git |
+| Image & Action Pinning | `cloudflared:2026.3.0`, no `:latest`; GitHub Actions pinned to 40-char commit SHAs |
 | Data Protection on Close | Subscription "Closed" → `action_stop()` suspends pods, preserves PVC+DB |
+| Automated DevSecOps Gates | 6 CI gates in [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml): Gitleaks, Bandit + Semgrep (OWASP Top 10), `pip-audit` + Trivy FS, Trivy K8s Config, `structure_gate.py` + `security_gate.sh` + `flake8`, and Trivy Container Image scan |
 
 ---
 
@@ -78,10 +86,37 @@ Internet → Cloudflare Tunnel → Traefik (K3s ingress)
 
 ## Day 0 — Instalación desde cero
 
-> **Prerequisites:**
-> - Ubuntu 22.04 / Debian 12 VM con `root` o `sudo`
-> - Dominio DNS apuntando al servidor (o Cloudflare tunnel token)
-> - GHCR token con acceso read a `ghcr.io/aei-software/aei-odoo-saas/portal:latest`
+Existen dos modos de instalación sobre **K3s**:
+- **Opción A — Desarrollo Local con K3s (WSL / Linux en una sola máquina):** usa [`./dev-setup.sh`](dev-setup.sh), almacenamiento nativo `local-path` de K3s, PostgreSQL 16 interno ([`k8s/dev/02-postgres-local.yaml`](k8s/dev/02-postgres-local.yaml)) y monta directamente tu carpeta local `addons/`. No requiere Ceph, Cloudflare Tunnel ni S3 externo.
+- **Opción B — Servidor Cloud de Producción (Multi-nodo + Ceph RBD + PostgreSQL HA externo):** usa [`infra/apply-manifests.sh`](infra/apply-manifests.sh).
+
+---
+
+### Opción A — Desarrollo Local en K3s (WSL / Linux)
+
+```bash
+chmod +x dev-setup.sh
+./dev-setup.sh
+```
+
+**Qué hace automáticamente `./dev-setup.sh`:**
+1. Configura `/etc/hosts` local para `www.aeisoftware.com`, `admin.aeisoftware.com` y `portal.aeisoftware.com`.
+2. Instala K3s (si no está instalado), copia el kubeconfig a `~/.kube/config` (compatible con `kubectl` de Snap) y despliega Traefik vía Helm.
+3. Construye la imagen local `saas-portal:dev` y la importa en el `containerd` de K3s.
+4. Despliega PostgreSQL 16 local en K3s (`k8s/dev/02-postgres-local.yaml`, puertos `5000` y `5432`, `storageClassName: local-path`).
+5. Despliega `portal` y `odoo-admin` usando almacenamiento `local-path` y copiando directamente tus carpetas locales `addons/` y `external_addons/`.
+6. Expone Odoo en `http://www.aeisoftware.com` (`:8069`) y el Portal FastAPI en `http://portal.aeisoftware.com/docs` (`:8000/docs`).
+
+Una vez que `./dev-setup.sh` termina, inicializá por primera vez los módulos en la base `admin` de K3s (ver **Paso 7** más abajo).
+
+---
+
+### Opción B — Servidor Cloud de Producción (Day 0)
+
+> **Prerequisites (Producción):**
+> - Ubuntu 22.04 / Debian 12 VM con `root` o `sudo`, almacenamiento Ceph RBD (`ceph-rbd`) y clúster PostgreSQL HA externo (`192.168.0.x:5000`)
+> - Dominio DNS apuntando al servidor y Cloudflare Tunnel token
+> - GHCR token con acceso read a `ghcr.io/aei-software/aei-odoo-saas/*`
 > - Credenciales MC4 del Banco Mercantil (si usas `payment_qr_mercantil` en producción)
 
 ---
@@ -102,17 +137,21 @@ cp .secrets.env.example .secrets.env
 nano .secrets.env          # completar TODOS los valores — nunca hacer commit de este archivo
 ```
 
-**Variables requeridas en `.secrets.env`:**
+**Variables requeridas en `.secrets.env` por `infra/apply-manifests.sh`:**
 
 | Variable | Requerida | Descripción | Ejemplo |
 |---|---|---|---|
 | `DB_PASSWORD` | ✅ sí | Contraseña del usuario `odoo` en PostgreSQL | `S3cre7DB!` |
 | `ADMIN_PASSWD` | ✅ sí | Master password de Odoo (para gestión de bases de datos) | `MasterP4ss!` |
-| `API_KEY` | ✅ sí | Clave secreta del portal FastAPI (Bearer token) | `uuid4-largo` |
-| `CLOUDFLARE_TUNNEL_TOKEN` | ⚡ opcional | Token del tunnel en Cloudflare Zero Trust Dashboard | `eyJ...` |
+| `API_KEY` | ✅ sí | Clave secreta del portal FastAPI (`X-API-Key` / Bearer) | `uuid4-largo` |
+| `CLOUDFLARE_TUNNEL_TOKEN` | ✅ sí | Token del tunnel en Cloudflare Zero Trust Dashboard | `eyJ...` |
+| `BACKUP_S3_ACCESS_KEY` | ✅ sí | Access Key de RadosGW / S3 para CronJobs de backup | `AKIA...` |
+| `BACKUP_S3_SECRET_KEY` | ✅ sí | Secret Key de RadosGW / S3 para CronJobs de backup | `s3cr3t...` |
+| `BACKUP_PG_SUPERUSER_PASSWORD` | ✅ sí | Contraseña del rol superusuario `postgres` (para `pg_dump`) | `PgSup3r!` |
+| `SAAS_WEBHOOK_KEY` | ✅ sí | Secreto compartido entre el portal FastAPI y el webhook de Odoo | `openssl rand -hex 32` |
 
 > **`.secrets.env` está en `.gitignore` — nunca se commitea.**
-> El script `apply-manifests.sh` lo inyecta como Kubernetes Secrets al momento del despliegue.
+> El script `apply-manifests.sh` valida que ninguna de las 8 variables tenga el placeholder `change_me` y las inyecta como Kubernetes Secrets.
 
 ---
 
@@ -123,6 +162,7 @@ bash infra/install-k3s.sh
 ```
 
 Instala K3s con `--disable=traefik` y espera a que el nodo quede `Ready`.
+*(Si en tu sistema tenés `/snap/bin/kubectl`, copiá antes o después `/etc/rancher/k3s/k3s.yaml` a `~/.kube/config`).*
 
 ---
 
@@ -136,21 +176,22 @@ Instala Traefik con Helm en el namespace `kube-system` como controlador de ingre
 
 ---
 
-### Paso 5 — Aplicar todos los manifests
+### Paso 5 — Aplicar todos los manifests (Producción)
 
 ```bash
-bash infra/apply-manifests.sh
+KUBECONFIG=/etc/rancher/k3s/k3s.yaml bash infra/apply-manifests.sh
 ```
 
 El script:
-1. Lee `.secrets.env` y valida que no haya placeholders `change_me`
-2. Crea namespaces `aeisoftware` y `odoo-admin` si no existen
-3. Crea el PVC `odoo-admin-data` (20Gi) si no existe
+1. Lee `.secrets.env` y valida que las 8 variables requeridas no tengan placeholders `change_me`
+2. Crea namespaces `aeisoftware`, `odoo-admin`, `backup-system` y `cloudflare` si no existen
+3. Crea el PVC `odoo-admin-data` (20Gi, `ceph-rbd`) si no existe
 4. Crea Kubernetes Secrets a partir de las variables env (nunca desde archivos git)
-5. Aplica los manifests `k8s/0*.yaml` en orden (saltando `01-secrets.yaml`)
-6. Espera a que PostgreSQL esté `Ready`
+5. Aplica los manifests `k8s/backup/*.yaml` y `k8s/0*.yaml` en orden (saltando `01-secrets.yaml`)
+6. Verifica los endpoints de PostgreSQL HA (`192.168.0.x:5000`)
 
-> **Dry-run:** `bash infra/apply-manifests.sh --dry-run` muestra qué se aplicaría sin tocar el cluster.
+> **Dry-run:** `KUBECONFIG=/etc/rancher/k3s/k3s.yaml bash infra/apply-manifests.sh --dry-run` muestra qué se aplicaría sin tocar el cluster.
+> **Nota para WSL / Laptop local:** Si estás en tu máquina de desarrollo sin Ceph ni PostgreSQL HA externo, en lugar del Paso 5 ejecutá `./dev-setup.sh` (ver **Opción A** arriba).
 
 ---
 
@@ -182,15 +223,20 @@ Una vez que el pod `odoo-admin` esté `Running`:
 
 ### Paso 7 — Instalar / actualizar módulos Odoo
 
-Solo la **primera vez** (o cuando hay cambios de esquema en modelos):
+La **primera vez** en una base `admin` recién creada, usar `-i` (para instalar); en actualizaciones posteriores de esquema, usar `-u`:
 
 ```bash
 POD=$(kubectl get pod -n odoo-admin -l app=odoo-admin -o jsonpath='{.items[0].metadata.name}')
 
-# Instalar todos los módulos del repo
+# Primera vez (instalar todos los módulos del repo en la base 'admin'):
 kubectl exec -n odoo-admin $POD -- \
-  odoo -u payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,subscription_oca \
-  -d admin --stop-after-init --no-http
+  odoo -i payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,odoo_k8s_saas_support,saas_security_hardening,aei_website,subscription_oca \
+  -d admin --stop-after-init --http-port=8099
+
+# Actualizaciones posteriores (cuando los módulos ya están instalados):
+kubectl exec -n odoo-admin $POD -- \
+  odoo -u payment_qr_mercantil,odoo_k8s_saas,odoo_k8s_saas_subscription,odoo_k8s_saas_support,saas_security_hardening,aei_website,subscription_oca \
+  -d admin --stop-after-init --http-port=8099
 
 # Luego restart limpio
 kubectl rollout restart deployment/odoo-admin -n odoo-admin
@@ -222,7 +268,7 @@ POD=$(kubectl get pod -n odoo-admin -l app=odoo-admin -o jsonpath='{.items[0].me
 kubectl logs -n odoo-admin $POD -f
 ```
 
-> No hay CI/CD automático para odoo-admin. El portal **sí** tiene CI via GitHub Actions ([`ci.yaml`](.github/workflows/ci.yaml)) que hace build + push a GHCR. El deploy del portal es manual después del push.
+> En `push` o `pull_request` a `main` / `18.0`, el pipeline DevSecOps ([`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml)) ejecuta automáticamente las 6 puertas de seguridad y calidad y, en `push` a `main`, despliega a Staging. El workflow [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) construye y publica la imagen del portal en GHCR. El despliegue a Producción (`odoo-admin`, rama `18.0`) siempre requiere confirmación manual del operador.
 
 ---
 
@@ -302,7 +348,49 @@ El endpoint:
 
 ```
 aei-odoo-saas/
-├── k8s/                              # Kubernetes manifests
+├── AGENTS.md                         # Orquestador principal (SDD, TDD, Clean Code, reglas de estructura)
+├── CLAUDE.md                         # Guía de arquitectura, ramas, K8s y patrones de seguridad
+├── addons/                           # Módulos propios de Odoo 18 (cada uno con su propio AGENTS.md)
+│   ├── aei_website/                  # Sitio web público y Landing Page (CSS puro sin Bootstrap)
+│   │   ├── AGENTS.md                 # Subagente del módulo web
+│   │   ├── models/                   # Subcarpetas por lógica: plans/, catalog/, pages/
+│   │   ├── views/                    # layout.xml, homepage.xml y subcarpeta views/home/
+│   │   ├── data/                     # saas_plans.xml y catalog/modules.json
+│   │   ├── static/src/               # CSS en dos capas (foundation/ + refinements/), JS y fuentes locales
+│   │   ├── migrations/               # Migraciones de datos post-migrate (18.0.1.1.0)
+│   │   └── tests/                    # Suite TDD (HttpCase, TransactionCase y reglas estáticas)
+│   ├── odoo_k8s_saas/                # UI admin de instancias SaaS y sincronización con K8s
+│   │   ├── AGENTS.md
+│   │   ├── models/                   # saas.instance: aprovisionamiento, upgrade, stop/resume
+│   │   ├── views/                    # Kanban, formulario, lista y acciones
+│   │   ├── data/                     # Categoría SaaS, plantillas de correo y cron de estado
+│   │   └── security/ir.model.access.csv
+│   ├── odoo_k8s_saas_subscription/   # Bridge de suscripciones OCA ↔ instancias K8s y portal
+│   │   ├── AGENTS.md
+│   │   ├── controllers/              # Portal de cliente, guardas de checkout y webhook SaaS
+│   │   ├── models/                   # Hooks de suscripción, orden de venta y plantillas
+│   │   ├── views/                    # Vistas de suscripción, checkout y portal
+│   │   ├── data/                     # Plantillas de suscripción, productos y crons
+│   │   └── security/                 # ir.model.access.csv + ir_rules.xml
+│   ├── odoo_k8s_saas_support/        # Bolsa de horas de soporte mensual y tickets Helpdesk
+│   │   ├── AGENTS.md
+│   │   ├── models/                   # Consumo de horas en helpdesk.ticket y sale.subscription
+│   │   ├── views/                    # Vistas de tickets, suscripciones y portal
+│   │   └── security/ir.model.access.csv
+│   ├── payment_qr_mercantil/         # Pasarela de pago por QR Banco Mercantil (SIP MC4)
+│   │   ├── AGENTS.md
+│   │   ├── controllers/main.py       # /payment/qr_mercantil/webhook, /status, /simulate
+│   │   ├── models/                   # payment.provider y payment.transaction
+│   │   ├── static/src/js/            # Polling de estado, simulación y protección doble-click
+│   │   └── views/                    # Configuración del proveedor y plantilla QR
+│   └── saas_security_hardening/      # Endurecimiento de cookies de sesión y auth_reset
+│       ├── AGENTS.md
+│       └── controllers/auth_reset.py
+├── external_addons/                  # Addons de terceros vendored (subscription_oca, helpdesk_mgmt, etc.)
+├── docs/
+│   ├── specs/                        # Especificaciones SDD (ej. aei-website-landing.md)
+│   └── wiki/                         # Documentación extendida de arquitectura y operaciones
+├── k8s/                              # Manifiestos de Kubernetes
 │   ├── 00-namespace.yaml             # Namespaces (aeisoftware, odoo-admin)
 │   ├── 00-network-policy.yaml        # Base network policies
 │   ├── 01-secrets.yaml               # Placeholder — secretos se aplican vía .secrets.env
@@ -316,58 +404,40 @@ aei-odoo-saas/
 │   ├── 04-rbac.yaml                  # ServiceAccount + ClusterRole + Binding (aeisoftware + staging)
 │   ├── 05-portal.yaml                # Portal FastAPI (4 workers, liveness probe)
 │   ├── 05b-pdb.yaml                  # PodDisruptionBudgets (portal + odoo-admin)
-│   ├── 06-odoo-admin.yaml            # Odoo admin (Deployment + PVC + ConfigMap + Service + Ingress)
+│   ├── 06-odoo-admin.yaml            # Odoo admin (clona y copia addons/* + external_addons/*)
 │   ├── 06b-odoo-admin-netpol.yaml    # NetworkPolicy for odoo-admin (default-deny + whitelist)
-│   ├── 07-staging.yaml               # Complete staging environment
-│   ├── 07-cloudflare-tunnel.yaml     # Cloudflare tunnel alternativo
+│   ├── 07-staging.yaml               # Entorno completo de Staging
 │   ├── 08-backup-cronjob.yaml        # Backup CronJob
-│   ├── dev/                          # Dev environment manifests
-│   └── prod/
-│       └── 06-odoo-admin-cloud.yaml  # Production odoo-admin (liveness probe)
-├── portal/                           # FastAPI portal API
+│   ├── dev/00-dev-secrets.yaml       # Secretos para entorno local de desarrollo
+│   └── prod/06-odoo-admin-cloud.yaml # Deployment de producción odoo-admin
+├── portal/                           # FastAPI portal API (orquestador de clúster K8s)
 │   ├── main.py
 │   ├── routers/instances.py          # Lifecycle API: POST create, PATCH upgrade, DELETE, stop/start
 │   ├── k8s_utils/
-│   │   ├── manifests.py              # PLAN_RESOURCES + manifest generators per tenant
-│   │   └── client.py                 # K8s SDK wrapper (apply, patch, scale, restart)
+│   │   ├── manifests.py              # PLAN_RESOURCES + generadores de manifiestos por tenant
+│   │   └── client.py                 # Wrapper del SDK de K8s (apply, patch, scale, restart)
 │   ├── Dockerfile                    # uvicorn --workers 4
 │   └── requirements.txt
-├── payment_qr_mercantil/             # Odoo addon — pago por QR Banco Mercantil
-│   ├── models/
-│   │   ├── payment_provider.py       # Credenciales, token cache, llamadas MC4 API
-│   │   └── payment_transaction.py    # Renderizado QR, webhook handler, estado TX
-│   ├── controllers/
-│   │   └── main.py                   # /payment/qr_mercantil/webhook, /simulate
-│   ├── static/src/js/
-│   │   └── qr_mercantil_form.js      # Frontend: polling, simulación, doble-click guard
-│   ├── views/
-│   │   └── payment_provider_views.xml # Formulario de configuración (tabs nativos Odoo 18)
-│   └── data/payment_method.xml       # Registro del método de pago
-├── odoo_k8s_saas/                    # Odoo addon — UI admin SaaS instances
-│   ├── models/saas_instance.py       # saas.instance: action_provision, action_upgrade, action_stop/resume
-│   ├── views/saas_instance_views.xml # Kanban, form, list, menú, acciones
-│   ├── data/ir_cron.xml              # Cron: refresh estado cada 2 min
-│   └── security/ir.model.access.csv
-├── odoo_k8s_saas_subscription/       # Odoo addon — bridge de suscripciones OCA ↔ K8s
-│   ├── models/sale_subscription.py   # Hooks: stage_id + template_id; cron override (try/except guard)
-│   ├── views/                        # Kanban extendido, menús de suscripción, portal
-│   ├── data/ir_cron.xml              # Cron: suspender instancias vencidas diariamente
-│   └── security/ir.model.access.csv
 ├── scripts/
 │   ├── reset_transactional_data.sql  # SQL para limpiar datos transaccionales
-│   └── backup-odoo-admin.sh         # Full backup (DB + filestore)
+│   └── backup-odoo-admin.sh          # Full backup (DB + filestore)
 ├── infra/
-│   ├── install-k3s.sh               # Instala K3s sin Traefik integrado
-│   ├── install-traefik.sh           # Instala Traefik via Helm
-│   ├── apply-manifests.sh           # Aplica todos los manifests (lee .secrets.env)
-│   └── create-cf-route.sh           # Helper para rutas Cloudflare
-├── k8s/dev/
-│   └── 00-dev-secrets.yaml          # Secretos para entorno local de desarrollo
+│   ├── install-k3s.sh                # Instala K3s sin Traefik integrado
+│   ├── install-traefik.sh            # Instala Traefik via Helm
+│   ├── apply-manifests.sh            # Aplica todos los manifests (lee .secrets.env)
+│   └── create-cf-route.sh            # Helper para rutas Cloudflare
 ├── dev-setup.sh                      # Bootstrap automático K3s local (WSL / Linux)
+├── bandit.yaml                       # Configuración de análisis SAST Python (Bandit)
+├── .gitleaks.toml                    # Reglas de detección de secretos (Gitleaks)
 ├── .secrets.env.example              # Plantilla — copiar a .secrets.env y completar
-├── .gitignore                        # .secrets.env excluido
-└── .github/workflows/
-    └── ci.yaml                       # CI: build + push portal:latest a GHCR en push a main
+└── .github/
+    ├── scripts/
+    │   ├── structure_gate.py         # Gate de estructura: <=250 líneas, subcarpetas en models/, docstrings
+    │   ├── structure_baseline.json   # Baseline congelado de archivos legados
+    │   └── security_gate.sh          # Gate OWASP: cero secretos, CSRF, .sudo() auditados, cero :latest
+    └── workflows/
+        ├── ci-cd.yml                 # Pipeline DevSecOps de 6 puertas + deploy a Staging
+        └── ci.yaml                   # Build + push de imagen del portal FastAPI a GHCR
 ```
 
 > **Nota:** `subscription_oca` está vendored en `external_addons/` (fuente:
@@ -388,16 +458,28 @@ El `IngressRoute` de Traefik por tenant enruta por header `Host:`.
 
 ---
 
-## GitHub Actions CI (portal solamente)
+## CI/CD y Pipeline DevSecOps (GitHub Actions)
 
-El workflow [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) usa permisos `packages: write` y `GITHUB_TOKEN` (automático, no requiere configuración manual).
+El repositorio cuenta con dos workflows automatizados en [`.github/workflows/`](.github/workflows/):
 
+### 1. Pipeline Principal de Calidad, DevSecOps y Staging ([`ci-cd.yml`](.github/workflows/ci-cd.yml))
+Se ejecuta en cada `push` y `pull_request` hacia `main` y `18.0` (con todas las acciones fijadas por hash SHA de 40 caracteres y permisos mínimos):
+
+1. **`secrets` (Gitleaks):** escanea el historial y el árbol de trabajo con [`.gitleaks.toml`](.gitleaks.toml) para bloquear cualquier credencial, token o clave privada.
+2. **`sast` (Bandit + Semgrep OWASP Top 10):** analiza vulnerabilidades estáticas en Python (`addons/` y `portal/`) usando [`bandit.yaml`](bandit.yaml) y reglas `p/owasp-top-ten`.
+3. **`sca` (`pip-audit` + Trivy FS):** audita dependencias de Python y el sistema de archivos en busca de CVEs críticos o altos.
+4. **`k8s-security` (Trivy Config):** valida los manifiestos de [`k8s/`](k8s/) y prohíbe el uso de imágenes con tag `:latest`.
+5. **`validate` (Lint + Structure Gate + Security Gate):**
+   - Verifica compilación Python y reglas críticas de `flake8`.
+   - Ejecuta [`python3 .github/scripts/structure_gate.py`](.github/scripts/structure_gate.py): exige que todo archivo `.py` y `.xml` nuevo bajo `addons/` tenga **<= 200 líneas (máximo duro 250)**, subcarpetas por lógica dentro de `models/`, docstrings en clases/métodos y comentarios en vistas XML.
+   - Ejecuta [`bash .github/scripts/security_gate.sh`](.github/scripts/security_gate.sh): verifica ausencia de secretos hardcodeados, `csrf=False` no autorizados, `shell=True`, `verify=False`, `:latest` y audita el uso de `.sudo()`.
+6. **`build-and-scan` + `deploy-staging`:** construye la imagen Docker, la escanea con Trivy Image (`CRITICAL,HIGH`) y, en `push` a `main`, despliega automáticamente al entorno de Staging.
+
+### 2. Build de Imagen del Portal FastAPI ([`ci.yaml`](.github/workflows/ci.yaml))
 En cada push a `main`:
-1. Build imagen Docker del portal con Docker Buildx + layer cache
-2. Push a `ghcr.io/aei-software/aei-odoo-saas/portal:latest` y `:$SHA`
-3. **Deploy manual:** SSH al servidor y ejecutar `kubectl -n aeisoftware rollout restart deployment/portal`
-
-> El deploy del portal no es automático. Tras el push a GHCR, el operador debe reiniciar el deployment manualmente.
+1. Construye la imagen Docker de `portal/` con Docker Buildx + layer cache.
+2. Publica en `ghcr.io/aei-software/aei-odoo-saas/portal` con el SHA del commit.
+3. Para aplicar en producción (`aeisoftware`), el operador ejecuta `kubectl -n aeisoftware rollout restart deployment/portal`.
 
 ---
 

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Home, section 3: connected processes (feature cards). Each card opens the dialog of
+         its module (views/home/module_dialogs.xml); the last value of each row is the module id. -->
+
+    <template id="home_processes" name="AEI Software home: processes">
+        <t t-set="aei_features" t-value="[
+            ('fa-file-text-o', 'En todos los planes', 'Vende y cobra',
+             'Facturación electrónica integrada, cotizaciones, anticipos y seguimiento de cobros.', 'sales'),
+            ('fa-balance-scale', 'En todos los planes', 'Ordena tus finanzas',
+             'Compras, gastos, caja, bancos y contabilidad con tu contador.', 'banking'),
+            ('fa-cubes', 'Desde Pro', 'Conoce tu stock',
+             'Recepciones, entregas, devoluciones, conteos y costo de ventas.', 'inventory'),
+            ('fa-tasks', 'Desde Pro', 'Gestiona tu trabajo',
+             'Tareas, horas aprobadas, hitos, gastos y margen por proyecto.', 'projects'),
+            ('fa-cogs', 'En Advanced', 'Conecta tu producción',
+             'Materiales, fabricación, consumos reales y costos al cierre.', 'manufacturing'),
+            ('fa-shield', 'En todos los planes', 'Conserva el control',
+             'Roles, trazabilidad, respaldos, exportación y ayuda para tu equipo.', 'continuity')]"/>
+        <section class="aei-section" id="procesos">
+            <div class="aei-container">
+                <div class="aei-section-heading aei-reveal">
+                    <span class="aei-eyebrow">DE LA OPERACIÓN A LOS NÚMEROS</span>
+                    <h2>Procesos conectados.<br/>Información que te sirve.</h2>
+                    <p>Explora lo que puedes resolver con cada alcance.</p>
+                </div>
+                <div class="aei-feature-grid">
+                    <article class="aei-feature aei-reveal" t-foreach="aei_features" t-as="aei_feature">
+                        <div class="aei-feature-top">
+                            <span class="aei-feature-icon"><i t-attf-class="fa #{aei_feature[0]}" aria-hidden="true"></i></span>
+                            <span class="aei-scope-badge"><t t-out="aei_feature[1]"/></span>
+                        </div>
+                        <h3><t t-out="aei_feature[2]"/></h3>
+                        <p><t t-out="aei_feature[3]"/></p>
+                        <button type="button" class="aei-text-button" t-att-data-aei-module-details="aei_feature[4]">
+                            Explorar procesos <span aria-hidden="true">↗</span>
+                        </button>
+                    </article>
+                </div>
+                <t t-call="aei_website.module_dialogs"/>
+            </div>
+        </section>
+    </template>
+</odoo>

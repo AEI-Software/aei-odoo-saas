@@ -1,0 +1,78 @@
+/* foundation/sections/faq
+   Frequently asked questions.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-faq-layout {
+  display: grid;
+  grid-template-columns: .8fr 1.2fr;
+  gap: 80px;
+  align-items: start;
+}
+
+.aei-faq details {
+  border-top: 1px solid #dce4ed;
+  padding: 0 0 0;
+}
+
+.aei-faq details:last-child {
+  border-bottom: 1px solid #dce4ed;
+}
+
+.aei-faq summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 25px;
+  padding: 20px 0;
+  font-size: 13px;
+  color: #364b65;
+  list-style: none;
+  font-weight: 550;
+  cursor: pointer;
+  line-height: 1.6;
+}
+
+.aei-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.aei-faq summary>span {
+  color: #8291a6;
+}
+
+.aei-faq details[open] summary>span {
+  transform: rotate(45deg);
+}
+
+.aei-faq p {
+  font-size: 12px;
+  color: #67788e;
+  line-height: 1.85;
+  margin: 0 24px 21px 0;
+}
+
+@media (max-width: 1199px) {
+  .aei-faq-layout {
+    gap: 45px;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-faq-layout {
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-faq-layout {
+    gap: 0;
+  }
+
+  .aei-faq summary {
+    font-size: 12px;
+  }
+
+  .aei-faq p {
+    font-size: 12px;
+  }
+}

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Home, section 2: client logos. Each lane renders its list twice per group so
+         the CSS animation loops without a visible jump. The copies are hidden from
+         assistive technology. -->
+
+    <template id="home_clients" name="AEI Software home: clients">
+        <section class="aei-section aei-clients-section" id="clientes">
+            <div class="aei-container">
+                <div class="aei-clients-heading">
+                    <div class="aei-section-heading aei-reveal">
+                        <span class="aei-eyebrow">NUESTROS CLIENTES</span>
+                        <h2>Empresas que confían en AEI Software.</h2>
+                    </div>
+                    <button type="button" class="aei-clients-pause" data-aei-client-motion="" aria-pressed="false" aria-controls="aei-client-marquees">
+                        <span data-aei-client-motion-icon="" aria-hidden="true">Ⅱ</span>
+                        <span data-aei-client-motion-label="">Pausar logos</span>
+                    </button>
+                </div>
+                <div class="aei-client-marquees" id="aei-client-marquees">
+                    <t t-call="aei_website.client_lane">
+                        <t t-set="aei_lane_class" t-value="'aei-client-lane-right'"/>
+                        <t t-set="aei_lane_label" t-value="'Clientes, fila 1'"/>
+                        <t t-set="aei_lane_clients" t-value="[
+                            ('telko', 'Telko'), ('tumi', 'Tumi'), ('cronolait', 'Cronolait'),
+                            ('frutys', 'Frutys'), ('urzacom', 'Urzacom'), ('casa-blanca', 'Casa Blanca'),
+                            ('insumedic', 'Insumedic')]"/>
+                    </t>
+                    <t t-call="aei_website.client_lane">
+                        <t t-set="aei_lane_class" t-value="'aei-client-lane-left'"/>
+                        <t t-set="aei_lane_label" t-value="'Clientes, fila 2'"/>
+                        <t t-set="aei_lane_clients" t-value="[
+                            ('maxiking', 'Maxiking'), ('jah', 'JAH'), ('wellnessbase', 'Wellnessbase'),
+                            ('aurella', 'Aurella'), ('constructora-olardu', 'Constructora Olardu'),
+                            ('probell', 'Probell')]"/>
+                    </t>
+                </div>
+                <div class="aei-clients-caption">
+                    <p>Pasa el cursor sobre un logo para detenerlo y verlo más grande.</p>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <template id="client_lane" name="AEI Software home: client logo lane">
+        <div t-attf-class="aei-client-lane #{aei_lane_class}" t-att-aria-label="aei_lane_label">
+            <div class="aei-client-track">
+                <t t-foreach="range(2)" t-as="aei_group">
+                    <div class="aei-client-group" t-att-aria-hidden="'true' if aei_group else None">
+                        <t t-foreach="range(2)" t-as="aei_pass">
+                            <t t-set="aei_is_copy" t-value="bool(aei_group or aei_pass)"/>
+                            <t t-foreach="aei_lane_clients" t-as="aei_client">
+                                <div class="aei-client-logo" t-att-data-client-id="aei_client[0]" t-att-aria-hidden="'true' if aei_is_copy else None">
+                                    <img t-attf-src="/aei_website/static/src/img/clients/#{aei_client[0]}.jpg"
+                                         t-attf-srcset="/aei_website/static/src/img/clients/#{aei_client[0]}.jpg 1x, /aei_website/static/src/img/clients/#{aei_client[0]}@2x.jpg 2x"
+                                         width="260" height="150" decoding="async"
+                                         t-att-alt="'' if aei_is_copy else aei_client[1]"/>
+                                </div>
+                            </t>
+                        </t>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </template>
+</odoo>
+

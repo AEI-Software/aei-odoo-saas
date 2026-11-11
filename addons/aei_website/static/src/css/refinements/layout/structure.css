@@ -1,0 +1,70 @@
+/* refinements/layout/structure
+   Page structure: main wrapper, section spacing, container and shared headings.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-main {
+  color: var(--aei-ink);
+}
+
+.aei-section {
+  padding: 88px 0;
+}
+
+.aei-section-heading h2 {
+  font-size: clamp(30px, 3.3vw, 44px);
+  line-height: 1.22;
+  font-weight: 700;
+}
+
+.aei-section-heading p {
+  color: #4f6582;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.aei-soft {
+  background: #f3f8ff;
+}
+
+.aei-fineprint {
+  color: #55708f;
+  font-size: 12px !important;
+}
+
+@media (min-width: 1200px) {
+  .aei-main .aei-container,
+  .aei-site-header .aei-container,
+  .aei-footer .aei-container {
+    max-width: 1250px;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-section {
+    padding: 65px 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-section {
+    padding: 50px 0;
+  }
+
+  .aei-section-heading h2 {
+    font-size: 33px;
+  }
+
+  .aei-section-heading p {
+    font-size: 14px;
+  }
+
+  .aei-fineprint {
+    font-size: 11px !important;
+  }
+}
+
+/* Keep anchored sections clear of the sticky header. */
+.aei-section[id] {
+  scroll-margin-top: 105px;
+}

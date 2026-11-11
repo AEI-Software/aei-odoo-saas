@@ -1,0 +1,175 @@
+/* refinements/layout/header
+   Site header: sticky bar, brand, navigation and header actions.
+   Refinements layer: later adjustments of the design. Loaded after the foundation,
+   so on equal specificity it overrides it. */
+
+.aei-site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: #ffffffed;
+  border-bottom: 1px solid #dfe9f5;
+  backdrop-filter: blur(16px);
+  font: 14px/1.5 Inter, Arial, sans-serif;
+  color: #152a4b;
+  box-shadow: 0 4px 25px #163d6c04;
+}
+
+.aei-nav {
+  display: flex;
+  align-items: center;
+  gap: 38px;
+  min-height: 88px;
+}
+
+.aei-nav-brand {
+  display: block;
+  flex: none;
+}
+
+.aei-nav-brand img {
+  display: block;
+  width: 136px;
+  height: 61px;
+  object-fit: contain;
+}
+
+.aei-nav nav {
+  display: flex;
+  align-items: center;
+  gap: 27px;
+  margin-left: auto;
+}
+
+.aei-nav nav a {
+  font-size: 13px;
+  color: #344c6d;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.aei-nav nav a:hover {
+  color: #2766df;
+}
+
+.aei-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.aei-nav-actions>a:first-child {
+  color: #203a5e;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.aei-menu-toggle {
+  display: none;
+}
+
+@media (max-width: 1199px) {
+  .aei-nav {
+    gap: 25px;
+  }
+
+  .aei-nav nav {
+    gap: 20px;
+  }
+
+  .aei-nav-actions {
+    gap: 16px;
+  }
+
+  .aei-nav-brand img {
+    width: 115px;
+    height: 52px;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-nav {
+    min-height: 77px;
+    gap: 17px;
+  }
+
+  .aei-nav nav {
+    gap: 16px;
+  }
+
+  .aei-nav nav a {
+    font-size: 11px;
+  }
+
+  .aei-nav-actions>a:first-child {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-nav {
+    min-height: 73px;
+    position: relative;
+    gap: 15px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .aei-nav-brand img {
+    width: 112px;
+    height: 50px;
+  }
+
+  .aei-menu-toggle {
+    display: block;
+    border: 1px solid #d5e3f5;
+    background: #f5f9ff;
+    color: #345c90;
+    border-radius: 8px;
+    font-size: 20px;
+    width: 38px;
+    height: 37px;
+    line-height: 1;
+    margin-left: auto;
+    order: 2;
+  }
+
+  .aei-nav-actions {
+    order: 1;
+    margin-left: auto;
+    gap: 0;
+  }
+
+  .aei-nav-actions>a:first-child {
+    font-size: 11px;
+  }
+
+  .aei-nav nav {
+    display: none;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 75px;
+    background: white;
+    box-shadow: 0 15px 35px #173c6920;
+    border: 1px solid #d6e4f6;
+    border-radius: 13px;
+    padding: 19px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .aei-nav nav a {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-nav nav.aei-is-open {
+    display: flex;
+  }
+}

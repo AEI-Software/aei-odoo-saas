@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- "Ver módulos y procesos": one dialog per plan listing every module up to the plan's
+         level, with its price and capacities on top. -->
+
+    <template id="plan_dialogs" name="AEI Software home: plan dialogs">
+        <t t-set="aei_catalog" t-value="request.env['aei.website.catalog']"/>
+        <t t-foreach="aei_plans" t-as="aei_plan">
+            <t t-set="aei_level" t-value="aei_catalog.plan_level(aei_plan['key'])"/>
+            <t t-set="aei_copy" t-value="aei_plan_copy.get(aei_plan['key'])"/>
+            <t t-if="aei_copy" t-call="aei_website.dialog_frame">
+                <t t-set="aei_dialog_id" t-value="'aei-plan-dialog-' + aei_plan['key']"/>
+                <t t-set="aei_dialog_kicker" t-value="'MÓDULOS Y PROCESOS'"/>
+                <t t-set="aei_dialog_title" t-value="'Alcance de ' + aei_plan['name']"/>
+                <t t-set="aei_dialog_footer">
+                    <p>Una empresa por suscripción.</p>
+                    <t t-call="aei_website.plan_cart_form">
+                        <t t-set="aei_form_mode" t-value="'paid'"/>
+                        <t t-set="aei_form_class" t-value="'aei-btn-primary'"/>
+                        <t t-set="aei_form_label" t-value="'Elegir ' + aei_plan['name']"/>
+                    </t>
+                </t>
+                <p><t t-out="aei_copy['description']"/></p>
+                <t t-call="aei_website.invoice_badge"/>
+                <div class="aei-dialog-summary">
+                    <strong>Bs <t t-out="aei_plan['price_label']"/> / mes</strong>
+                    <span>Facturado mensualmente</span>
+                    <span><t t-out="aei_plan['users']"/> usuarios</span>
+                    <span><t t-out="aei_plan['storage_gi']"/> GB</span>
+                    <span><t t-out="aei_plan['support_hours']"/> h de soporte/mes</span>
+                </div>
+                <t t-foreach="aei_catalog.modules_up_to(aei_level)" t-as="aei_module">
+                    <t t-call="aei_website.module_details"/>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>
+

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Cart form shared by the plan card and the plan dialog. It posts to the native
+         Odoo cart with CSRF protection. aei_mode ("trial" or "paid") and aei_cycle
+         ("monthly" or "annual") travel with it for the internal wiring that comes later;
+         Odoo ignores them today. -->
+
+    <template id="plan_cart_form" name="AEI Software: plan cart form">
+        <form class="aei-plan-form" action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+            <input type="hidden" name="product_id" t-att-value="aei_plan['variant_id']"/>
+            <input type="hidden" name="add_qty" value="1"/>
+            <input type="hidden" name="aei_mode" t-att-value="aei_form_mode"/>
+            <input type="hidden" name="aei_cycle" value="monthly" data-aei-cycle-input=""/>
+            <button type="submit" t-attf-class="aei-btn #{aei_form_class}">
+                <t t-out="aei_form_label"/> <span aria-hidden="true">↗</span>
+            </button>
+        </form>
+    </template>
+
+    <!-- One plan card. Needs aei_plan (numbers from records) and aei_copy (marketing copy). -->
+    <template id="plan_card" name="AEI Software: plan card">
+        <article t-attf-class="aei-plan #{aei_copy['css']} aei-reveal" t-att-data-plan-card="aei_plan['key']">
+            <div class="aei-plan-ribbon"><t t-out="aei_copy['ribbon']"/></div>
+            <div class="aei-plan-top">
+                <h3 data-plan-name=""><t t-out="aei_plan['name']"/></h3>
+                <span class="aei-plan-symbol" aria-hidden="true"><t t-out="aei_copy['symbol']"/></span>
+            </div>
+            <p class="aei-plan-headline"><t t-out="aei_copy['headline']"/></p>
+            <div class="aei-plan-price">
+                <span>Bs</span>
+                <strong>
+                    <span data-plan-price="" data-aei-cycle="monthly" data-aei-field="price"><t t-out="aei_plan['price_label']"/></span>
+                    <span data-aei-cycle="annual" data-aei-field="price" hidden="hidden"><t t-out="aei_plan['annual_price_label']"/></span>
+                </strong>
+                <small>/ mes</small>
+            </div>
+            <p class="aei-billing-detail">
+                <span data-aei-cycle="monthly" data-aei-field="detail">Facturado mensualmente</span>
+                <span data-aei-cycle="annual" data-aei-field="detail" hidden="hidden"><t t-out="aei_plan['annual_detail']"/></span>
+            </p>
+            <p class="aei-saving" data-aei-cycle="annual" data-aei-field="saving" hidden="hidden"><t t-out="aei_plan['annual_saving']"/></p>
+            <p class="aei-plan-description"><t t-out="aei_copy['description']"/></p>
+            <t t-call="aei_website.invoice_badge"/>
+            <div class="aei-capacity">
+                <span data-plan-users=""><i class="fa fa-users" aria-hidden="true"></i><t t-out="aei_plan['users']"/> usuarios</span>
+                <span data-plan-storage=""><i class="fa fa-database" aria-hidden="true"></i><t t-out="aei_plan['storage_gi']"/> GB</span>
+                <span data-plan-support=""><i class="fa fa-life-ring" aria-hidden="true"></i><t t-out="aei_plan['support_hours']"/> h soporte/mes</span>
+            </div>
+            <p class="aei-inherits"><t t-out="aei_copy['scope']"/></p>
+            <ul class="aei-plan-highlights">
+                <li t-foreach="aei_copy['highlights']" t-as="aei_highlight">
+                    <i class="fa fa-check" aria-hidden="true"></i><span><t t-out="aei_highlight"/></span>
+                </li>
+                <li>
+                    <i class="fa fa-check" aria-hidden="true"></i>
+                    <span><t t-out="aei_plan['report_count']"/> reportes financieros y fiscales</span>
+                </li>
+            </ul>
+            <div class="aei-plan-actions">
+                <t t-call="aei_website.plan_cart_form">
+                    <t t-set="aei_form_mode" t-value="'trial'"/>
+                    <t t-set="aei_form_class" t-value="'aei-btn-primary'"/>
+                    <t t-set="aei_form_label" t-value="'Probar 15 días gratis'"/>
+                </t>
+                <t t-call="aei_website.plan_cart_form">
+                    <t t-set="aei_form_mode" t-value="'paid'"/>
+                    <t t-set="aei_form_class" t-value="'aei-btn-outline'"/>
+                    <t t-set="aei_form_label" t-value="'Elegir ' + aei_plan['name']"/>
+                </t>
+                <button class="aei-text-button" type="button" t-att-data-aei-plan-details="aei_plan['key']">
+                    Ver módulos y procesos <span aria-hidden="true">+</span>
+                </button>
+            </div>
+        </article>
+    </template>
+</odoo>
+

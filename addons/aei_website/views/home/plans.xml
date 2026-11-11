@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Home, section 5: plans. Numbers (price, users, storage, support, report count) come
+         from the product, its subscription template and the module catalog. Only the
+         marketing copy lives here, keyed by the plan's technical key. The billing period,
+         trial buttons and coupon are UI only for now (owner decision, 2026-11-05). -->
+
+    <template id="home_plans" name="AEI Software home: plans">
+        <t t-set="aei_plans" t-value="request.env['product.template'].website_saas_plans()"/>
+        <t t-set="aei_plan_copy" t-value="{
+            'starter': {
+                'css': '', 'ribbon': 'Tu punto de partida', 'symbol': '◌',
+                'scope': 'Núcleo financiero y comercial',
+                'headline': 'Una base completa para empezar.',
+                'description': 'Para empresas que necesitan ordenar sus finanzas y prestar servicios a precio fijo.',
+                'highlights': ['Ventas, facturación y cobranza', 'Compras, gastos y pagos',
+                               'Caja, bancos y contabilidad', 'Impuestos y reportes financieros']},
+            'pro': {
+                'css': 'aei-plan-featured', 'ribbon': 'El impulso para crecer', 'symbol': '↗',
+                'scope': 'Todo Starter, y más',
+                'headline': 'Tu operación, conectada.',
+                'description': 'Para comercios con stock y equipos que trabajan por proyectos, horas o hitos.',
+                'highlights': ['Todo el alcance de Starter', 'Inventario y entregas parciales',
+                               'Proyectos, horas y margen directo', 'Centros de costos y multimoneda']},
+            'enterprise': {
+                'css': 'aei-plan-star', 'ribbon': '★ Nuestro plan estrella', 'symbol': '✦',
+                'scope': 'Todo Pro, y fabricación',
+                'headline': 'Del material al producto final.',
+                'description': 'Para empresas que fabrican y necesitan conectar producción, costos y finanzas.',
+                'highlights': ['Todo el alcance de Pro', 'Listas de materiales de un nivel',
+                               'Fabricación, consumos y mermas', 'Costos y producción en curso']}}"/>
+        <section class="aei-section" id="planes">
+            <div class="aei-container">
+                <div class="aei-section-heading aei-reveal">
+                    <span class="aei-eyebrow">ELIGE TU ALCANCE</span>
+                    <h2>Tres planes.<br/>Facturación electrónica en todos.</h2>
+                    <p>Elige la operación que necesitas. La facturación electrónica ya viene incluida.</p>
+                </div>
+                <t t-call="aei_website.home_billing_bar"/>
+                <div class="aei-plan-grid">
+                    <t t-foreach="aei_plans" t-as="aei_plan">
+                        <t t-set="aei_copy" t-value="aei_plan_copy.get(aei_plan['key'])"/>
+                        <t t-if="aei_copy" t-call="aei_website.plan_card"/>
+                    </t>
+                </div>
+                <div class="aei-centered-link">
+                    <a class="aei-btn aei-btn-outline" href="/pricing#modulos">Comparar todos los módulos <span aria-hidden="true">↗</span></a>
+                </div>
+                <p class="aei-fineprint aei-center">Precios en bolivianos. Plan anual con 20% de descuento; prueba gratuita de 15 días sin tarjeta. Facturación SIAT para Bolivia según la habilitación fiscal del emisor.</p>
+                <t t-call="aei_website.plan_dialogs"/>
+            </div>
+        </section>
+    </template>
+</odoo>

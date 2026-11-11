@@ -1,0 +1,278 @@
+/* foundation/components/dialog
+   Detail dialogs: plan scope and module processes.
+   Foundation layer: the first pass of the design. Loaded before the refinements. */
+
+.aei-detail-dialog button {
+  font-family: inherit;
+}
+
+.aei-detail-dialog button:focus-visible,
+.aei-detail-dialog a:focus-visible {
+  outline: 3px solid #0db6d2;
+  outline-offset: 4px;
+}
+
+.aei-inline-note {
+  font-size: 9px;
+  color: #547f93;
+  display: block;
+  line-height: 1.7;
+}
+
+.aei-processes {
+  padding-left: 17px;
+  margin: 0;
+  color: #5d6e84;
+  line-height: 1.8;
+}
+
+.aei-processes li {
+  padding-left: 2px;
+  margin-bottom: 7px;
+}
+
+.aei-processes li::marker {
+  color: #7a70ee;
+}
+
+.aei-processes li::marker {
+  color: var(--aei-violet);
+}
+
+.aei-product-module {
+  border-top: 1px solid #e2e9f0;
+}
+
+.aei-product-module:last-child {
+  border-bottom: 1px solid #e2e9f0;
+}
+
+.aei-product-module summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 17px 0;
+  font-size: 12px;
+  font-weight: 550;
+  color: #3a536d;
+  list-style: none;
+  cursor: pointer;
+}
+
+.aei-product-module summary::-webkit-details-marker {
+  display: none;
+}
+
+.aei-product-module summary i {
+  color: #7498ac;
+  width: 24px;
+}
+
+.aei-product-module>.aei-processes {
+  font-size: 12px;
+  margin-bottom: 22px;
+  margin-left: 23px;
+}
+
+.aei-detail-dialog {
+  border: 1px solid #dce5ef;
+  border-radius: 15px;
+  background: #fff;
+  color: #1a2238;
+  padding: 0;
+  width: 820px;
+  max-width: calc(100vw - 30px);
+  max-height: 86dvh;
+  box-shadow: 0 25px 100px #111c3c55;
+  font-family: Inter, sans-serif;
+  overscroll-behavior: contain;
+}
+
+.aei-detail-dialog::backdrop {
+  background: #141c32a6;
+  backdrop-filter: blur(3px);
+}
+
+.aei-dialog-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 25px 30px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e4eaf1;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.aei-dialog-head h2 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 27px;
+  letter-spacing: -.04em;
+  margin: 5px 0 0;
+  line-height: 1.3;
+}
+
+.aei-detail-close {
+  border: 1px solid #e0e6ef;
+  border-radius: 8px;
+  background: white;
+  width: 32px;
+  height: 32px;
+  line-height: 1;
+  color: #718399;
+  font-size: 23px;
+  flex: none;
+  cursor: pointer;
+}
+
+.aei-dialog-body {
+  padding: 24px 30px;
+}
+
+.aei-dialog-body>p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #6a7b91;
+}
+
+.aei-dialog-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 15px;
+  border: 1px solid #e4ebf2;
+  background: #f6f9fc;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #5c728b;
+  margin-bottom: 21px;
+}
+
+.aei-dialog-summary strong {
+  color: #1a2238;
+  margin-right: auto;
+}
+
+.aei-dialog-body>.aei-processes {
+  font-size: 13px;
+}
+
+.aei-dialog-footer {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid #e4eaf1;
+  padding: 17px 30px;
+  background: white;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.aei-dialog-footer>p {
+  font-size: 11px;
+  color: #74869d;
+  margin: 0;
+}
+
+@media (max-width: 767px) {
+  .aei-dialog-head {
+    padding: 20px;
+  }
+
+  .aei-dialog-head h2 {
+    font-size: 24px;
+  }
+
+  .aei-dialog-body {
+    padding: 20px;
+  }
+
+  .aei-dialog-footer {
+    padding: 16px 20px;
+  }
+
+  .aei-dialog-footer>p {
+    display: none;
+  }
+
+  .aei-detail-dialog {
+    max-height: 91dvh;
+  }
+}
+
+.aei-processes {
+  color: #26374e;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.85;
+}
+
+.aei-product-module>.aei-processes {
+  font-size: 14px;
+  line-height: 1.85;
+}
+
+.aei-inline-note {
+  color: #155f78;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.aei-product-module summary {
+  color: #253b55;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.7;
+}
+
+.aei-product-module summary i {
+  color: #0e6780;
+}
+
+.aei-dialog-body>p {
+  font-size: 14.5px;
+  color: #33465f;
+  font-weight: 500;
+  line-height: 1.85;
+}
+
+.aei-dialog-body>.aei-processes {
+  font-size: 14.5px;
+  color: #26374e;
+  line-height: 1.9;
+}
+
+.aei-dialog-summary {
+  color: #344a63;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.aei-dialog-summary strong {
+  color: #14273e;
+  font-size: 15px;
+}
+
+.aei-dialog-footer>p {
+  color: #40546d;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.aei-detail-close {
+  color: #2d435e;
+  border-color: #bdcbd9;
+}
+
+.aei-invoice-badge+.aei-dialog-summary {
+  margin-top: 0;
+}
+
+@media (max-width: 767px) {
+  .aei-product-module summary {
+    font-size: 14px;
+  }
+}

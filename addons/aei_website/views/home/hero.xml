@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Home, section 1: headline, mission and vision. -->
+
+    <template id="home_hero" name="AEI Software home: hero">
+        <section class="aei-hero">
+            <div class="aei-hero-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="aei-container aei-hero-grid">
+                <div class="aei-hero-copy aei-intro">
+                    <span class="aei-eyebrow">AEI SOFTWARE · ERP EN LA NUBE</span>
+                    <h1>Tu empresa conectada.<br/><em>Tu gestión, más simple.</em></h1>
+                    <p>Ventas, compras, contabilidad y operación en un solo lugar. Un alcance claro para acompañar la forma en que trabaja tu empresa.</p>
+                    <div class="aei-hero-actions">
+                        <a class="aei-btn aei-btn-primary" href="#planes">Explorar planes <span aria-hidden="true">↗</span></a>
+                        <a class="aei-btn aei-btn-light" href="#procesos">Conocer los módulos <span aria-hidden="true">↗</span></a>
+                    </div>
+                    <div class="aei-hero-clients">
+                        <a class="aei-clients-link" href="#clientes">Nuestros clientes ↓</a>
+                    </div>
+                </div>
+                <div class="aei-purpose-stack aei-intro">
+                    <article class="aei-purpose-card">
+                        <div class="aei-purpose-label">
+                            <span class="aei-purpose-dot"></span>
+                            <h2>Nuestra misión</h2>
+                            <span>01</span>
+                        </div>
+                        <p>Simplificar la gestión de las empresas mediante una plataforma ERP en la nube, accesible, integrada e inteligente, que conecte sus principales procesos, automatice tareas y transforme sus datos en información útil para tomar mejores decisiones.</p>
+                    </article>
+                    <article class="aei-purpose-card aei-vision">
+                        <div class="aei-purpose-label">
+                            <span class="aei-purpose-dot"></span>
+                            <h2>Nuestra visión</h2>
+                            <span>02</span>
+                        </div>
+                        <p>Convertirnos en la plataforma ERP inteligente de referencia para las pequeñas y medianas empresas de Latinoamérica, evolucionando de un sistema que registra y organiza la operación hacia una plataforma impulsada por inteligencia artificial capaz de analizar, anticipar y ejecutar procesos empresariales junto a las personas.</p>
+                        <span class="aei-future-label">El futuro que estamos construyendo</span>
+                    </article>
+                </div>
+            </div>
+        </section>
+    </template>
+</odoo>
+

@@ -1,0 +1,57 @@
+/* effects/keyframes
+   Animation keyframes shared by the sections. */
+
+@keyframes aei-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes aei-breathe {
+  0%,100% {
+    opacity: .2;
+    transform: scale(.85);
+  }
+  50% {
+    opacity: .65;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes aei-clients-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes aei-clients-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes aei-check-pulse {
+  50% {
+    box-shadow: 0 0 0 7px #3978f310;
+  }
+}
+
+@keyframes aei-check-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
