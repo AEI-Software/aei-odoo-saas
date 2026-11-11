@@ -28,10 +28,10 @@ if [[ -f "$REPO_ROOT/.secrets.env" ]]; then
   done < "$REPO_ROOT/.secrets.env"
 fi
 
-export DB_PASSWORD="${DB_PASSWORD:-DevPass2026!}"
-export API_KEY="${API_KEY:-dev-api-key-local}"
+export DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 16)}"
+export API_KEY="${API_KEY:-$(openssl rand -hex 16)}"
 export ADMIN_PASSWD="${ADMIN_PASSWD:-admin}"
-export SAAS_WEBHOOK_KEY="${SAAS_WEBHOOK_KEY:-dev-webhook-key-local}"
+export SAAS_WEBHOOK_KEY="${SAAS_WEBHOOK_KEY:-$(openssl rand -hex 16)}"
 
 # ── colours ──────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'

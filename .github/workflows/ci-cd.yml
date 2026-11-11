@@ -61,7 +61,7 @@ jobs:
           chmod +x gitleaks
 
       - name: Secret scanning (Gitleaks)
-        run: ./gitleaks detect --source . --no-git --config .gitleaks.toml --log-level warn --exit-code 1
+        run: ./gitleaks detect --source . --no-git --redact -v --config .gitleaks.toml --exit-code 1
 
       - name: Set up Python
         uses: actions/setup-python@v5

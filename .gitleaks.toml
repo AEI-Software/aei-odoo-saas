@@ -10,6 +10,8 @@ paths = [
   '''^docker/odoo/odoo\.conf$''',
   '''^docker-compose\.dev\.yml$''',
   '''^docs/.*''',
+  '''^external_addons/.*''',
+  '''^infra/.*''',
   '''^k8s/01-secrets\.yaml$''',
   '''^k8s/dev/.*''',
   '''^addons/.*/tests/.*''',
@@ -17,6 +19,7 @@ paths = [
 regexes = [
   '''REPLACE_DB_PASSWORD''',
   '''REPLACE_ADMIN_PASSWD''',
+  '''CONFIGURAR_EN_ADMIN''',
   '''admin123''',
 ]
 
