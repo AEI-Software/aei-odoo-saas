@@ -6,7 +6,7 @@ const TAB_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End"];
 
 /**
  * Behavior of the AEI public pages: mobile menu, client logo motion, company
- * profile tabs, billing period, detail dialogs and reveal-on-scroll.
+ * profile tabs, billing period, detail dialogs, and bidirectional scroll motion.
  *
  * Every state change goes through classes, attributes and textContent. The
  * markup for tab panels and dialogs is rendered by QWeb, so nothing is built
@@ -35,27 +35,46 @@ publicWidget.registry.AeiLanding = publicWidget.Widget.extend({
         if (this._observer) {
             this._observer.disconnect();
         }
+        if (this._onWindowScroll) {
+            window.removeEventListener("scroll", this._onWindowScroll);
+        }
         this.el.classList.remove("aei-motion");
         this._super(...arguments);
     },
 
-    // -- Reveal on scroll ----------------------------------------------------
+    // -- Bidirectional reveal & exit on scroll -------------------------------
 
     _enableRevealOnScroll() {
         const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (prefersReducedMotion || !("IntersectionObserver" in window)) {
             return;
         }
+        this._lastScrollY = window.scrollY || 0;
+        this._scrollDirection = "down";
+        this._onWindowScroll = () => {
+            const currentY = window.scrollY || 0;
+            this._scrollDirection = currentY >= this._lastScrollY ? "down" : "up";
+            this._lastScrollY = currentY;
+        };
+        window.addEventListener("scroll", this._onWindowScroll, { passive: true });
+
         this._observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
+                    const node = entry.target;
                     if (entry.isIntersecting) {
-                        entry.target.classList.add("aei-is-visible");
-                        this._observer.unobserve(entry.target);
+                        node.classList.add("aei-is-visible");
+                        node.classList.remove("aei-is-exiting", "aei-exit-up", "aei-exit-down");
+                    } else if (node.classList.contains("aei-is-visible")) {
+                        const exitedAbove = entry.boundingClientRect.top < 0 || this._scrollDirection === "down";
+                        node.classList.remove("aei-is-visible");
+                        node.classList.add("aei-is-exiting");
+                        node.classList.toggle("aei-exit-up", exitedAbove);
+                        node.classList.toggle("aei-exit-down", !exitedAbove);
                     }
                 }
             },
-            { threshold: 0.08, rootMargin: "0px 0px 30px 0px" }
+            { threshold: [0, 0.1], rootMargin: "-4% 0px -5% 0px" }
         );
         this.el.classList.add("aei-motion");
         for (const node of this.el.querySelectorAll(".aei-reveal")) {
@@ -100,11 +119,9 @@ publicWidget.registry.AeiLanding = publicWidget.Widget.extend({
         for (const button of this.el.querySelectorAll("[data-billing]")) {
             button.setAttribute("aria-pressed", String(button.dataset.billing === cycle));
         }
-        // Each plan card renders both periods; only the chosen one is visible.
         for (const node of this.el.querySelectorAll("[data-aei-cycle]")) {
             node.hidden = node.dataset.aeiCycle !== cycle;
         }
-        // The forms carry the period so the internal wiring can read it later.
         for (const input of this.el.querySelectorAll("[data-aei-cycle-input]")) {
             input.value = cycle;
         }
@@ -132,7 +149,6 @@ publicWidget.registry.AeiLanding = publicWidget.Widget.extend({
     },
 
     _onDialogBackdropClick(ev) {
-        // A click on the dialog element itself (not its content) is a click on the backdrop.
         if (ev.target === ev.currentTarget) {
             ev.currentTarget.close();
         }

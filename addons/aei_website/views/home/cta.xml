@@ -4,7 +4,7 @@
 
     <template id="home_cta" name="AEI Software home: final call to action">
         <section class="aei-section aei-final-cta">
-            <div class="aei-container">
+            <div class="aei-container aei-reveal aei-reveal-scale">
                 <span class="aei-eyebrow">EL SIGUIENTE PASO</span>
                 <h2>Empecemos por lo que tu negocio necesita.</h2>
                 <div class="aei-hero-actions">

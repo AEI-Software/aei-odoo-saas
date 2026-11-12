@@ -1,0 +1,127 @@
+/* foundation/sections/account
+   Two-column Account layout for /web/login, /web/signup, and /web/reset_password.
+   Foundation layer: loaded before refinements. */
+
+.aei-account-section {
+  background: radial-gradient(ellipse at 0 100%, #e1f3ff, transparent 65%), #f5f9ff;
+}
+
+.aei-account-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 100px;
+  min-height: 600px;
+}
+
+.aei-account-intro h1 {
+  font-size: 51px;
+  line-height: 1.2;
+  letter-spacing: -.05em;
+  font-weight: 700;
+  margin: 0 0 23px;
+}
+
+.aei-account-intro > p {
+  font-size: 16px;
+  color: #496b91;
+  line-height: 1.9;
+  max-width: 410px;
+}
+
+.aei-account-trust {
+  max-width: 390px;
+  margin-top: 28px;
+}
+
+.aei-account-trust .aei-invoice-badge {
+  margin-bottom: 0;
+}
+
+.aei-account-card {
+  background: #fff;
+  border: 1px solid #d6e5f8;
+  padding: 35px;
+  border-radius: 20px;
+  box-shadow: 0 14px 44px #1d44770a;
+}
+
+.aei-step-kicker {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: .09em;
+  font-weight: 750;
+  color: #3b79ca;
+}
+
+.aei-auth-panel h2 {
+  font-size: 28px;
+  letter-spacing: -.04em;
+  line-height: 1.3;
+  font-weight: 700;
+  margin: 12px 0;
+}
+
+.aei-auth-panel > p {
+  font-size: 14px;
+  color: #526d90;
+  margin-bottom: 25px;
+}
+
+.aei-auth-tabs {
+  display: flex;
+  gap: 23px;
+  margin-bottom: 25px;
+  border-bottom: 1px solid #e0e9f5;
+}
+
+.aei-auth-tab {
+  display: inline-block;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 0 13px;
+  margin-bottom: -1px;
+  background: none;
+  color: #6c85a3;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: color .2s ease, border-color .2s ease;
+}
+
+.aei-auth-tab:hover {
+  color: #2766bf;
+}
+
+.aei-auth-tab.aei-is-active {
+  border-bottom-color: #3978f3;
+  color: #2766bf;
+}
+
+.aei-auth-actions {
+  margin-top: 8px;
+}
+
+.aei-auth-switch {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: #526d90;
+}
+
+.aei-auth-switch a {
+  color: #2766df;
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.aei-auth-switch a:hover {
+  text-decoration: underline;
+}
+
+.aei-auth-feedback {
+  padding-top: 6px;
+}
+

@@ -29,7 +29,7 @@
                     <h2>Un plan claro desde el inicio.</h2>
                     <p>Elige por lo que tu empresa necesita hacer cada día.</p>
                 </div>
-                <div class="aei-faq">
+                <div class="aei-faq aei-reveal aei-reveal-right aei-delay-1">
                     <details t-foreach="aei_questions" t-as="aei_question">
                         <summary><t t-out="aei_question[0]"/><span aria-hidden="true">+</span></summary>
                         <p><t t-out="aei_question[1]"/></p>

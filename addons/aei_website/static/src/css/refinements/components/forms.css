@@ -1,0 +1,14 @@
+/* refinements/components/forms
+   Refinements for form controls and responsive grids.
+   Loaded after foundation. */
+
+.aei-contact-grid .aei-fields {
+  gap: 0 18px;
+}
+
+@media (max-width: 991px) {
+  .aei-contact-grid .aei-fields {
+    grid-template-columns: 1fr;
+  }
+}
+

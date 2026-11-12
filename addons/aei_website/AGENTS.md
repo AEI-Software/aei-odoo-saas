@@ -4,8 +4,10 @@ Follow the root [AGENTS.md](../../AGENTS.md) workflow (SDD question, TDD, qualit
 This file adds the rules specific to this module.
 
 ## Owns
-- The public landing page (homepage override), pricing section and plan products.
-- Static assets for the public site (`static/src/css`, `static/src/js`).
+- The public landing page (homepage override), pricing section, plan products, module explorer and plan dialogs.
+- Custom public auth templates (`/web/login`, `/web/signup`, `/web/reset_password`, and `/account` redirect) wired to Odoo's native authentication engine.
+- Custom Contact Us pages (`/contactus`, `/contactus-thank-you`, and CSRF-protected `POST /contactus/submit`).
+- Static assets for the public site (`static/src/css/foundation`, `static/src/css/refinements`, `static/src/js/landing.js` including bidirectional scroll reveal/exit animations).
 - Everything is versioned in code. Do not design pages in the browser editor: that
   content lives only in the database and is lost.
 
@@ -42,32 +44,41 @@ This file adds the rules specific to this module.
   editable by non-developers, move it to fields on the product.
 - Top plan size is open (spec D1): the card shows the subscription template value (50 users
   today) while the design says 25. One data change fixes it once the owner decides.
-- Not ported yet: plan details dialog, module explorer, `/pricing`, `/contactus` restyle.
-  Header links point to anchors on `/` until `/pricing` exists.
+- Not ported yet: standalone `/pricing` route. Header links point to anchors on `/` until
+  `/pricing` exists.
 - The homepage override uses `xpath` on `//div[@id='wrap']`. Confirm it against
   `website.homepage` in Odoo 18 whenever the website module is upgraded.
-- `website.homepage_page` flags are set by a `<function>` in `views/homepage.xml`, because
-  that record is `noupdate`. Do not replace it with a `<record>`.
+- `website.homepage_page` and `/contactus` chrome flags are set by `<function>` calls in
+  `views/homepage.xml` and `views/contact/contactus.xml`, because those records are `noupdate`.
+  Do not replace them with `<record>`.
 
 ## Testing
-`tests/test_landing.py` (HTTP, records, migration) and `tests/test_static_rules.py` (no
-Bootstrap, prefixes, no unsafe DOM). Run with the command in the root `AGENTS.md`.
-The container runs with `--dev=reload`: editing a `.py` file restarts the main server and
-kills a test run started with `docker exec`. Finish edits before starting a run.
+`tests/test_landing.py`, `tests/test_landing_offers.py`, `tests/test_landing_dialogs.py`,
+`tests/test_plan_pricing.py`, `tests/test_account_and_contact.py` (HTTP, records, auth/contact
+flows, scroll motion) and `tests/test_static_rules.py` (no Bootstrap, prefixes, no unsafe DOM).
+Run with the command in the root `AGENTS.md` (in multi-DB environments pass `--db-filter=^aei_test$`
+and `--workers=0 --max-cron-threads=0 --http-interface=127.0.0.1 --http-port=8099`).
 
 ## Key files
-- `models/product_template.py` (`website_saas_plans`), `data/saas_plans.xml`
-- `views/layout.xml`, `views/home/*.xml`, `views/homepage.xml`
-- `static/src/css/**`, `static/src/js/landing.js`, `migrations/`
+- `controllers/public_pages.py` (`/account` redirect and `/contactus/submit`)
+- `models/plans/`, `models/catalog/`, `models/contact/website_contact.py`, `models/pages/website_page.py`
+- `views/layout.xml`, `views/home/*.xml`, `views/homepage.xml`, `views/account/*.xml`, `views/contact/contactus.xml`
+- `static/src/css/{foundation,refinements}/**`, `static/src/js/landing.js`, `migrations/`
 
 ## Structure (root `AGENTS.md`: size, models layout, comments, names)
 This module is the reference for the rules and must stay clean with no baseline entries:
 ```
-models/plans/     product_template.py        plan lookup for the landing page
+controllers/      public_pages.py            /account redirect and /contactus/submit
+models/catalog/   module_catalog.py          interactive module explorer data
+models/contact/   website_contact.py         sanitized contact form -> mail.mail
+models/pages/     website_page.py            own chrome flags and b2c signup config
+models/plans/     product_template.py, ...   plan lookup and billing pricing
 views/layout.xml  header, footer, badge      shared page chrome
-views/home/       one file per home section: hero, clients, processes, profiles, plans, faq, cta
-views/homepage.xml                           assembles the sections
-static/src/css/   tokens, base, layout/, components/, sections/, effects/
+views/home/       one file per home section: hero, clients, processes, profiles, plans, ...
+views/account/    login_layout.xml, login_forms.xml
+views/contact/    contactus.xml              /contactus and /contactus-thank-you
+views/homepage.xml                           assembles the home sections
+static/src/css/   foundation/ then refinements/ (tokens, base, layout/, components/, sections/, effects/)
 ```
 Add new pages as a sub-folder under `views/` (for example `views/pricing/`), one file per section.
 

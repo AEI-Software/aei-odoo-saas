@@ -1,0 +1,54 @@
+/* refinements/sections/account
+   Responsive refinements for the Account screen.
+   Loaded after foundation. */
+
+@media (min-width: 1200px) {
+  .aei-account-section > .aei-container {
+    max-width: 1140px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .aei-account-grid {
+    gap: 65px;
+  }
+
+  .aei-account-intro h1 {
+    font-size: 45px;
+  }
+}
+
+@media (max-width: 991px) {
+  .aei-account-grid {
+    gap: 38px;
+  }
+
+  .aei-account-intro h1 {
+    font-size: 38px;
+  }
+
+  .aei-account-intro > p {
+    font-size: 14px;
+  }
+
+  .aei-account-card {
+    padding: 27px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-account-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    min-height: 0;
+  }
+
+  .aei-account-intro h1 {
+    font-size: 36px;
+  }
+
+  .aei-account-card {
+    padding: 24px 20px;
+  }
+}
+

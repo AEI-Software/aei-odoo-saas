@@ -6,7 +6,7 @@
         <section class="aei-hero">
             <div class="aei-hero-orbit" aria-hidden="true"><span></span><span></span><span></span></div>
             <div class="aei-container aei-hero-grid">
-                <div class="aei-hero-copy aei-intro">
+                <div class="aei-hero-copy aei-intro aei-reveal aei-reveal-left">
                     <span class="aei-eyebrow">AEI SOFTWARE · ERP EN LA NUBE</span>
                     <h1>Tu empresa conectada.<br/><em>Tu gestión, más simple.</em></h1>
                     <p>Ventas, compras, contabilidad y operación en un solo lugar. Un alcance claro para acompañar la forma en que trabaja tu empresa.</p>
@@ -18,7 +18,7 @@
                         <a class="aei-clients-link" href="#clientes">Nuestros clientes ↓</a>
                     </div>
                 </div>
-                <div class="aei-purpose-stack aei-intro">
+                <div class="aei-purpose-stack aei-intro aei-reveal aei-reveal-right aei-delay-1">
                     <article class="aei-purpose-card">
                         <div class="aei-purpose-label">
                             <span class="aei-purpose-dot"></span>

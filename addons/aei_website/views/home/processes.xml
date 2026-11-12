@@ -25,7 +25,7 @@
                     <p>Explora lo que puedes resolver con cada alcance.</p>
                 </div>
                 <div class="aei-feature-grid">
-                    <article class="aei-feature aei-reveal" t-foreach="aei_features" t-as="aei_feature">
+                    <article t-attf-class="aei-feature aei-reveal aei-delay-#{(aei_feature_index % 3) + 1}" t-foreach="aei_features" t-as="aei_feature">
                         <div class="aei-feature-top">
                             <span class="aei-feature-icon"><i t-attf-class="fa #{aei_feature[0]}" aria-hidden="true"></i></span>
                             <span class="aei-scope-badge"><t t-out="aei_feature[1]"/></span>

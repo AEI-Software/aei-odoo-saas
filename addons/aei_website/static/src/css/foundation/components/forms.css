@@ -1,0 +1,137 @@
+/* foundation/components/forms
+   Shared form controls, grid fields, validation alerts, and screen-reader helpers.
+   Foundation layer: loaded before refinements. */
+
+.aei-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.aei-w100 {
+  width: 100%;
+}
+
+.aei-form label {
+  display: block;
+  color: #263f63;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.aei-field-group {
+  margin-bottom: 18px;
+}
+
+.aei-field-group label {
+  margin-bottom: 0;
+}
+
+.aei-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aei-forgot-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2d68b2;
+  text-decoration: none;
+}
+
+.aei-forgot-link:hover {
+  color: #1d4f91;
+  text-decoration: underline;
+}
+
+.aei-form input,
+.aei-form select,
+.aei-form textarea,
+.aei-input {
+  display: block;
+  width: 100%;
+  border: 1px solid #cddcf0;
+  background: #fff;
+  border-radius: 9px;
+  padding: 13px 14px;
+  color: #17365e;
+  font: 14px/1.5 Inter, Arial, sans-serif;
+  margin-top: 8px;
+  min-width: 0;
+  box-sizing: border-box;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+.aei-form input:focus,
+.aei-form select:focus,
+.aei-form textarea:focus,
+.aei-input:focus {
+  outline: 3px solid #3978f318;
+  border-color: #729ef0;
+}
+
+.aei-form input::placeholder,
+.aei-form textarea::placeholder,
+.aei-input::placeholder {
+  color: #758aa5;
+  opacity: 1;
+}
+
+.aei-form input[readonly],
+.aei-input[readonly] {
+  background: #f1f6fc;
+  color: #4a688d;
+}
+
+.aei-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 18px;
+}
+
+.aei-full {
+  grid-column: 1 / -1;
+}
+
+.aei-form-error {
+  padding: 11px 14px;
+  border: 1px solid #f2c2cc;
+  border-radius: 9px;
+  background: #fff5f7;
+  color: #ad334b;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 12px 0 16px;
+}
+
+.aei-form-error:empty {
+  display: none;
+}
+
+.aei-form-success {
+  padding: 12px 14px;
+  border: 1px solid #b9e7d2;
+  border-radius: 9px;
+  background: #edfbf4;
+  color: #196b49;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 12px 0 18px;
+}
+
+@media (max-width: 767px) {
+  .aei-fields {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -1,23 +1,63 @@
 /* foundation/effects/motion
-   Reveal-on-scroll behavior and its reduced-motion fallback.
-   Foundation layer: the first pass of the design. Loaded before the refinements. */
+   Bidirectional scroll entrance and exit transitions, directional variants, and reduced-motion fallback.
+   Foundation layer: loaded before refinements. */
 
 .aei-reveal {
   opacity: 1;
   transform: none;
-  transition: opacity .7s ease, transform .7s cubic-bezier(.2, .8, .2, 1);
+  will-change: opacity, transform;
+  transition:
+    opacity .68s cubic-bezier(.22, 1, .36, 1),
+    transform .68s cubic-bezier(.22, 1, .36, 1),
+    filter .68s cubic-bezier(.22, 1, .36, 1);
 }
 
-.aei-motion .aei-reveal:not(.aei-is-visible) {
+.aei-motion .aei-reveal:not(.aei-is-visible):not(.aei-is-exiting) {
   opacity: 0;
-  transform: translateY(15px);
+  transform: translate3d(0, 26px, 0) scale(.985);
+}
+
+.aei-motion .aei-reveal.aei-reveal-left:not(.aei-is-visible):not(.aei-is-exiting) {
+  transform: translate3d(-28px, 0, 0) scale(.985);
+}
+
+.aei-motion .aei-reveal.aei-reveal-right:not(.aei-is-visible):not(.aei-is-exiting) {
+  transform: translate3d(28px, 0, 0) scale(.985);
+}
+
+.aei-motion .aei-reveal.aei-reveal-scale:not(.aei-is-visible):not(.aei-is-exiting) {
+  transform: translate3d(0, 18px, 0) scale(.95);
+}
+
+.aei-motion .aei-reveal.aei-is-visible {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: blur(0);
+}
+
+.aei-motion .aei-reveal.aei-is-exiting {
+  opacity: 0;
+  transition-duration: .48s;
+  transition-delay: 0ms !important;
+}
+
+.aei-motion .aei-reveal.aei-is-exiting.aei-exit-up {
+  transform: translate3d(0, -22px, 0) scale(.985);
+}
+
+.aei-motion .aei-reveal.aei-is-exiting.aei-exit-down {
+  transform: translate3d(0, 26px, 0) scale(.985);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .aei-reveal,
-  .aei-motion .aei-reveal:not(.aei-is-visible) {
+  .aei-motion .aei-reveal:not(.aei-is-visible):not(.aei-is-exiting),
+  .aei-motion .aei-reveal.aei-is-visible,
+  .aei-motion .aei-reveal.aei-is-exiting,
+  .aei-map-card {
     opacity: 1 !important;
     transform: none !important;
+    filter: none !important;
     transition: none !important;
   }
 }

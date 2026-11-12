@@ -5,7 +5,7 @@
          chosen period; no billing is wired to it yet. -->
 
     <template id="home_billing_bar" name="AEI Software home: billing period bar">
-        <div class="aei-billing-bar">
+        <div class="aei-billing-bar aei-reveal">
             <div>
                 <span class="aei-eyebrow">A TU RITMO</span>
                 <p>15 días para conocer tu próximo sistema.</p>
