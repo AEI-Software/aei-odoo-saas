@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Account shell: wraps /web/login, /web/signup, and /web/reset_password in the AEI
+         two-column layout with custom header and footer while keeping Odoo's auth engine. -->
+
+    <template id="login_layout" inherit_id="website.login_layout" name="AEI Software: account layout" priority="30">
+        <xpath expr="//t[@t-call='website.layout']" position="replace">
+            <t t-call="website.layout">
+                <t t-set="no_header" t-value="True"/>
+                <t t-set="no_footer" t-value="True"/>
+                <t t-set="aei_auth_path" t-value="request.httprequest.path or '/web/login'"/>
+                <t t-set="aei_query" t-value="keep_query()"/>
+                <div id="wrap" class="aei-site">
+                    <a class="aei-skip-link" href="#aei-main">Ir al contenido</a>
+                    <t t-call="aei_website.header"/>
+                    <main id="aei-main" class="aei-main">
+                        <section class="aei-section aei-account-section">
+                            <div class="aei-container aei-account-grid">
+                                <div class="aei-account-intro aei-reveal aei-reveal-left">
+                                    <span class="aei-eyebrow">TU CUENTA AEI</span>
+                                    <h1>Tu empresa.<br/>Un nuevo comienzo.</h1>
+                                    <p>Inicia sesión o crea una cuenta para probar tu próximo espacio de trabajo.</p>
+                                    <div class="aei-account-trust">
+                                        <t t-call="aei_website.invoice_badge"/>
+                                    </div>
+                                </div>
+                                <div id="aei-account" class="aei-account-card aei-reveal aei-reveal-right aei-delay-1">
+                                    <div class="aei-auth-panel">
+                                        <span class="aei-step-kicker">01 / TU CUENTA</span>
+                                        <t t-if="'reset_password' in aei_auth_path">
+                                            <h2>Recupera tu acceso.</h2>
+                                            <p>Ingresa tu correo y te enviaremos las instrucciones de acceso.</p>
+                                        </t>
+                                        <t t-else="">
+                                            <h2>Comienza por ti.</h2>
+                                            <p>Crea tu cuenta o vuelve a tu espacio AEI.</p>
+                                        </t>
+                                        <div class="aei-auth-tabs" role="navigation" aria-label="Acceso a tu cuenta">
+                                            <a t-if="signup_enabled or 'signup' in aei_auth_path"
+                                               t-att-href="'/web/signup?' + aei_query if aei_query else '/web/signup'"
+                                               t-attf-class="aei-auth-tab #{'aei-is-active' if 'signup' in aei_auth_path else ''}"
+                                               t-att-aria-current="'page' if 'signup' in aei_auth_path else None">Crear cuenta</a>
+                                            <a t-att-href="'/web/login?' + aei_query if aei_query else '/web/login'"
+                                               t-attf-class="aei-auth-tab #{'aei-is-active' if 'signup' not in aei_auth_path and 'reset_password' not in aei_auth_path else ''}"
+                                               t-att-aria-current="'page' if 'signup' not in aei_auth_path and 'reset_password' not in aei_auth_path else None">Iniciar sesión</a>
+                                        </div>
+                                        <t t-out="0"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </main>
+                    <t t-call="aei_website.footer"/>
+                </div>
+            </t>
+        </xpath>
+    </template>
+</odoo>
+

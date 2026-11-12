@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Account forms: styles web.login, auth_signup.fields, auth_signup.signup, and
+         auth_signup.reset_password with plain aei- classes and CSRF protection. -->
+
+    <template id="login_form" inherit_id="web.login" name="AEI Software: login form" priority="30">
+        <xpath expr="//t[@t-call='web.login_layout']" position="replace">
+            <t t-call="web.login_layout">
+                <t t-set="aei_query" t-value="keep_query()"/>
+                <form class="aei-form aei-auth-form" role="form" action="/web/login" method="post"
+                      onsubmit="this.action = '/web/login' + location.hash">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <div class="aei-field-group" t-if="databases and len(databases) &gt; 1">
+                        <label for="db">Base de datos</label>
+                        <input type="text" name="db" t-att-value="request.db" id="db" class="aei-input"
+                               required="required" readonly="readonly"/>
+                    </div>
+                    <div class="aei-field-group">
+                        <label for="login">Correo electrónico</label>
+                        <input type="text" name="login" t-att-value="login" id="login" class="aei-input"
+                               placeholder="correo@tuempresa.com" required="required"
+                               autocapitalize="off" autocomplete="username"/>
+                    </div>
+                    <div class="aei-field-group">
+                        <div class="aei-label-row">
+                            <label for="password">Contraseña</label>
+                            <a t-if="reset_password_enabled" class="aei-forgot-link"
+                               t-att-href="'/web/reset_password?' + aei_query if aei_query else '/web/reset_password'">¿Olvidaste tu contraseña?</a>
+                        </div>
+                        <input type="password" name="password" id="password" class="aei-input"
+                               placeholder="Tu contraseña" required="required" autocomplete="current-password"
+                               t-att-autofocus="'autofocus' if login else None" maxlength="4096"/>
+                    </div>
+                    <p class="aei-form-error" t-if="error" role="alert"><t t-esc="error"/></p>
+                    <p class="aei-form-success" t-if="message" role="status"><t t-esc="message"/></p>
+                    <input type="hidden" name="type" value="password"/>
+                    <input type="hidden" name="redirect" t-att-value="redirect"/>
+                    <div class="aei-auth-actions">
+                        <button type="submit" class="aei-btn aei-btn-primary aei-w100">
+                            Entrar a mi cuenta <span aria-hidden="true">↗</span>
+                        </button>
+                    </div>
+                    <p t-if="signup_enabled" class="aei-auth-switch">
+                        ¿Aún no tienes una cuenta?
+                        <a t-att-href="'/web/signup?' + aei_query if aei_query else '/web/signup'">Crear cuenta</a>
+                    </p>
+                </form>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="signup_fields" inherit_id="auth_signup.fields" name="AEI Software: signup fields" priority="30">
+        <xpath expr="//div[hasclass('field-login')]" position="attributes">
+            <attribute name="class">aei-field-group</attribute>
+        </xpath>
+        <xpath expr="//label[@for='login']" position="replace">
+            <label for="login">Correo electrónico</label>
+        </xpath>
+        <xpath expr="//input[@name='login']" position="attributes">
+            <attribute name="class">aei-input</attribute>
+            <attribute name="placeholder">correo@tuempresa.com</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('field-name')]" position="attributes">
+            <attribute name="class">aei-field-group</attribute>
+        </xpath>
+        <xpath expr="//label[@for='name']" position="replace">
+            <label for="name">Tu nombre</label>
+        </xpath>
+        <xpath expr="//input[@name='name']" position="attributes">
+            <attribute name="class">aei-input</attribute>
+            <attribute name="placeholder">Nombre y apellido</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('field-password')]" position="attributes">
+            <attribute name="class">aei-field-group</attribute>
+        </xpath>
+        <xpath expr="//label[@for='password']" position="replace">
+            <label for="password">Contraseña</label>
+        </xpath>
+        <xpath expr="//input[@name='password']" position="attributes">
+            <attribute name="class">aei-input</attribute>
+            <attribute name="placeholder">Crea una contraseña segura</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('field-confirm_password')]" position="attributes">
+            <attribute name="class">aei-field-group</attribute>
+        </xpath>
+        <xpath expr="//label[@for='confirm_password']" position="replace">
+            <label for="confirm_password">Confirmar contraseña</label>
+        </xpath>
+        <xpath expr="//input[@name='confirm_password']" position="attributes">
+            <attribute name="class">aei-input</attribute>
+            <attribute name="placeholder">Repite tu contraseña</attribute>
+        </xpath>
+    </template>
+
+    <template id="signup_form" inherit_id="auth_signup.signup" name="AEI Software: signup form" priority="30">
+        <xpath expr="//t[@t-call='web.login_layout']" position="replace">
+            <t t-call="web.login_layout">
+                <t t-set="aei_query" t-value="keep_query()"/>
+                <div t-if="message" class="aei-auth-feedback">
+                    <p class="aei-form-success" role="status"><t t-esc="message"/></p>
+                    <a href="/web/login" class="aei-btn aei-btn-primary aei-w100">Volver a iniciar sesión</a>
+                </div>
+                <form class="aei-form aei-auth-form" role="form" method="post" t-if="not message">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <t t-call="auth_signup.fields">
+                        <t t-set="only_passwords" t-value="bool(token and not invalid_token)"/>
+                    </t>
+                    <p class="aei-form-error" t-if="error" role="alert"><t t-esc="error"/></p>
+                    <input type="hidden" name="redirect" t-att-value="redirect"/>
+                    <input type="hidden" name="token" t-att-value="token"/>
+                    <div class="aei-auth-actions">
+                        <button type="submit" class="aei-btn aei-btn-primary aei-w100">
+                            Crear cuenta y continuar <span aria-hidden="true">↗</span>
+                        </button>
+                    </div>
+                    <p class="aei-auth-switch">
+                        ¿Ya tienes una cuenta?
+                        <a t-att-href="'/web/login?' + aei_query if aei_query else '/web/login'">Iniciar sesión</a>
+                    </p>
+                </form>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="reset_password_form" inherit_id="auth_signup.reset_password" name="AEI Software: reset password form" priority="30">
+        <xpath expr="//t[@t-call='web.login_layout']" position="replace">
+            <t t-call="web.login_layout">
+                <t t-set="aei_query" t-value="keep_query()"/>
+                <div t-if="message" class="aei-auth-feedback">
+                    <p class="aei-form-success" role="status"><t t-esc="message"/></p>
+                    <a href="/web/login" class="aei-btn aei-btn-primary aei-w100">Volver a iniciar sesión</a>
+                </div>
+                <form class="aei-form aei-auth-form" role="form" method="post" t-if="not message">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <t t-if="token and not invalid_token">
+                        <t t-call="auth_signup.fields">
+                            <t t-set="only_passwords" t-value="1"/>
+                        </t>
+                    </t>
+                    <div class="aei-field-group" t-if="not token">
+                        <label for="login">Correo electrónico</label>
+                        <input type="email" name="login" t-att-value="login" id="login" class="aei-input"
+                               placeholder="correo@tuempresa.com" autofocus="autofocus"
+                               required="required" autocapitalize="off"/>
+                    </div>
+                    <p class="aei-form-error" t-if="error" role="alert"><t t-esc="error"/></p>
+                    <input type="hidden" name="redirect" t-att-value="redirect"/>
+                    <input type="hidden" name="token" t-att-value="token"/>
+                    <div class="aei-auth-actions">
+                        <button type="submit" class="aei-btn aei-btn-primary aei-w100">
+                            Restablecer contraseña <span aria-hidden="true">↗</span>
+                        </button>
+                    </div>
+                    <p class="aei-auth-switch">
+                        <a t-att-href="'/web/login?' + aei_query if (not invalid_token and aei_query) else '/web/login'">← Volver a iniciar sesión</a>
+                    </p>
+                </form>
+            </t>
+        </xpath>
+    </template>
+</odoo>
+

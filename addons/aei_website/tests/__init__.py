@@ -1,3 +1,4 @@
+from . import test_account_and_contact
 from . import test_landing
 from . import test_landing_offers
 from . import test_landing_dialogs

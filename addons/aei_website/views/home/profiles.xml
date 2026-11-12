@@ -36,7 +36,7 @@
              'note': 'Para servicios a precio fijo, puedes empezar con Starter.', 'cta': 'Conocer Pro'}]"/>
         <section class="aei-section aei-verticals" id="tu-empresa">
             <div class="aei-container">
-                <div class="aei-vertical-heading">
+                <div class="aei-vertical-heading aei-reveal">
                     <div>
                         <span class="aei-eyebrow">UN SISTEMA. TU FORMA DE TRABAJAR.</span>
                         <h2>Hecho para tu<br/>próximo gran paso.</h2>
@@ -45,7 +45,7 @@
                 </div>
                 <div class="aei-vertical-grid" role="tablist" aria-label="Tipo de empresa" data-aei-profile-tabs="">
                     <button t-foreach="aei_profiles" t-as="aei_profile" type="button" role="tab"
-                            t-attf-class="aei-vertical-tab #{'aei-vertical-star' if aei_profile['star'] else ''}"
+                            t-attf-class="aei-vertical-tab aei-reveal aei-delay-#{aei_profile_index + 1} #{'aei-vertical-star' if aei_profile['star'] else ''}"
                             t-att-id="'aei-profile-tab-' + aei_profile['id']"
                             t-att-aria-selected="'true' if aei_profile_first else 'false'"
                             t-att-aria-controls="'aei-profile-panel-' + aei_profile['id']"

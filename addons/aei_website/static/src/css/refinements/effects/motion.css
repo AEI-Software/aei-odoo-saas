@@ -1,0 +1,26 @@
+/* refinements/effects/motion
+   Staggered entrance delays and crisp blur polish for bidirectional scroll reveals.
+   Loaded after foundation. */
+
+.aei-motion .aei-reveal:not(.aei-is-visible) {
+  filter: blur(2px);
+}
+
+.aei-motion .aei-reveal.aei-delay-1.aei-is-visible {
+  transition-delay: 80ms;
+}
+
+.aei-motion .aei-reveal.aei-delay-2.aei-is-visible {
+  transition-delay: 160ms;
+}
+
+.aei-motion .aei-reveal.aei-delay-3.aei-is-visible {
+  transition-delay: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aei-motion .aei-reveal:not(.aei-is-visible) {
+    filter: none !important;
+  }
+}
+

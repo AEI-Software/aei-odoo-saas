@@ -17,7 +17,7 @@
                         <span data-aei-client-motion-label="">Pausar logos</span>
                     </button>
                 </div>
-                <div class="aei-client-marquees" id="aei-client-marquees">
+                <div class="aei-client-marquees aei-reveal aei-delay-1" id="aei-client-marquees">
                     <t t-call="aei_website.client_lane">
                         <t t-set="aei_lane_class" t-value="'aei-client-lane-right'"/>
                         <t t-set="aei_lane_label" t-value="'Clientes, fila 1'"/>

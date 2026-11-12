@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Contact page (/contactus) and confirmation page (/contactus-thank-you) matching
+         the approved AEI Software design, backed by CSRF-protected server submission. -->
+
+    <template id="contactus_page" inherit_id="website.contactus" name="AEI Software: contact us" priority="30">
+        <xpath expr="//t[@t-call='website.layout']" position="replace">
+            <t t-call="website.layout">
+                <t t-set="no_header" t-value="True"/>
+                <t t-set="no_footer" t-value="True"/>
+                <t t-set="aei_vals" t-value="aei_contact_values or {}"/>
+                <div id="wrap" class="aei-site">
+                    <a class="aei-skip-link" href="#aei-main">Ir al contenido</a>
+                    <t t-call="aei_website.header"/>
+                    <main id="aei-main" class="aei-main">
+                        <section class="aei-page-heading">
+                            <div class="aei-container aei-reveal">
+                                <span class="aei-eyebrow">CONVERSEMOS</span>
+                                <h1>Tu siguiente paso empieza aquí.</h1>
+                                <p>Cuéntanos qué necesita tu empresa. Te ayudamos a encontrar su alcance.</p>
+                            </div>
+                        </section>
+                        <section class="aei-section">
+                            <div class="aei-container aei-contact-grid">
+                                <div class="aei-contact-form aei-reveal aei-reveal-left">
+                                    <h2>Escríbenos.</h2>
+                                    <p>Atendemos en línea y en nuestras oficinas en Santa Cruz.</p>
+                                    <form id="contactus_form" class="aei-form" action="/contactus/submit" method="post">
+                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                        <div class="aei-sr-only" aria-hidden="true">
+                                            <label for="aei_website_url">No completar este campo</label>
+                                            <input id="aei_website_url" type="text" name="website_url" tabindex="-1" autocomplete="off"/>
+                                        </div>
+                                        <div class="aei-fields">
+                                            <label>Nombre
+                                                <input name="name" type="text" required="required" maxlength="120"
+                                                       autocomplete="name" t-att-value="aei_vals.get('name') or request.params.get('name', '')"/>
+                                            </label>
+                                            <label>Teléfono
+                                                <input name="phone" type="tel" maxlength="40"
+                                                       autocomplete="tel" t-att-value="aei_vals.get('phone') or request.params.get('phone', '')"/>
+                                            </label>
+                                            <label>Correo electrónico
+                                                <input name="email_from" type="email" required="required" maxlength="150"
+                                                       autocomplete="email" t-att-value="aei_vals.get('email_from') or request.params.get('email_from', '')"/>
+                                            </label>
+                                            <label>Empresa
+                                                <input name="company" type="text" maxlength="120"
+                                                       autocomplete="organization" t-att-value="aei_vals.get('company') or request.params.get('company', '')"/>
+                                            </label>
+                                            <label class="aei-full">Asunto
+                                                <input name="subject" type="text" required="required" maxlength="180"
+                                                       t-att-value="aei_vals.get('subject') or request.params.get('subject', '')"/>
+                                            </label>
+                                            <label class="aei-full">¿En qué podemos ayudarte?
+                                                <textarea name="description" rows="5" required="required" maxlength="4000"><t t-esc="aei_vals.get('description') or ''"/></textarea>
+                                            </label>
+                                        </div>
+                                        <p class="aei-form-error" t-if="aei_contact_error" role="alert">
+                                            <t t-esc="aei_contact_error"/>
+                                        </p>
+                                        <button class="aei-btn aei-btn-primary" type="submit">
+                                            Enviar consulta <span aria-hidden="true">↗</span>
+                                        </button>
+                                    </form>
+                                </div>
+                                <aside class="aei-contact-aside aei-reveal aei-reveal-right aei-delay-1">
+                                    <span class="aei-eyebrow">TAMBIÉN EN PERSONA</span>
+                                    <h2>Nos vemos en<br/>Santa Cruz.</h2>
+                                    <p>Contamos con oficinas en Santa Cruz de la Sierra, Bolivia, además de nuestra atención virtual.</p>
+                                    <div class="aei-contact-info">
+                                        <i class="fa fa-clock-o" aria-hidden="true"></i>
+                                        <div>
+                                            <strong>Lunes a viernes</strong>
+                                            <span>08:30 a 18:00 · Hora de Bolivia</span>
+                                        </div>
+                                    </div>
+                                    <a class="aei-map-card" href="https://maps.app.goo.gl/YAR3N2eSuXYH6h4A6"
+                                       target="_blank" rel="noopener noreferrer">
+                                        <span class="aei-map-art" aria-hidden="true"><i class="fa fa-map-marker"></i></span>
+                                        <strong>Oficinas AEI Software</strong>
+                                        <span>Santa Cruz de la Sierra</span>
+                                        <b>Ver ubicación en Google Maps ↗</b>
+                                    </a>
+                                    <a href="https://wa.me/59178081947" target="_blank" rel="noopener noreferrer">WhatsApp · +591 78081947 ↗</a>
+                                    <a href="mailto:ebendek@ribentek.com">ebendek@ribentek.com</a>
+                                </aside>
+                            </div>
+                        </section>
+                    </main>
+                    <t t-call="aei_website.footer"/>
+                </div>
+            </t>
+        </xpath>
+    </template>
+
+    <template id="contactus_thanks_page" name="AEI Software: contact thank you">
+        <t t-call="website.layout">
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+            <div id="wrap" class="aei-site">
+                <a class="aei-skip-link" href="#aei-main">Ir al contenido</a>
+                <t t-call="aei_website.header"/>
+                <main id="aei-main" class="aei-main">
+                    <section class="aei-section aei-soft">
+                        <div class="aei-container">
+                            <div class="aei-success aei-reveal aei-reveal-scale">
+                                <div class="aei-success-icon" aria-hidden="true">✓</div>
+                                <span class="aei-eyebrow">CONSULTA RECIBIDA</span>
+                                <h2>Recibimos tu mensaje.</h2>
+                                <p>Nuestro equipo comercial revisará tu consulta y se pondrá en contacto contigo a la brevedad.</p>
+                                <a class="aei-btn aei-btn-primary" href="/">Volver al inicio <span aria-hidden="true">↗</span></a>
+                                <a class="aei-btn aei-btn-outline" href="/contactus">Enviar otra consulta</a>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+                <t t-call="aei_website.footer"/>
+            </div>
+        </t>
+    </template>
+
+    <function model="website.page" name="aei_use_own_chrome_on_public_pages"/>
+</odoo>
