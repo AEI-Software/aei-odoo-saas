@@ -2,10 +2,9 @@
 <odoo>
     <!-- Home, section 5: plans. Numbers (price, users, storage, support, report count) come
          from the product, its subscription template and the module catalog. Only the
-         marketing copy lives here, keyed by the plan's technical key. The billing period,
-         trial buttons and coupon are UI only for now (owner decision, 2026-11-05). -->
+         marketing copy lives here, keyed by the plan's technical key. Shared with /pricing. -->
 
-    <template id="home_plans" name="AEI Software home: plans">
+    <template id="plan_cards_grid" name="AEI Software: plan cards grid">
         <t t-set="aei_plans" t-value="request.env['product.template'].website_saas_plans()"/>
         <t t-set="aei_plan_copy" t-value="{
             'starter': {
@@ -29,6 +28,15 @@
                 'description': 'Para empresas que fabrican y necesitan conectar producción, costos y finanzas.',
                 'highlights': ['Todo el alcance de Pro', 'Listas de materiales de un nivel',
                                'Fabricación, consumos y mermas', 'Costos y producción en curso']}}"/>
+        <div class="aei-plan-grid">
+            <t t-foreach="aei_plans" t-as="aei_plan">
+                <t t-set="aei_copy" t-value="aei_plan_copy.get(aei_plan['key'])"/>
+                <t t-if="aei_copy" t-call="aei_website.plan_card"/>
+            </t>
+        </div>
+    </template>
+
+    <template id="home_plans" name="AEI Software home: plans">
         <section class="aei-section" id="planes">
             <div class="aei-container">
                 <div class="aei-section-heading aei-reveal">
@@ -37,12 +45,7 @@
                     <p>Elige la operación que necesitas. La facturación electrónica ya viene incluida.</p>
                 </div>
                 <t t-call="aei_website.home_billing_bar"/>
-                <div class="aei-plan-grid">
-                    <t t-foreach="aei_plans" t-as="aei_plan">
-                        <t t-set="aei_copy" t-value="aei_plan_copy.get(aei_plan['key'])"/>
-                        <t t-if="aei_copy" t-call="aei_website.plan_card"/>
-                    </t>
-                </div>
+                <t t-call="aei_website.plan_cards_grid"/>
                 <div class="aei-centered-link">
                     <a class="aei-btn aei-btn-outline" href="/pricing#modulos">Comparar todos los módulos <span aria-hidden="true">↗</span></a>
                 </div>

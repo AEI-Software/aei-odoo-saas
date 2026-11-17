@@ -15,6 +15,24 @@ PLAN_LEVELS = {"starter": 0, "pro": 1, "enterprise": 2}
 # Label of the first plan that includes something of a given level.
 SCOPE_LABELS = ("En todos los planes", "Desde Pro", "En Advanced")
 REPORTS_MODULE_ID = "reports"
+COMPARISON_FOOTNOTES = {
+    "sales": "Facturación por entregas desde Pro.",
+    "purchases": "Recepción de bienes desde Pro.",
+    "accounting": "Centros de costos desde Pro.",
+}
+ANALYTICS_COMPARISON_ROW = {
+    "id": "analytics",
+    "title": "Centros de costos",
+    "group": "finance",
+    "level": 1,
+    "summary": (
+        "Distribución simple de movimientos por áreas para consultar resultados "
+        "sin duplicar cuentas."
+    ),
+    "processes": [],
+    "extra": [],
+    "footnote": False,
+}
 
 
 class WebsiteCatalog(models.AbstractModel):
@@ -29,6 +47,16 @@ class WebsiteCatalog(models.AbstractModel):
         """Return every module of the catalog, in display order."""
         with file_open(CATALOG_PATH, "rb") as catalog_file:
             return json.load(catalog_file)
+
+    @api.model
+    def comparison_rows(self):
+        """Return the 16 rows of the /pricing comparison table in display order."""
+        rows = [
+            {**module, "footnote": COMPARISON_FOOTNOTES.get(module["id"], False)}
+            for module in self.modules()
+        ]
+        rows.append(dict(ANALYTICS_COMPARISON_ROW))
+        return rows
 
     @api.model
     def module(self, module_id):
@@ -64,4 +92,3 @@ class WebsiteCatalog(models.AbstractModel):
         """Count the reports a plan of the given level includes."""
         reports = self.module(REPORTS_MODULE_ID)
         return len(reports["processes"]) + len(self.visible_extras(reports, level))
-

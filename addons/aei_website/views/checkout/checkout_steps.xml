@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Checkout Steps 1 and 2:
+         Step 1 (01 / TU CUENTA) authenticates or registers the user on Odoo 18 with
+         CSRF and the password visibility toggle ("ojito").
+         Step 2 (02 / TU EMPRESA) saves the company details to res.partner. -->
+
+    <template id="checkout_step_account" name="AEI Software checkout: step 1 account">
+        <div class="aei-auth-panel">
+            <span class="aei-step-kicker">01 / TU CUENTA</span>
+            <h2>Comienza por ti.</h2>
+            <p>Crea tu cuenta o vuelve a tu espacio AEI.</p>
+            <t t-if="not aei_is_public">
+                <div class="aei-signed-card">
+                    <span class="aei-avatar"><t t-out="(aei_user.name or 'U')[0].upper()"/></span>
+                    <div>
+                        <strong><t t-out="aei_user.name"/></strong>
+                        <span><t t-out="aei_user.email or aei_user.login"/></span>
+                    </div>
+                </div>
+                <a class="aei-btn aei-btn-primary aei-w100" t-att-href="aei_step2_url">
+                    Continuar con esta cuenta <span aria-hidden="true">↗</span>
+                </a>
+            </t>
+            <t t-else="">
+                <div class="aei-auth-tabs" role="tablist" aria-label="Acceso a tu cuenta">
+                    <a role="tab"
+                       t-att-aria-selected="'true' if aei_auth_tab == 'register' else 'false'"
+                       t-attf-class="aei-auth-tab #{'aei-is-active' if aei_auth_tab == 'register' else ''}"
+                       t-attf-href="/checkout?plan=#{aei_plan_param}&amp;cycle=#{aei_cycle}&amp;mode=#{aei_mode}&amp;auth=register">
+                        Crear cuenta
+                    </a>
+                    <a role="tab"
+                       t-att-aria-selected="'true' if aei_auth_tab == 'login' else 'false'"
+                       t-attf-class="aei-auth-tab #{'aei-is-active' if aei_auth_tab == 'login' else ''}"
+                       t-attf-href="/checkout?plan=#{aei_plan_param}&amp;cycle=#{aei_cycle}&amp;mode=#{aei_mode}&amp;auth=login">
+                        Iniciar sesión
+                    </a>
+                </div>
+                <form t-if="aei_auth_tab == 'register'" class="aei-form aei-auth-form" action="/web/signup" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="redirect" t-att-value="aei_step2_redirect"/>
+                    <div class="aei-field-group">
+                        <label for="checkout_name">Tu nombre</label>
+                        <input type="text" name="name" id="checkout_name" class="aei-input"
+                               placeholder="Nombre y apellido" required="required" autocomplete="name"/>
+                    </div>
+                    <div class="aei-field-group">
+                        <label for="checkout_login">Correo electrónico</label>
+                        <input type="email" name="login" id="checkout_login" class="aei-input"
+                               placeholder="correo@tuempresa.com" required="required" autocapitalize="off" autocomplete="email"/>
+                    </div>
+                    <div class="aei-field-group">
+                        <label for="checkout_password">Contraseña</label>
+                        <div class="aei-password-wrap">
+                            <input type="password" name="password" id="checkout_password" class="aei-input aei-input-password"
+                                   placeholder="Crea una contraseña segura" required="required" autocomplete="new-password"/>
+                            <button type="button" class="aei-password-toggle" data-aei-password-toggle="password"
+                                    aria-label="Mostrar contraseña" aria-pressed="false">
+                                <i class="fa fa-eye" aria-hidden="true" data-aei-password-icon=""/>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="aei-field-group">
+                        <label for="checkout_confirm_password">Confirmar contraseña</label>
+                        <div class="aei-password-wrap">
+                            <input type="password" name="confirm_password" id="checkout_confirm_password"
+                                   class="aei-input aei-input-password" placeholder="Repite tu contraseña"
+                                   required="required" autocomplete="new-password"/>
+                            <button type="button" class="aei-password-toggle" data-aei-password-toggle="confirm_password"
+                                    aria-label="Mostrar contraseña" aria-pressed="false">
+                                <i class="fa fa-eye" aria-hidden="true" data-aei-password-icon=""/>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="aei-auth-actions">
+                        <button type="submit" class="aei-btn aei-btn-primary aei-w100">
+                            Crear cuenta y continuar <span aria-hidden="true">↗</span>
+                        </button>
+                    </div>
+                </form>
+                <form t-else="" class="aei-form aei-auth-form" action="/web/login" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="type" value="password"/>
+                    <input type="hidden" name="redirect" t-att-value="aei_step2_redirect"/>
+                    <div class="aei-field-group">
+                        <label for="checkout_login_email">Correo electrónico</label>
+                        <input type="text" name="login" id="checkout_login_email" class="aei-input"
+                               placeholder="correo@tuempresa.com" required="required" autocapitalize="off" autocomplete="username"/>
+                    </div>
+                    <div class="aei-field-group">
+                        <label for="checkout_login_password">Contraseña</label>
+                        <div class="aei-password-wrap">
+                            <input type="password" name="password" id="checkout_login_password" class="aei-input aei-input-password"
+                                   placeholder="Tu contraseña" required="required" autocomplete="current-password"/>
+                            <button type="button" class="aei-password-toggle" data-aei-password-toggle="password"
+                                    aria-label="Mostrar contraseña" aria-pressed="false">
+                                <i class="fa fa-eye" aria-hidden="true" data-aei-password-icon=""/>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="aei-auth-actions">
+                        <button type="submit" class="aei-btn aei-btn-primary aei-w100">
+                            Entrar a mi cuenta <span aria-hidden="true">↗</span>
+                        </button>
+                    </div>
+                </form>
+            </t>
+        </div>
+    </template>
+
+    <template id="checkout_step_company" name="AEI Software checkout: step 2 company">
+        <div>
+            <span class="aei-step-kicker">02 / TU EMPRESA</span>
+            <h2>Conozcamos tu negocio.</h2>
+            <p>Estos datos darán forma a tu nuevo ambiente.</p>
+            <form class="aei-form" action="/checkout/company" method="post">
+                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                <input type="hidden" name="plan" t-att-value="aei_plan_param"/>
+                <input type="hidden" name="cycle" t-att-value="aei_cycle"/>
+                <input type="hidden" name="mode" t-att-value="aei_mode"/>
+                <input type="hidden" name="coupon" t-att-value="aei_coupon"/>
+                <div class="aei-fields">
+                    <label>
+                        Tipo de cuenta
+                        <select name="kind" aria-label="Tipo de cuenta">
+                            <option value="company" t-att-selected="'selected' if aei_company.get('kind') != 'person' else None">Empresa</option>
+                            <option value="person" t-att-selected="'selected' if aei_company.get('kind') == 'person' else None">Persona / profesional independiente</option>
+                        </select>
+                    </label>
+                    <label>
+                        Actividad
+                        <select name="industry" required="required" aria-label="Actividad">
+                            <option value="commerce" t-att-selected="'selected' if aei_company.get('industry') == 'commerce' else None">Comercial</option>
+                            <option value="industry" t-att-selected="'selected' if aei_company.get('industry') == 'industry' else None">Industrial</option>
+                            <option value="services" t-att-selected="'selected' if aei_company.get('industry') not in ('commerce', 'industry') else None">Servicios</option>
+                        </select>
+                    </label>
+                    <label class="aei-full">
+                        Nombre de la empresa o nombre completo
+                        <input type="text" name="name" t-att-value="aei_company.get('name', '')"
+                               placeholder="Mi empresa" maxlength="120" required="required"/>
+                    </label>
+                    <label>
+                        NIT / documento <span>(opcional)</span>
+                        <input type="text" name="nit" t-att-value="aei_company.get('nit', '')"
+                               maxlength="30" inputmode="numeric" placeholder="NIT o CI"/>
+                    </label>
+                    <label>
+                        Teléfono <span>(opcional)</span>
+                        <input type="tel" name="phone" t-att-value="aei_company.get('phone', '')"
+                               maxlength="30" placeholder="+591 70000000"/>
+                    </label>
+                    <label>
+                        Ciudad
+                        <input type="text" name="city" t-att-value="aei_company.get('city', 'Santa Cruz de la Sierra')"
+                               required="required" maxlength="100"/>
+                    </label>
+                    <label>
+                        País
+                        <input type="text" value="Bolivia" readonly="readonly" aria-label="País"/>
+                    </label>
+                </div>
+                <div class="aei-account-inline">
+                    <i class="fa fa-envelope-o" aria-hidden="true"></i>
+                    <span>
+                        Tu ambiente y tus credenciales llegarán a<br/>
+                        <strong><t t-out="aei_user.email or aei_user.login"/></strong>
+                    </span>
+                </div>
+                <button class="aei-btn aei-btn-primary aei-w100" type="submit">
+                    <t t-out="'Revisar mi prueba gratuita' if aei_mode == 'trial' else 'Continuar al pago QR'"/>
+                    <span aria-hidden="true">↗</span>
+                </button>
+            </form>
+            <a class="aei-text-button aei-step-back" t-att-href="aei_step1_url">← Volver al paso anterior</a>
+        </div>
+    </template>
+</odoo>
+

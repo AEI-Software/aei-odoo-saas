@@ -62,7 +62,8 @@
   padding: 12px 16px;
 }
 
-.aei-plan-actions>.aei-btn {
+.aei-plan-actions .aei-btn {
+  width: 100%;
   padding: 12px 10px;
   font-size: 12px;
   margin-bottom: 10px;
@@ -112,7 +113,7 @@
     padding: 11px;
   }
 
-  .aei-plan-actions>.aei-btn {
+  .aei-plan-actions .aei-btn {
     font-size: 11px;
   }
 
@@ -127,7 +128,7 @@
     display: none;
   }
 
-  .aei-plan-actions>.aei-btn {
+  .aei-plan-actions .aei-btn {
     font-size: 10px;
     padding: 10px 7px;
   }
@@ -143,7 +144,7 @@
     padding: 12px 15px;
   }
 
-  .aei-plan-actions>.aei-btn {
+  .aei-plan-actions .aei-btn {
     font-size: 13px;
     padding: 14px 12px;
   }

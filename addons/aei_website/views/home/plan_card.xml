@@ -10,10 +10,11 @@
             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
             <input type="hidden" name="product_id" t-att-value="aei_plan['variant_id']"/>
             <input type="hidden" name="add_qty" value="1"/>
+            <input type="hidden" name="express" value="1"/>
             <input type="hidden" name="aei_mode" t-att-value="aei_form_mode"/>
             <input type="hidden" name="aei_cycle" value="monthly" data-aei-cycle-input=""/>
             <button type="submit" t-attf-class="aei-btn #{aei_form_class}">
-                <t t-out="aei_form_label"/> <span aria-hidden="true">↗</span>
+                <t t-out="aei_form_label"/><t t-if="aei_form_mode == 'trial'"> <span aria-hidden="true">↗</span></t>
             </button>
         </form>
     </template>

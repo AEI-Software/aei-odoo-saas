@@ -16,8 +16,9 @@
 
 ### Incluye
 - Herencia de `web.login_layout` / `website.login_layout`, `web.login`, `auth_signup.signup` y `auth_signup.reset_password` con encabezado y pie propios (`aei_website.header`, `aei_website.footer`), sin clases Bootstrap y con prefijo `aei-`.
-- Redirección amigable `GET /account` → `/web/login`.
-- Herencia de `website.contactus` y `website.contactus_thanks` + desactivación del header/footer nativo de Odoo en todas las copias `website.page` de `/`, `/contactus` y `/contactus-thank-you`.
+- Redirección amigable `GET /account` y `GET /account/` → `/web/signup` (pestaña *Crear cuenta* activa por defecto, o `/web/login` si `mode=login`), y orden de campos en `/web/signup`: *Tu nombre* → *Correo electrónico* → *Contraseña* → *Confirmar contraseña*.
+- Formularios de selección de plan con `express=1` hacia `/shop/cart/update` y parámetro `sale.automatic_invoice = True` para encadenar el pago QR con facturación automática, aprovisionamiento K8s y envío de correo con credenciales.
+- Herencia de `website.contactus` y `website.contactus_thanks` + desactivación del header/footer nativo de Odoo en todas las copias `website.page` de `/`, `/pricing`, `/contactus` y `/contactus-thank-you`.
 - Controlador HTTP con CSRF activo (`POST /contactus/submit`) y modelo `website` (`submit_aei_contact_form`) que valida entradas y registra el mensaje en `mail.mail`.
 - Motor de transiciones de entrada/salida por scroll (`IntersectionObserver` continuo en `landing.js` + reglas CSS en `foundation/effects/motion.css` y `refinements/effects/motion.css`).
 

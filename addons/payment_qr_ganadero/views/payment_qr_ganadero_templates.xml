@@ -13,80 +13,107 @@
         </form>
     </template>
 
-    <!-- Public page displaying the generated QR code, status indicator, and demo simulation button. -->
+    <!-- Public page displaying the generated QR code, 3-step instructions, status indicator, and demo simulation button. -->
     <template id="qr_ganadero_display" name="QR Banco Ganadero - Pantalla de Pago">
         <t t-call="website.layout">
-            <div class="container py-5 text-center">
-
-                <t t-if="is_demo">
-                    <div class="alert alert-warning d-inline-flex align-items-center gap-2 mb-3 fw-bold" role="alert">
-                        <span>MODO DEMO — No se realiza ningún cobro real en Banco Ganadero</span>
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+            <div class="container py-5" style="max-width: 960px;">
+                <div class="card border-0 shadow-sm rounded-4 p-4 p-md-5" style="background: #ffffff; border: 1px solid #d6e5f8 !important;">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <span class="text-uppercase fw-bold" style="font-size: 11px; letter-spacing: 0.09em; color: #3b79ca;">03 / PAGO POR QR · BANCO GANADERO</span>
+                        <t t-if="is_demo">
+                            <span class="badge rounded-pill text-bg-warning px-3 py-2">MODO DEMO · SIN COBRO REAL</span>
+                        </t>
                     </div>
-                </t>
+                    <h2 class="fw-bold mb-1" style="color: #0e2240; letter-spacing: -0.03em;">Escanea. Confirma. Comienza.</h2>
+                    <p class="text-muted mb-4">Referencia de orden: <strong t-esc="reference"/> · Vigencia del QR: 24 horas</p>
 
-                <h2 class="mb-1">Pago con QR — Banco Ganadero</h2>
-                <p class="text-muted mb-4">Escanea el código QR desde tu aplicación bancaria para completar el pago.</p>
+                    <div class="row g-4 align-items-center">
+                        <div class="col-md-6 text-center">
+                            <div class="p-4 rounded-4 border" style="background: #f5f9ff; border-color: #d6e5f8 !important;">
+                                <div class="d-flex justify-content-between align-items-center mb-3 px-2">
+                                    <strong style="color: #0e2240; font-size: 14px;">BANCO GANADERO</strong>
+                                    <small class="text-muted fw-semibold"><t t-out="'QR DE PRUEBA' if is_demo else 'QR EMPRESARIAL'"/></small>
+                                </div>
+                                <t t-if="qr_image">
+                                    <img t-att-src="('data:image/svg+xml;base64,' if is_demo else 'data:image/png;base64,') + qr_image"
+                                         alt="QR Banco Ganadero"
+                                         class="img-fluid bg-white border rounded-3 p-3 shadow-sm"
+                                         style="max-width: 240px;"/>
+                                </t>
+                                <t t-else="">
+                                    <div class="alert alert-warning mb-0">
+                                        No se pudo generar el código QR. Por favor intenta nuevamente o contacta a soporte.
+                                    </div>
+                                </t>
+                                <div class="mt-3">
+                                    <div class="fs-3 fw-bold" style="color: #0e2240;">
+                                        <span t-esc="currency"/>&#160;<span t-esc="'%.2f' % amount"/>
+                                    </div>
+                                    <t t-if="qr_id">
+                                        <div class="text-muted small">ID QR: <code t-esc="qr_id"/></div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
 
-                <t t-if="qr_image">
-                    <t t-if="is_demo">
-                        <img
-                            t-att-src="'data:image/svg+xml;base64,' + qr_image"
-                            alt="QR Banco Ganadero (DEMO)"
-                            class="img-fluid border rounded p-3 shadow-sm"
-                            style="max-width:280px;"
-                        />
-                    </t>
-                    <t t-else="">
-                        <img
-                            t-att-src="'data:image/png;base64,' + qr_image"
-                            alt="QR Banco Ganadero"
-                            class="img-fluid border rounded p-3 shadow-sm"
-                            style="max-width:280px;"
-                        />
-                    </t>
-                </t>
-                <t t-else="">
-                    <div class="alert alert-warning d-inline-block mt-2">
-                        No se pudo generar el código QR. Por favor intenta nuevamente o contacta a soporte.
+                        <div class="col-md-6">
+                            <h5 class="fw-bold mb-3" style="color: #0e2240;">Así de simple será.</h5>
+                            <ol class="list-unstyled d-grid gap-3 mb-4">
+                                <li class="d-flex gap-3 align-items-start">
+                                    <span class="badge rounded-circle text-bg-primary d-inline-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">1</span>
+                                    <div>
+                                        <strong class="d-block" style="color: #0e2240;">Abre tu app bancaria.</strong>
+                                        <span class="text-muted small">Lee el código QR desde la aplicación móvil de tu banco en Bolivia.</span>
+                                    </div>
+                                </li>
+                                <li class="d-flex gap-3 align-items-start">
+                                    <span class="badge rounded-circle text-bg-primary d-inline-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">2</span>
+                                    <div>
+                                        <strong class="d-block" style="color: #0e2240;">Espera la confirmación.</strong>
+                                        <span class="text-muted small">El pago se valida automáticamente y activa tu suscripción al instante.</span>
+                                    </div>
+                                </li>
+                                <li class="d-flex gap-3 align-items-start">
+                                    <span class="badge rounded-circle text-bg-primary d-inline-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">3</span>
+                                    <div>
+                                        <strong class="d-block" style="color: #0e2240;">Revisa tu correo.</strong>
+                                        <span class="text-muted small">Recibirás el enlace directo de tu ambiente Odoo y tus credenciales de acceso.</span>
+                                    </div>
+                                </li>
+                            </ol>
+
+                            <div id="qr_ganadero_status_msg" class="alert alert-info d-flex align-items-center gap-2 mb-3">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"/>
+                                <span>Esperando confirmación del Banco Ganadero…</span>
+                            </div>
+
+                            <t t-if="is_demo">
+                                <button id="qr_ganadero_simulate_btn"
+                                        class="btn btn-primary btn-lg w-100 fw-semibold"
+                                        style="background: #2766df; border-color: #2766df;"
+                                        type="button">
+                                    Simular pago desde mi banco ↗
+                                </button>
+                                <p class="text-muted small mt-2 mb-0">
+                                    Modo de demostración: confirma tu suscripción, aprovisiona tu instancia y envía tus credenciales por correo sin transferencia bancaria real.
+                                </p>
+                            </t>
+                        </div>
                     </div>
-                </t>
 
-                <p class="mt-3 fs-5">
-                    <strong t-esc="currency"/>&#160;<strong t-esc="amount"/>
-                </p>
-                <t t-if="qr_id">
-                    <p class="text-muted small mb-1">ID QR: <code t-esc="qr_id"/></p>
-                </t>
-                <p class="text-muted small">Este código QR tiene vigencia de 24 horas.</p>
+                    <input type="hidden" id="qr_ganadero_reference" t-att-value="reference"/>
+                    <input type="hidden" id="qr_ganadero_status_url" value="/payment/qr_ganadero/status"/>
+                    <input type="hidden" id="qr_ganadero_simulate_url" value="/payment/qr_ganadero/simulate"/>
+                    <input type="hidden" id="qr_ganadero_landing" t-att-value="landing_route"/>
+                    <input type="hidden" id="qr_ganadero_is_demo" t-att-value="'1' if is_demo else ''"/>
 
-                <div id="qr_ganadero_status_msg" class="mt-3 alert alert-info d-inline-flex align-items-center gap-2">
-                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"/>
-                    <span>Esperando confirmación del Banco Ganadero…</span>
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                        <a href="/pricing#planes" class="btn btn-outline-secondary btn-sm">← Volver a los planes</a>
+                        <a href="/my/home" class="btn btn-link btn-sm text-decoration-none">Ir a mi portal →</a>
+                    </div>
                 </div>
-
-                <t t-if="is_demo">
-                    <div class="mt-3">
-                        <button
-                            id="qr_ganadero_simulate_btn"
-                            class="btn btn-success btn-lg"
-                            type="button"
-                        >
-                            Simular Pago (Demo)
-                        </button>
-                        <p class="text-muted small mt-1">Confirma la transacción en Odoo sin realizar un cobro bancario real.</p>
-                    </div>
-                </t>
-
-                <input type="hidden" id="qr_ganadero_reference" t-att-value="reference"/>
-                <input type="hidden" id="qr_ganadero_status_url" value="/payment/qr_ganadero/status"/>
-                <input type="hidden" id="qr_ganadero_simulate_url" value="/payment/qr_ganadero/simulate"/>
-                <input type="hidden" id="qr_ganadero_landing" t-att-value="landing_route"/>
-                <input type="hidden" id="qr_ganadero_is_demo" t-att-value="'1' if is_demo else ''"/>
-
-                <div class="mt-4 border-top pt-3">
-                    <a href="/shop" class="btn btn-outline-secondary btn-sm">Volver a la tienda</a>
-                </div>
-
             </div>
         </t>
     </template>

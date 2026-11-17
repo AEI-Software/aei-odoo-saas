@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Pricing page, section 2 (#modulos): interactive module filter bar and 16-row comparison
+         matrix across Starter, Pro, and Advanced, read from aei.website.catalog. -->
+
+    <template id="pricing_comparison" name="AEI Software pricing: module comparison">
+        <t t-set="aei_catalog" t-value="request.env['aei.website.catalog']"/>
+        <t t-set="aei_rows" t-value="aei_catalog.comparison_rows()"/>
+        <section class="aei-section" id="modulos">
+            <div class="aei-container">
+                <div class="aei-section-heading aei-reveal">
+                    <span class="aei-eyebrow">EL ALCANCE, A LA VISTA</span>
+                    <h2>Compara lo que puedes gestionar.</h2>
+                    <p>Abre cada módulo para ver los procesos que incluye.</p>
+                </div>
+                <div class="aei-filter-bar" role="group" aria-label="Filtrar módulos">
+                    <button class="aei-filter aei-is-active" type="button" aria-pressed="true" data-module-filter="all">Todos los módulos</button>
+                    <button class="aei-filter" type="button" aria-pressed="false" data-module-filter="finance">Finanzas</button>
+                    <button class="aei-filter" type="button" aria-pressed="false" data-module-filter="operation">Operación</button>
+                    <button class="aei-filter" type="button" aria-pressed="false" data-module-filter="platform">Plataforma</button>
+                    <span class="aei-module-count" aria-live="polite" data-module-count=""><t t-out="len(aei_rows)"/> alcances</span>
+                </div>
+                <p class="aei-mobile-hint">Desliza la tabla para comparar los tres planes.</p>
+                <div class="aei-table-scroll" tabindex="0" aria-label="Comparativa de alcance por plan">
+                    <table class="aei-comparison">
+                        <thead>
+                            <tr>
+                                <th scope="col">Módulos y procesos</th>
+                                <th scope="col">Starter</th>
+                                <th scope="col" class="aei-pro-column">Pro</th>
+                                <th scope="col">Advanced</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="aei_rows" t-as="aei_row" t-att-data-module-row="aei_row['id']" t-att-data-group="aei_row['group']">
+                                <th scope="row">
+                                    <details class="aei-module-detail">
+                                        <summary>
+                                            <span><t t-out="aei_row['title']"/></span>
+                                            <span class="aei-detail-plus" aria-hidden="true">+</span>
+                                        </summary>
+                                        <p><t t-out="aei_row['summary']"/></p>
+                                        <ul t-if="aei_row['processes'] or aei_row['extra']" class="aei-processes">
+                                            <li t-foreach="aei_row['processes']" t-as="aei_proc">
+                                                <t t-out="aei_proc"/>
+                                            </li>
+                                            <li t-foreach="aei_row['extra']" t-as="aei_ext">
+                                                <t t-out="aei_ext['text']"/> <span class="aei-inline-note"><t t-out="aei_catalog.scope_label(aei_ext['level'])"/></span>
+                                            </li>
+                                        </ul>
+                                        <p t-if="aei_row['footnote']" class="aei-inline-note">
+                                            <t t-out="aei_row['footnote']"/>
+                                        </p>
+                                    </details>
+                                </th>
+                                <t t-if="aei_row['id'] == 'reports'">
+                                    <td><strong><t t-out="aei_catalog.report_count(0)"/></strong><br/><span class="aei-inline-note">Reportes base</span></td>
+                                    <td><strong><t t-out="aei_catalog.report_count(1)"/></strong><br/><span class="aei-inline-note">Base + adicionales</span></td>
+                                    <td><strong><t t-out="aei_catalog.report_count(2)"/></strong><br/><span class="aei-inline-note">Todo Pro</span></td>
+                                </t>
+                                <t t-else="">
+                                    <td t-foreach="(0, 1, 2)" t-as="aei_tier">
+                                        <span t-if="aei_tier &gt;= aei_row['level']" class="aei-included">
+                                            <span aria-hidden="true">✓</span><span class="aei-sr-only">Incluido</span>
+                                        </span>
+                                        <span t-else="" class="aei-unavailable" t-att-aria-label="'Disponible en Advanced' if aei_row['level'] == 2 else 'Disponible desde Pro'">—</span>
+                                    </td>
+                                </t>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="aei-fineprint">Una empresa por suscripción. Inventario con un almacén principal y ubicaciones simples. Fabricación discreta básica con listas de materiales de un nivel. La cobertura fiscal corresponde al país y régimen habilitado para el emisor.</p>
+            </div>
+        </section>
+    </template>
+</odoo>
+

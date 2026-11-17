@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Pricing page (/pricing): page heading, plan cards with the 4 common checkmarks,
+         module comparison matrix (#modulos), reports (#reportes), FAQ, and final CTA. -->
+
+    <template id="pricing_page" name="AEI Software: pricing page">
+        <t t-call="website.layout">
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+            <div id="wrap" class="aei-site">
+                <a class="aei-skip-link" href="#aei-main">Ir al contenido</a>
+                <t t-call="aei_website.header"/>
+                <main id="aei-main" class="aei-main">
+                    <section class="aei-page-heading">
+                        <div class="aei-container aei-reveal">
+                            <span class="aei-eyebrow">PLANES DE SUSCRIPCIÓN</span>
+                            <h1>Elige por lo que necesitas hacer.</h1>
+                            <p>Facturación electrónica incluida en Starter, Pro y Advanced. Suma el alcance operativo que necesita tu empresa.</p>
+                            <div class="aei-invoice-badge aei-invoice-hero">
+                                <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                                <div>
+                                    <strong>Facturación electrónica incluida</strong>
+                                    <span>En Starter, Pro y Advanced</span>
+                                </div>
+                                <i class="fa fa-check-circle" aria-hidden="true"></i>
+                            </div>
+                            <a class="aei-heading-link" href="#modulos">Comparar módulos y procesos <span aria-hidden="true">↓</span></a>
+                        </div>
+                    </section>
+                    <t t-call="aei_website.pricing_plans"/>
+                    <t t-call="aei_website.pricing_comparison"/>
+                    <t t-call="aei_website.pricing_reports"/>
+                    <t t-call="aei_website.home_faq"/>
+                    <t t-call="aei_website.pricing_cta"/>
+                </main>
+                <t t-call="aei_website.footer"/>
+            </div>
+        </t>
+    </template>
+
+    <!-- Plans section on /pricing: billing bar, 3 plan cards, 4 horizontal checkmarks, and fineprint. -->
+    <template id="pricing_plans" name="AEI Software pricing: plans">
+        <section class="aei-section aei-plans-section" id="planes">
+            <div class="aei-container">
+                <t t-call="aei_website.home_billing_bar"/>
+                <t t-call="aei_website.plan_cards_grid"/>
+                <div class="aei-plans-common">
+                    <span><i class="fa fa-check" aria-hidden="true"></i> Instancia privada</span>
+                    <span><i class="fa fa-check" aria-hidden="true"></i> Facturación SIAT*</span>
+                    <span><i class="fa fa-check" aria-hidden="true"></i> Roles y contador</span>
+                    <span><i class="fa fa-check" aria-hidden="true"></i> Respaldos y exportación</span>
+                </div>
+                <p class="aei-fineprint aei-center">Precios en bolivianos. Plan anual con 20% de descuento; prueba gratuita de 15 días sin tarjeta. Los cupos incluyen los usuarios contratados; el acceso del contador se configura dentro de ellos.<br/>*La emisión fiscal requiere habilitación del emisor y un país y régimen cubiertos. El servicio acompaña el trabajo de tu contador.</p>
+                <t t-call="aei_website.plan_dialogs"/>
+            </div>
+        </section>
+    </template>
+
+    <!-- Reports section (#reportes): Starter base reports and Pro/Advanced additional reports. -->
+    <template id="pricing_reports" name="AEI Software pricing: reports">
+        <t t-set="aei_catalog" t-value="request.env['aei.website.catalog']"/>
+        <t t-set="aei_reports_mod" t-value="aei_catalog.module('reports')"/>
+        <section class="aei-section aei-soft" id="reportes">
+            <div class="aei-container">
+                <div class="aei-section-heading aei-reveal">
+                    <span class="aei-eyebrow">LOS NÚMEROS, CON CONTEXTO</span>
+                    <h2>Información para decidir mejor.</h2>
+                    <p>Conoce los reportes incluidos en tu suscripción. Pro y Advanced conservan todos los reportes de Starter.</p>
+                </div>
+                <div class="aei-report-grid">
+                    <article class="aei-report-card aei-reveal aei-reveal-left">
+                        <span class="aei-scope-badge">STARTER · <t t-out="aei_catalog.report_count(0)"/> REPORTES</span>
+                        <h3>Tu base financiera y fiscal.</h3>
+                        <ul>
+                            <li t-foreach="aei_reports_mod['processes']" t-as="aei_rep">
+                                <i class="fa fa-check" aria-hidden="true"></i><t t-out="aei_rep"/>
+                            </li>
+                        </ul>
+                    </article>
+                    <article class="aei-report-card aei-report-pro aei-reveal aei-reveal-right aei-delay-1">
+                        <span class="aei-scope-badge">PRO Y ADVANCED · <t t-out="aei_catalog.report_count(1)"/> REPORTES</span>
+                        <h3>Todo Starter + una mirada más amplia.</h3>
+                        <p>Incluye los siete reportes de Starter y estos ocho adicionales:</p>
+                        <ul>
+                            <li t-foreach="aei_reports_mod['extra']" t-as="aei_rep">
+                                <i class="fa fa-check" aria-hidden="true"></i><t t-out="aei_rep['text']"/>
+                            </li>
+                        </ul>
+                    </article>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <!-- Final advisory call to action on /pricing. -->
+    <template id="pricing_cta" name="AEI Software pricing: final call to action">
+        <section class="aei-section aei-final-cta">
+            <div class="aei-container aei-reveal aei-reveal-scale">
+                <h2>El plan correcto empieza por tus procesos.</h2>
+                <p>Cuéntanos cómo compras, vendes o prestas tus servicios.</p>
+                <a class="aei-btn aei-btn-primary" href="/contactus">Ayúdame a elegir <span aria-hidden="true">↗</span></a>
+            </div>
+        </section>
+    </template>
+</odoo>
+

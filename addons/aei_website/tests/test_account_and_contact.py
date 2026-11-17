@@ -49,12 +49,17 @@ class TestAccountAndContact(HttpCase):
         self.assertTrue(form[0].xpath('.//input[@name="csrf_token"]/@value'))
         self.assertTrue(form[0].xpath('.//input[@name="login"]'))
         self.assertTrue(form[0].xpath('.//input[@name="password"]'))
+        self.assertEqual(len(form[0].xpath('.//button[@data-aei-password-toggle="password"]')), 1)
 
-    def test_e10_account_route_redirects_to_login(self):
-        """Verify /account redirects visitors cleanly to /web/login."""
-        resp = self.url_open("/account", allow_redirects=False)
-        self.assertIn(resp.status_code, (301, 302, 303))
-        self.assertIn("/web/login", resp.headers.get("Location", ""))
+    def test_e10_account_route_redirects_to_signup(self):
+        """Verify /account and /account/ redirect visitors to /web/signup (or /web/login if mode=login)."""
+        for route in ("/account", "/account/"):
+            resp = self.url_open(route, allow_redirects=False)
+            self.assertIn(resp.status_code, (301, 302, 303))
+            self.assertIn("/web/signup", resp.headers.get("Location", ""))
+        resp_login = self.url_open("/account?mode=login", allow_redirects=False)
+        self.assertIn(resp_login.status_code, (301, 302, 303))
+        self.assertIn("/web/login", resp_login.headers.get("Location", ""))
 
     def test_e11_signup_and_reset_password_render_aei_account_design(self):
         """Verify /web/signup and /web/reset_password share the AEI account shell and CSRF."""
@@ -65,6 +70,12 @@ class TestAccountAndContact(HttpCase):
         self._assert_aei_chrome_only(signup_tree)
         self.assertTrue(signup_tree.xpath('//section[contains(@class, "aei-account-section")]'))
         self.assertTrue(signup_tree.xpath('//form//input[@name="csrf_token"]/@value'))
+        visible_inputs = signup_tree.xpath('//form//div[contains(@class, "aei-field-group")]//input/@name')
+        self.assertEqual(visible_inputs[:4], ["name", "login", "password", "confirm_password"])
+        self.assertEqual(
+            signup_tree.xpath('//form//button/@data-aei-password-toggle'),
+            ["password", "confirm_password"],
+        )
 
         reset_tree = self._parse("/web/reset_password")
         self._assert_aei_chrome_only(reset_tree)

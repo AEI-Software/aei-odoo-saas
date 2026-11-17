@@ -50,7 +50,8 @@ if ! docker ps &>/dev/null; then
 fi
 
 # ── 0.5. Configure /etc/hosts for local dev (same domains as production) ─────
-NODE_IP=$(hostname -I | awk '{print $1}')
+K3S_NODE_IP=$(sudo k3s kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || true)
+NODE_IP="${K3S_NODE_IP:-$(hostname -I | awk '{print $1}')}"
 DEV_HOSTS=("admin.aeisoftware.com" "www.aeisoftware.com" "portal.aeisoftware.com")
 info "Ensuring /etc/hosts points to K3s node ($NODE_IP) for: ${DEV_HOSTS[*]}"
 for h in "${DEV_HOSTS[@]}"; do
@@ -164,7 +165,7 @@ kubectl apply -f "$K8S_DIR/03-traefik-middleware.yaml"
 
 # ── 7. Apply Portal (patched for local K3s) ──────────────────────────────────
 info "Applying portal (local image, STORAGE_CLASS=local-path) …"
-kubectl apply -f "$K8S_DIR/05-portal.yaml"
+kubectl apply --force -f "$K8S_DIR/05-portal.yaml"
 kubectl -n aeisoftware patch deployment portal \
   --type=json \
   -p='[
@@ -173,7 +174,6 @@ kubectl -n aeisoftware patch deployment portal \
     {"op":"replace","path":"/spec/template/spec/containers/0/imagePullPolicy","value":"Never"}
   ]'
 kubectl -n aeisoftware set env deployment/portal \
-  API_KEY="${API_KEY}" \
   STORAGE_CLASS="local-path" \
   ODOO_IMAGE="${ODOO_IMAGE}" \
   URL_SCHEME="http"
@@ -262,7 +262,7 @@ info "Waiting for Odoo admin …"
 kubectl -n odoo-admin rollout status deployment/odoo-admin --timeout=300s
 
 # ── 11. Print access info ────────────────────────────────────────────────────
-WSL_IP=$(hostname -I | awk '{print $1}')
+WSL_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || hostname -I | awk '{print $1}')
 
 echo ""
 echo -e "${GREEN}══════════════════════════════════════════════════════${NC}"

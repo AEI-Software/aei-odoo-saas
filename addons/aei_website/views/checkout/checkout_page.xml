@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Dedicated /checkout page: renders the 3-step AEI SaaS onboarding wizard
+         (1. Tu cuenta, 2. Tu empresa, 3. Activación / Pago QR) and the right-hand
+         TU SELECCIÓN summary card in Bolivianos. -->
+
+    <template id="checkout_order_summary" name="AEI Software checkout: order summary">
+        <aside class="aei-order-summary">
+            <div class="aei-order-heading">
+                <span class="aei-eyebrow">TU SELECCIÓN</span>
+                <span class="aei-demo-tag" t-if="aei_mode == 'trial'">15 DÍAS GRATIS</span>
+                <span class="aei-demo-tag" t-else="">SUSCRIPCIÓN AEI</span>
+            </div>
+            <div class="aei-order-plan">
+                <span class="aei-order-icon" aria-hidden="true">
+                    <t t-if="aei_plan['key'] == 'enterprise'">✦</t>
+                    <t t-else="">↗</t>
+                </span>
+                <div>
+                    <h2>Plan <t t-out="aei_plan['name']"/></h2>
+                    <p>1 empresa · <t t-out="aei_plan['users']"/> usuarios · <t t-out="aei_plan['storage_gi']"/> GB</p>
+                </div>
+                <a href="/pricing#planes" aria-label="Cambiar el plan seleccionado">Cambiar</a>
+            </div>
+            <div class="aei-billing-choice aei-checkout-cycle" role="group" aria-label="Periodo de tu suscripción">
+                <a t-att-href="aei_url_monthly"
+                   t-att-aria-pressed="'true' if aei_cycle == 'monthly' else 'false'"
+                   class="aei-cycle-link">Mensual</a>
+                <a t-att-href="aei_url_annual"
+                   t-att-aria-pressed="'true' if aei_cycle == 'annual' else 'false'"
+                   class="aei-cycle-link">Anual <span>−20%</span></a>
+            </div>
+            <div class="aei-mode-choice" role="group" aria-label="Modalidad de inicio">
+                <a t-att-href="aei_url_trial"
+                   t-att-aria-pressed="'true' if aei_mode == 'trial' else 'false'"
+                   class="aei-mode-link">Prueba gratuita</a>
+                <a t-att-href="aei_url_paid"
+                   t-att-aria-pressed="'true' if aei_mode == 'paid' else 'false'"
+                   class="aei-mode-link">Comprar ahora</a>
+            </div>
+            <div class="aei-order-lines">
+                <p>
+                    <span><t t-out="aei_pricing['period_label']"/></span>
+                    <strong><t t-out="aei_pricing['base_label']"/></strong>
+                </p>
+                <p class="aei-discount-line" t-if="aei_pricing['annual_discount_label']">
+                    <span>Ahorro anual · 20%</span>
+                    <strong><t t-out="aei_pricing['annual_discount_label']"/></strong>
+                </p>
+                <p class="aei-discount-line" t-if="aei_pricing['coupon_discount_label']">
+                    <span>Cupón AEI10 · 10%</span>
+                    <strong><t t-out="aei_pricing['coupon_discount_label']"/></strong>
+                </p>
+                <p>
+                    <span><t t-out="'Precio al continuar' if aei_mode == 'trial' else 'Subtotal'"/></span>
+                    <strong><t t-out="aei_pricing['subtotal_label']"/></strong>
+                </p>
+                <p class="aei-discount-line" t-if="aei_pricing['trial_discount_label']">
+                    <span>Prueba de 15 días</span>
+                    <strong><t t-out="aei_pricing['trial_discount_label']"/></strong>
+                </p>
+                <p class="aei-order-total">
+                    <span>Total <t t-out="'hoy' if aei_mode == 'trial' else ('anual' if aei_cycle == 'annual' else 'mensual')"/></span>
+                    <strong><t t-out="aei_pricing['total_label']"/></strong>
+                </p>
+            </div>
+            <div class="aei-saving-box" t-if="aei_pricing['annual_saving_raw']">
+                ✦ Ahorras <strong><t t-out="aei_pricing['annual_saving_raw']"/></strong> al año.
+            </div>
+            <form class="aei-coupon-form" action="/checkout/coupon" method="post">
+                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                <input type="hidden" name="plan" t-att-value="aei_plan_param"/>
+                <input type="hidden" name="cycle" t-att-value="aei_cycle"/>
+                <input type="hidden" name="mode" t-att-value="aei_mode"/>
+                <input type="hidden" name="step" t-att-value="aei_step"/>
+                <input type="hidden" name="coupon_action" t-att-value="'clear' if aei_coupon else 'apply'"/>
+                <label for="aei-coupon">¿Tienes un cupón?</label>
+                <div>
+                    <input id="aei-coupon" name="coupon" maxlength="30" placeholder="Código de descuento"
+                           t-att-value="aei_coupon"/>
+                    <button type="submit"><t t-out="'Quitar' if aei_coupon else 'Aplicar'"/></button>
+                </div>
+                <p t-attf-class="aei-coupon-message #{'aei-is-valid' if aei_coupon else ''}" role="status">
+                    <t t-if="aei_coupon">Cupón aplicado: 10% adicional en el primer periodo.</t>
+                    <t t-else="">Prueba AEI10: 10% adicional en el primer periodo.</t>
+                </p>
+            </form>
+            <div class="aei-order-invoice">
+                <i class="fa fa-check-circle" aria-hidden="true"></i>
+                <div>
+                    <strong>Facturación electrónica incluida</strong>
+                    <span>Integrada en Starter, Pro y Advanced.</span>
+                </div>
+            </div>
+            <p class="aei-order-footnote">
+                <t t-if="aei_mode == 'trial'">Sin tarjeta. Al terminar tus 15 días, puedes pagar desde tu portal. No hay cargos automáticos.</t>
+                <t t-else="">Pago por el periodo seleccionado mediante QR Empresarial Banco Ganadero.</t>
+            </p>
+        </aside>
+    </template>
+
+    <template id="checkout_page" name="AEI Software: checkout page">
+        <t t-call="website.layout">
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+            <t t-set="additional_title">Tu nuevo espacio de trabajo · AEI Software</t>
+            <div id="wrap" class="oe_structure aei-site">
+                <t t-call="aei_website.header"/>
+                <main class="aei-main">
+                    <section class="aei-section aei-checkout-section">
+                        <div class="aei-container">
+                            <a class="aei-back-link" href="/pricing#planes">← Volver a los planes</a>
+                            <div class="aei-checkout-heading aei-reveal">
+                                <span class="aei-eyebrow">TU NUEVO ESPACIO DE TRABAJO</span>
+                                <h1>Ya casi es tuyo.</h1>
+                                <p>Elige tu periodo, crea tu cuenta y da el siguiente paso.</p>
+                            </div>
+                            <t t-if="aei_step == 'done'">
+                                <t t-call="aei_website.checkout_step_done"/>
+                            </t>
+                            <t t-else="">
+                                <ol class="aei-checkout-steps">
+                                    <li t-attf-class="#{'aei-is-current' if aei_step == '1' else 'aei-is-done'}">
+                                        <a t-att-href="aei_step1_url" class="aei-step-link">
+                                            <span><t t-out="'1' if aei_step == '1' else '✓'"/></span>Tu cuenta
+                                        </a>
+                                    </li>
+                                    <li t-attf-class="#{'aei-is-current' if aei_step == '2' else ('aei-is-done' if aei_step == '3' else '')}">
+                                        <a t-att-href="aei_step2_url if not aei_is_public else '#'" class="aei-step-link">
+                                            <span><t t-out="'✓' if aei_step == '3' else '2'"/></span>Tu empresa
+                                        </a>
+                                    </li>
+                                    <li t-attf-class="#{'aei-is-current' if aei_step == '3' else ''}">
+                                        <span class="aei-step-link">
+                                            <span>3</span><t t-out="'Activación' if aei_mode == 'trial' else 'Pago QR'"/>
+                                        </span>
+                                    </li>
+                                </ol>
+                                <div class="aei-checkout-grid">
+                                    <div class="aei-checkout-panel" id="aei-current-step" tabindex="-1">
+                                        <t t-if="aei_step == '1'">
+                                            <t t-call="aei_website.checkout_step_account"/>
+                                        </t>
+                                        <t t-elif="aei_step == '2'">
+                                            <t t-call="aei_website.checkout_step_company"/>
+                                        </t>
+                                        <t t-else="">
+                                            <t t-call="aei_website.checkout_step_payment"/>
+                                        </t>
+                                    </div>
+                                    <t t-call="aei_website.checkout_order_summary"/>
+                                </div>
+                            </t>
+                        </div>
+                    </section>
+                </main>
+                <t t-call="aei_website.footer"/>
+            </div>
+        </t>
+    </template>
+</odoo>
+

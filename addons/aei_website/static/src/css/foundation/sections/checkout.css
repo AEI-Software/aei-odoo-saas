@@ -1,0 +1,193 @@
+/* foundation/sections/checkout
+   Layout and structural rules for the 3-step AEI SaaS checkout (/checkout)
+   and the right-hand TU SELECCIÓN summary card. */
+
+.aei-checkout-section {
+  background: radial-gradient(ellipse at 0 0, #e3f2ff, transparent 60%), #f5f9ff;
+  min-height: 80vh;
+  padding-top: 37px;
+}
+
+.aei-checkout-section .aei-back-link {
+  display: inline-block;
+  font-size: 12px;
+  color: #476b95;
+  text-decoration: none;
+  margin-bottom: 29px;
+}
+
+.aei-checkout-heading h1 {
+  font-size: 46px;
+  font-weight: 700;
+  letter-spacing: -.05em;
+  line-height: 1.2;
+  margin: 0 0 10px;
+}
+
+.aei-checkout-heading .aei-eyebrow {
+  margin-bottom: 9px;
+}
+
+.aei-checkout-heading p {
+  font-size: 15px;
+  color: #506d8f;
+  margin-bottom: 25px;
+}
+
+.aei-checkout-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  list-style: none;
+  padding: 0;
+  max-width: 720px;
+  position: relative;
+  margin: 33px 0 29px;
+}
+
+.aei-checkout-steps::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 19px;
+  height: 1px;
+  background: #cedef3;
+}
+
+.aei-checkout-steps li {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+}
+
+.aei-checkout-steps li:last-child {
+  text-align: right;
+}
+
+.aei-checkout-steps li:nth-child(2) {
+  text-align: center;
+}
+
+.aei-checkout-steps .aei-step-link {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  background: #f5f9ff;
+  padding: 0 12px 0 0;
+  font: 600 12px Inter, sans-serif;
+  color: #5a7497;
+  text-decoration: none;
+}
+
+.aei-checkout-steps li:last-child .aei-step-link {
+  padding: 0 0 0 12px;
+}
+
+.aei-checkout-steps li:nth-child(2) .aei-step-link {
+  padding: 0 12px;
+}
+
+.aei-checkout-steps .aei-step-link > span {
+  display: grid;
+  place-items: center;
+  border: 1px solid #cadbf0;
+  background: #fff;
+  width: 39px;
+  height: 39px;
+  border-radius: 50%;
+  color: #6683a4;
+  font-size: 12px;
+}
+
+.aei-checkout-steps .aei-is-current .aei-step-link {
+  color: #215dbb;
+}
+
+.aei-checkout-steps .aei-is-current .aei-step-link > span {
+  background: #3978f3;
+  border-color: #3978f3;
+  color: #fff;
+  box-shadow: 0 0 0 5px #3978f30a;
+}
+
+.aei-checkout-steps .aei-is-done .aei-step-link > span {
+  background: #dff0ff;
+  border-color: #add1ff;
+  color: #3179cf;
+}
+
+.aei-checkout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr);
+  gap: 29px;
+  align-items: start;
+}
+
+.aei-checkout-panel {
+  border: 1px solid #dce7f6;
+  background: #fff;
+  padding: 39px;
+  border-radius: 19px;
+  min-height: 480px;
+  box-shadow: 0 12px 45px #234c7f05;
+  outline: none;
+}
+
+.aei-checkout-panel h2 {
+  font-size: 29px;
+  letter-spacing: -.045em;
+  line-height: 1.3;
+  margin: 12px 0;
+}
+
+.aei-checkout-panel > div > p,
+.aei-auth-panel > p {
+  font-size: 14px;
+  color: #526d90;
+  margin-bottom: 25px;
+}
+
+.aei-step-kicker {
+  font-size: 10px;
+  letter-spacing: .09em;
+  font-weight: 750;
+  color: #3b79ca;
+}
+
+.aei-signed-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid #dce8f7;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 22px 0;
+}
+
+.aei-avatar {
+  width: 47px;
+  height: 47px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #e3efff;
+  color: #3174d9;
+  font-size: 21px;
+  font-weight: 650;
+  flex: none;
+}
+
+.aei-signed-card strong,
+.aei-signed-card div > span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.aei-signed-card div > span {
+  font-size: 12px;
+  color: #597596;
+}
+

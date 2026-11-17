@@ -1,7 +1,7 @@
 """Public page chrome: hide Odoo's default header and footer where AEI renders its own."""
 from odoo import api, models
 
-AEI_PUBLIC_PAGE_URLS = ("/", "/contactus", "/contactus-thank-you")
+AEI_PUBLIC_PAGE_URLS = ("/", "/pricing", "/checkout", "/contactus", "/contactus-thank-you")
 
 
 class WebsitePage(models.Model):
@@ -35,4 +35,6 @@ class WebsitePage(models.Model):
         params = self.env["ir.config_parameter"].sudo()
         if params.get_param("auth_signup.invitation_scope", "b2b") != "b2c":
             params.set_param("auth_signup.invitation_scope", "b2c")
+        if params.get_param("sale.automatic_invoice") != "True":
+            params.set_param("sale.automatic_invoice", "True")
         return pages.ids
