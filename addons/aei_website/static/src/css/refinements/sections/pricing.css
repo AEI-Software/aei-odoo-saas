@@ -1,0 +1,183 @@
+/* refinements/sections/pricing
+   Light sky palette and report cards for the dedicated /pricing page.
+   Loaded after foundation. */
+
+.aei-heading-link {
+  color: #2365b7 !important;
+  font-size: 12px;
+}
+
+.aei-invoice-hero {
+  background: #fff9;
+  border-color: #b3d7f6;
+  max-width: 470px;
+}
+
+.aei-invoice-hero strong {
+  color: #174d85;
+}
+
+.aei-invoice-hero span {
+  color: #41688e;
+}
+
+.aei-invoice-hero > i:first-child,
+.aei-invoice-hero > i:last-child {
+  color: #317ac5;
+}
+
+.aei-plans-common {
+  color: #416188;
+}
+
+.aei-plans-common i {
+  color: #3479e8;
+}
+
+.aei-comparison thead th {
+  background: #eff6ff;
+  color: #1b3b65;
+}
+
+.aei-comparison thead .aei-pro-column {
+  background: #e0eeff;
+  color: #2459a2;
+}
+
+.aei-comparison thead th:last-child {
+  background: #18375e;
+  color: #fff;
+}
+
+.aei-filter.aei-is-active {
+  background: #2f71df;
+  border-color: #2f71df;
+}
+
+.aei-inline-note {
+  color: #2c6195;
+  font-size: 10px;
+}
+
+.aei-module-detail summary {
+  font-size: 14px;
+  color: #203b5d;
+}
+
+.aei-module-detail > p {
+  font-size: 13px;
+  color: #4c6585;
+}
+
+.aei-processes,
+.aei-module-detail > .aei-processes {
+  color: #344d70;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.aei-processes li::marker,
+.aei-included {
+  color: #3479e8;
+}
+
+.aei-report-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 24px;
+}
+
+.aei-report-card {
+  background: #fff;
+  border: 1px solid #d4e4f8;
+  border-radius: 19px;
+  padding: 34px;
+}
+
+.aei-report-card h3 {
+  font-size: 25px;
+  line-height: 1.3;
+  margin: 19px 0 20px;
+}
+
+.aei-report-card > p {
+  color: #4c6586;
+  font-size: 13px;
+}
+
+.aei-report-card ul {
+  padding: 0;
+  list-style: none;
+  margin: 0;
+}
+
+.aei-report-card li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 14px;
+  color: #2a476e;
+  padding: 11px 0;
+  border-bottom: 1px solid #eaf0f7;
+  line-height: 1.6;
+}
+
+.aei-report-card li:last-child {
+  border: 0;
+}
+
+.aei-report-card li i {
+  color: #3978f3;
+  font-size: 11px;
+}
+
+.aei-report-pro {
+  border-color: #9cc6ff;
+  box-shadow: 0 10px 40px #3978f308;
+}
+
+@media (max-width: 991px) {
+  .aei-report-card {
+    padding: 25px;
+  }
+
+  .aei-report-card h3 {
+    font-size: 22px;
+  }
+
+  .aei-report-card li {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-report-grid {
+    grid-template-columns: 1fr;
+    gap: 19px;
+  }
+
+  .aei-report-card {
+    padding: 27px;
+  }
+
+  .aei-report-card h3 {
+    font-size: 25px;
+  }
+
+  .aei-report-card li {
+    font-size: 13px;
+  }
+
+  .aei-filter {
+    font-size: 11px;
+  }
+
+  .aei-module-detail summary {
+    font-size: 13px;
+  }
+
+  .aei-main .aei-comparison .aei-inline-note {
+    font-size: 9px;
+  }
+}
+

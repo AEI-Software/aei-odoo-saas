@@ -520,10 +520,11 @@ def network_policy_manifest(tenant_id: str) -> dict[str, Any]:
                 }
             ],
             "egress": [
-                {   # Service postgres en aeisoftware (ClusterIP → Endpoints → HAProxy)
+                {   # Service postgres en aeisoftware (ClusterIP → Endpoints → HAProxy 5000 / local PG 5432)
                     "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "aeisoftware"}}}],
                     "ports": [
                         {"protocol": "TCP", "port": POSTGRES_PORT},
+                        {"protocol": "TCP", "port": 5432},
                     ]
                 },
                 {   # Egress directo a red PG HA (192.168.0.0/24)
@@ -568,6 +569,19 @@ def ingress_manifest(tenant_id: str) -> dict[str, Any]:
         "traefik.ingress.kubernetes.io/router.middlewares": f"{ODOO_HEADERS_MIDDLEWARE},{SECURITY_HEADERS_MIDDLEWARE}",
     }
 
+    paths = [
+        {
+            "path": "/websocket",
+            "pathType": "Prefix",
+            "backend": {"service": {"name": "odoo", "port": {"number": 8072}}},
+        },
+        {
+            "path": "/",
+            "pathType": "Prefix",
+            "backend": {"service": {"name": "odoo", "port": {"number": 8069}}},
+        },
+    ]
+
     return {
         "apiVersion": "networking.k8s.io/v1",
         "kind": "Ingress",
@@ -579,23 +593,8 @@ def ingress_manifest(tenant_id: str) -> dict[str, Any]:
         "spec": {
             "ingressClassName": "traefik",
             "rules": [
-                {
-                    "host": f"{subdomain}.{BASE_DOMAIN}",
-                    "http": {
-                        "paths": [
-                            {
-                                "path": "/websocket",
-                                "pathType": "Prefix",
-                                "backend": {"service": {"name": "odoo", "port": {"number": 8072}}},
-                            },
-                            {
-                                "path": "/",
-                                "pathType": "Prefix",
-                                "backend": {"service": {"name": "odoo", "port": {"number": 8069}}},
-                            },
-                        ]
-                    },
-                }
+                {"host": f"{subdomain}.{BASE_DOMAIN}", "http": {"paths": paths}},
+                {"host": f"{subdomain}.localhost", "http": {"paths": paths}},
             ],
         },
     }

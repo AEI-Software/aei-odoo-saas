@@ -1,0 +1,326 @@
+/* foundation/sections/pricing
+   Dedicated pricing page (/pricing): hero invoice badge, common plan checkmarks,
+   filter bar, and 16-row comparison table.
+   Foundation layer: loaded before refinements. */
+
+.aei-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.aei-heading-link {
+  display: inline-flex;
+  gap: 12px;
+  color: #80def4 !important;
+  font-size: 11px;
+  margin-top: 20px;
+  text-decoration: none !important;
+}
+
+.aei-invoice-hero {
+  border-color: #59c8e25c;
+  background: #00d2ff0c;
+  max-width: 450px;
+  padding: 13px 15px;
+  margin: 0 0 23px;
+}
+
+.aei-invoice-hero strong {
+  color: #89eaff;
+  font-size: 14px;
+}
+
+.aei-invoice-hero span {
+  color: #d2e9f2;
+  font-size: 12px;
+}
+
+.aei-invoice-hero > i:first-child,
+.aei-invoice-hero > i:last-child {
+  color: #50ddfa;
+}
+
+.aei-page-heading .aei-invoice-hero {
+  margin: 23px 0 4px;
+}
+
+.aei-plans-section {
+  padding-bottom: 10px;
+}
+
+.aei-plans-common {
+  margin: 27px 0 0;
+  display: flex;
+  gap: 12px 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  color: #2e4b65;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.aei-plans-common i {
+  color: #6f68eb;
+  margin-right: 5px;
+}
+
+.aei-filter-bar {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 23px;
+}
+
+.aei-filter {
+  padding: 8px 12px;
+  border: 1px solid #e0e6ef;
+  background: #fff;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #34465f;
+  transition: background .2s, color .2s;
+  cursor: pointer;
+}
+
+.aei-filter.aei-is-active {
+  background: #1a2238;
+  color: #fff;
+  border-color: #1a2238;
+}
+
+.aei-module-count {
+  font-size: 12px;
+  color: #465970;
+  margin-left: auto;
+}
+
+.aei-mobile-hint {
+  display: none;
+  color: #465970;
+  font-size: 12px;
+}
+
+.aei-table-scroll {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid #e0e6ef;
+  border-radius: 12px;
+  scrollbar-width: thin;
+}
+
+.aei-comparison {
+  width: 100%;
+  min-width: 705px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: #fff;
+}
+
+.aei-comparison th:first-child {
+  width: 49%;
+}
+
+.aei-comparison thead th {
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  color: #30445c;
+  background: #f4f7fb;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e0e6ef;
+}
+
+.aei-comparison thead th:first-child {
+  text-align: left;
+}
+
+.aei-comparison thead .aei-pro-column {
+  background: #e9f8fc;
+  color: #287b90;
+}
+
+.aei-comparison tbody th {
+  font-weight: 400;
+  background: #fff;
+  padding: 0 22px;
+}
+
+.aei-comparison td {
+  padding: 20px 12px;
+  text-align: center;
+  vertical-align: top;
+}
+
+.aei-comparison tbody th,
+.aei-comparison td {
+  border-bottom: 1px solid #e8edf4;
+}
+
+.aei-comparison tbody tr:last-child th,
+.aei-comparison tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.aei-comparison tr:hover > th,
+.aei-comparison tr:hover > td {
+  background: #fbfcfe;
+}
+
+.aei-comparison [data-module-row="tax"] > th,
+.aei-comparison [data-module-row="tax"] > td {
+  background: #effbfe;
+}
+
+.aei-comparison [data-module-row="tax"] summary {
+  color: #07586f;
+  font-weight: 700;
+}
+
+.aei-module-detail summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 0;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.6;
+  color: #20364f;
+  cursor: pointer;
+  list-style: none;
+}
+
+.aei-module-detail summary::-webkit-details-marker {
+  display: none;
+}
+
+.aei-module-detail summary::marker {
+  content: '';
+}
+
+.aei-detail-plus {
+  font-size: 15px;
+  font-weight: 400;
+  color: #8e9cae;
+}
+
+.aei-module-detail[open] .aei-detail-plus {
+  transform: rotate(45deg);
+}
+
+.aei-module-detail > p {
+  font-size: 14px;
+  color: #34465d;
+  font-weight: 500;
+  line-height: 1.8;
+  margin: 0 0 10px;
+}
+
+.aei-module-detail > .aei-processes {
+  font-size: 14px;
+  line-height: 1.85;
+  margin-bottom: 15px;
+}
+
+.aei-included {
+  color: var(--aei-violet);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.aei-unavailable {
+  color: #c3ccd9;
+  font-size: 15px;
+}
+
+@media (max-width: 991px) {
+  .aei-invoice-hero {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-plans-common {
+    gap: 12px 18px;
+    font-size: 10px;
+  }
+
+  .aei-plans-section {
+    padding-bottom: 0;
+  }
+
+  .aei-filter-bar {
+    gap: 6px;
+  }
+
+  .aei-filter {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+
+  .aei-module-count {
+    font-size: 9px;
+    margin-left: 0;
+    width: 100%;
+    margin-top: 5px;
+  }
+
+  .aei-comparison th:first-child {
+    width: 47%;
+  }
+
+  .aei-comparison thead th:first-child,
+  .aei-comparison tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #fff;
+  }
+
+  .aei-comparison thead th:first-child {
+    background: #f4f7fb;
+  }
+
+  .aei-comparison thead th {
+    font-size: 11px;
+    padding: 16px;
+  }
+
+  .aei-comparison tbody th {
+    padding: 0 15px;
+  }
+
+  .aei-module-detail summary {
+    font-size: 14px;
+  }
+
+  .aei-mobile-hint {
+    display: block;
+    font-size: 10px;
+    color: #8090a4;
+    margin-bottom: 10px;
+  }
+
+  .aei-table-scroll {
+    border-radius: 8px;
+  }
+
+  .aei-invoice-hero strong {
+    font-size: 13.5px;
+  }
+
+  .aei-invoice-hero span {
+    font-size: 12px;
+  }
+}
+

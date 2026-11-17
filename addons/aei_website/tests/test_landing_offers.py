@@ -69,9 +69,11 @@ class TestLandingOffers(HttpCase):
             for form in forms:
                 self.assertTrue(form.xpath('.//input[@name="csrf_token"]/@value')[0], key)
                 self.assertTrue(form.xpath('.//input[@name="aei_cycle"]'), key)
-            labels = [f.xpath(".//button")[0].text_content() for f in forms]
+                self.assertEqual(form.xpath('.//input[@name="express"]/@value'), ["1"], key)
+            labels = [f.xpath(".//button")[0].text_content().strip() for f in forms]
             self.assertIn("Probar 15 días gratis", labels[0])
-            self.assertIn("Elegir " + PLAN_LABELS[key], labels[1])
+            self.assertIn("↗", labels[0])
+            self.assertEqual(labels[1], "Elegir " + PLAN_LABELS[key])
 
     def test_report_counts_come_from_the_catalog(self):
         tree = self._home()

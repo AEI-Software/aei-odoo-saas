@@ -6,7 +6,7 @@ const TAB_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End"];
 
 /**
  * Behavior of the AEI public pages: mobile menu, client logo motion, company
- * profile tabs, billing period, detail dialogs, and bidirectional scroll motion.
+ * profile tabs, billing period, module filters, detail dialogs, and scroll motion.
  *
  * Every state change goes through classes, attributes and textContent. The
  * markup for tab panels and dialogs is rendered by QWeb, so nothing is built
@@ -20,10 +20,12 @@ publicWidget.registry.AeiLanding = publicWidget.Widget.extend({
         "click [data-aei-profile]": "_onProfileClick",
         "keydown [data-aei-profile]": "_onProfileKeydown",
         "click [data-billing]": "_onBillingClick",
+        "click [data-module-filter]": "_onModuleFilterClick",
         "click [data-aei-plan-details]": "_onPlanDetailsClick",
         "click [data-aei-module-details]": "_onModuleDetailsClick",
         "click [data-aei-dialog-close]": "_onDialogCloseClick",
         "click dialog": "_onDialogBackdropClick",
+        "click [data-aei-password-toggle]": "_onPasswordToggleClick",
     },
 
     start() {
@@ -112,7 +114,7 @@ publicWidget.registry.AeiLanding = publicWidget.Widget.extend({
         button.querySelector("[data-aei-client-motion-icon]").textContent = paused ? "▶" : "Ⅱ";
     },
 
-    // -- Billing period -----------------------------------------------------
+    // -- Billing period & module filters -------------------------------------
 
     _onBillingClick(ev) {
         const cycle = ev.currentTarget.dataset.billing;
@@ -124,6 +126,26 @@ publicWidget.registry.AeiLanding = publicWidget.Widget.extend({
         }
         for (const input of this.el.querySelectorAll("[data-aei-cycle-input]")) {
             input.value = cycle;
+        }
+    },
+
+    _onModuleFilterClick(ev) {
+        const group = ev.currentTarget.dataset.moduleFilter;
+        for (const button of this.el.querySelectorAll("[data-module-filter]")) {
+            const active = button.dataset.moduleFilter === group;
+            button.classList.toggle("aei-is-active", active);
+            button.setAttribute("aria-pressed", String(active));
+        }
+        let count = 0;
+        for (const row of this.el.querySelectorAll("[data-module-row]")) {
+            row.hidden = group !== "all" && row.dataset.group !== group;
+            if (!row.hidden) {
+                count += 1;
+            }
+        }
+        const status = this.el.querySelector("[data-module-count]");
+        if (status) {
+            status.textContent = count + " alcances";
         }
     },
 
@@ -187,6 +209,26 @@ publicWidget.registry.AeiLanding = publicWidget.Widget.extend({
         }
         for (const panel of this.el.querySelectorAll(".aei-profile-panel")) {
             panel.hidden = panel.id !== "aei-profile-panel-" + profileId;
+        }
+    },
+
+    // -- Password visibility toggle ------------------------------------------
+
+    _onPasswordToggleClick(ev) {
+        const button = ev.currentTarget;
+        const wrap = button.closest(".aei-password-wrap");
+        const input = wrap && wrap.querySelector("input");
+        if (!input) {
+            return;
+        }
+        const reveal = input.type === "password";
+        input.type = reveal ? "text" : "password";
+        button.setAttribute("aria-pressed", String(reveal));
+        button.setAttribute("aria-label", reveal ? "Ocultar contraseña" : "Mostrar contraseña");
+        const icon = button.querySelector("[data-aei-password-icon]");
+        if (icon) {
+            icon.classList.toggle("fa-eye", !reveal);
+            icon.classList.toggle("fa-eye-slash", reveal);
         }
     },
 });

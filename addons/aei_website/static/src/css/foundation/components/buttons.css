@@ -81,7 +81,12 @@
   margin-top: auto;
 }
 
-.aei-plan-actions>.aei-btn {
+.aei-plan-form {
+  width: 100%;
+  margin: 0;
+}
+
+.aei-plan-actions .aei-btn {
   width: 100%;
   margin-bottom: 11px;
 }
@@ -144,7 +149,7 @@
   font-weight: 650;
 }
 
-.aei-plan-actions>.aei-btn {
+.aei-plan-actions .aei-btn {
   font-size: 14px;
   font-weight: 650;
 }

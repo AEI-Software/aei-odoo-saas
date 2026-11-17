@@ -1,0 +1,723 @@
+/* refinements/sections/checkout
+   Order summary, QR Banco Ganadero layout, 15-day trial orbit, and confirmation card. */
+
+.aei-order-summary {
+  position: sticky;
+  top: 112px;
+  border: 1px solid #d3e2f6;
+  background: #fff;
+  border-radius: 19px;
+  padding: 27px;
+  box-shadow: 0 10px 40px #234d8005;
+}
+
+.aei-order-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 23px;
+}
+
+.aei-order-heading .aei-eyebrow {
+  margin: 0;
+  font-size: 10px;
+}
+
+.aei-demo-tag {
+  display: inline-block;
+  font-size: 8px;
+  letter-spacing: .07em;
+  font-weight: 750;
+  border: 1px solid #cadef5;
+  background: #f1f7ff;
+  color: #4779b2;
+  border-radius: 5px;
+  padding: 4px 7px;
+}
+
+.aei-order-plan {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e1eaf6;
+  margin-bottom: 21px;
+}
+
+.aei-order-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 47px;
+  border: 1px solid #d8e8fb;
+  background: #edf5ff;
+  border-radius: 11px;
+  color: #3978f3;
+  font-size: 26px;
+  flex: none;
+}
+
+.aei-order-plan h2 {
+  font-size: 20px;
+  margin: 0 0 6px;
+  letter-spacing: -.04em;
+  font-weight: 700;
+}
+
+.aei-order-plan p {
+  font-size: 10px;
+  color: #587496;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.aei-order-plan > a {
+  font-size: 10px;
+  color: #3a77c9;
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.aei-checkout-cycle {
+  width: 100%;
+  margin-bottom: 15px;
+  box-sizing: border-box;
+}
+
+.aei-checkout-cycle .aei-cycle-link {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  padding: 8px;
+  min-height: 40px;
+  border-radius: 8px;
+  color: #446184;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.aei-checkout-cycle .aei-cycle-link[aria-pressed="true"] {
+  background: #fff;
+  color: #205bbb;
+  box-shadow: 0 3px 8px #24598f0d;
+}
+
+.aei-checkout-cycle .aei-cycle-link span {
+  font-size: 10px;
+  background: #d7f0ff;
+  color: #1464a4;
+  padding: 3px 5px;
+  border-radius: 5px;
+  font-weight: 800;
+}
+
+.aei-mode-choice {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.aei-mode-choice .aei-mode-link {
+  border: 1px solid #dce7f6;
+  border-radius: 6px;
+  background: #fff;
+  color: #6681a2;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 7px 9px;
+  flex: 1;
+  text-align: center;
+  text-decoration: none;
+}
+
+.aei-mode-choice .aei-mode-link[aria-pressed="true"] {
+  border-color: #7aacf6;
+  color: #2363bd;
+  background: #f0f7ff;
+}
+
+.aei-order-lines p {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: #4b678a;
+  line-height: 1.8;
+  margin: 0 0 13px;
+}
+
+.aei-order-lines p strong {
+  font-weight: 600;
+  color: #253f65;
+  white-space: nowrap;
+}
+
+.aei-order-lines .aei-discount-line,
+.aei-order-lines .aei-discount-line strong {
+  color: #147a9a;
+  font-size: 11px;
+}
+
+.aei-order-lines .aei-order-total {
+  border-top: 1px solid #d8e5f6;
+  padding-top: 18px;
+  margin-top: 18px;
+  color: #183b68;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.aei-order-total strong {
+  font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+  font-size: 26px;
+  letter-spacing: -.05em;
+  line-height: 1.3;
+}
+
+.aei-saving-box {
+  border: 1px solid #c8e8fa;
+  background: #edfaff;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.8;
+  color: #206e98;
+  margin: 19px 0;
+}
+
+.aei-coupon-form {
+  margin-top: 22px;
+}
+
+.aei-coupon-form label {
+  font-size: 11px;
+  color: #46678e;
+  margin-bottom: 9px;
+  display: block;
+  font-weight: 550;
+}
+
+.aei-coupon-form > div {
+  display: flex;
+}
+
+.aei-coupon-form input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #cfdff2;
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  padding: 11px;
+  font: 11px Inter, sans-serif;
+  color: #25476e;
+  background: #fff;
+}
+
+.aei-coupon-form button {
+  padding: 11px 14px;
+  border: 1px solid #cfdff2;
+  background: #f1f7ff;
+  color: #3167ad;
+  font: 600 11px Inter, sans-serif;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+}
+
+.aei-coupon-message {
+  font-size: 10px;
+  line-height: 1.8 !important;
+  color: #6682a4;
+  margin: 9px 0 0;
+}
+
+.aei-coupon-message.aei-is-valid {
+  color: #16815e;
+}
+
+.aei-order-invoice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #e1ebf6;
+  padding-top: 19px;
+  margin-top: 23px;
+  color: #3478be;
+}
+
+.aei-order-invoice i {
+  font-size: 20px;
+  flex: none;
+}
+
+.aei-order-invoice strong {
+  display: block;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.aei-order-invoice span {
+  display: block;
+  font-size: 10px;
+  color: #597a9f;
+  line-height: 1.8;
+}
+
+.aei-order-footnote {
+  color: #6c85a1;
+  font-size: 10px;
+  line-height: 1.8 !important;
+  margin: 15px 0 0;
+}
+
+.aei-account-inline {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 17px;
+  background: #f4f8ff;
+  border-radius: 9px;
+  color: #58779c;
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 18px 0;
+}
+
+.aei-account-inline i {
+  font-size: 20px;
+  color: #568be0;
+}
+
+.aei-account-inline strong {
+  font-size: 12px;
+  color: #254b7c;
+}
+
+.aei-step-back {
+  display: inline-block;
+  margin: 24px 0 0;
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.aei-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 11px;
+  color: #557398;
+  line-height: 1.8;
+  margin: 23px 0 18px;
+  cursor: pointer;
+}
+
+.aei-checkbox input {
+  margin-top: 4px;
+  accent-color: #3978f3;
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.aei-trial-orbit {
+  position: relative;
+  margin: 30px auto;
+  width: 170px;
+  height: 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c5e5ff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 15px #f2f9ff, 0 0 0 16px #e0f1ff;
+  color: #3278dd;
+  background: radial-gradient(circle at 30% 20%, #fff, #e3f3ff);
+}
+
+.aei-trial-orbit strong {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 68px;
+  line-height: 1;
+  letter-spacing: -.07em;
+}
+
+.aei-trial-orbit > span {
+  font-size: 13px;
+  margin-top: 7px;
+}
+
+.aei-trial-orbit > i {
+  position: absolute;
+  top: 7px;
+  right: 2px;
+  font-size: 27px;
+  color: #11b5e9;
+  font-style: normal;
+}
+
+.aei-trial-features {
+  padding: 0;
+  list-style: none;
+  margin: 39px 0 24px;
+}
+
+.aei-trial-features li {
+  font-size: 12px;
+  color: #42688d;
+  padding: 7px 0;
+  line-height: 1.7;
+}
+
+.aei-qr-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  align-items: center;
+  margin-top: 27px;
+}
+
+.aei-qr-card {
+  border: 1px solid #d6e4f4;
+  padding: 19px;
+  border-radius: 14px;
+  text-align: center;
+  background: #fff;
+}
+
+.aei-bank-name {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #247746;
+  text-align: left;
+}
+
+.aei-bank-name > span {
+  font-size: 29px;
+}
+
+.aei-bank-name strong {
+  font: 800 10px/1.2 Arial, sans-serif;
+  letter-spacing: .01em;
+}
+
+.aei-bank-name small {
+  font-size: 7px;
+  letter-spacing: .04em;
+  color: #678b72;
+  margin-left: auto;
+  max-width: 40px;
+}
+
+.aei-qr-image {
+  position: relative;
+  margin: 16px auto 18px;
+  max-width: 230px;
+}
+
+.aei-qr-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.aei-qr-image > span {
+  display: block;
+  background: #e9f3ff;
+  border: 1px solid #c8ddf7;
+  border-radius: 4px;
+  color: #3d6da6;
+  font-size: 7px;
+  letter-spacing: .08em;
+  font-weight: 700;
+  padding: 4px;
+  margin-top: 7px;
+}
+
+.aei-qr-amount {
+  display: block;
+  color: #1e446e;
+  font-size: 23px;
+  letter-spacing: -.04em;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.aei-qr-ref {
+  display: block;
+  margin-top: 7px;
+  font-size: 8px;
+  color: #6a85a1;
+  overflow-wrap: anywhere;
+}
+
+.aei-qr-instructions h3 {
+  font-size: 20px;
+  letter-spacing: -.03em;
+  margin-bottom: 22px;
+}
+
+.aei-qr-instructions ol {
+  list-style: none;
+  counter-reset: qr;
+  padding: 0;
+}
+
+.aei-qr-instructions li {
+  position: relative;
+  padding-left: 29px;
+  margin-bottom: 20px;
+  counter-increment: qr;
+}
+
+.aei-qr-instructions li::before {
+  content: counter(qr);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ebf4ff;
+  color: #3978f3;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.aei-qr-instructions strong {
+  display: block;
+  font-size: 13px;
+  color: #2e527b;
+  line-height: 1.5;
+  margin-bottom: 5px;
+}
+
+.aei-qr-instructions li span {
+  display: block;
+  font-size: 12px;
+  color: #5b7b9f;
+  line-height: 1.8;
+}
+
+.aei-demo-note {
+  font-size: 11px !important;
+  line-height: 1.8 !important;
+  color: #607693;
+  margin: 14px 0;
+}
+
+.aei-payment-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #d6e6f8;
+  border-radius: 10px;
+  padding: 16px;
+  background: #f4f9ff;
+  margin-top: 26px;
+}
+
+.aei-status-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  background: #78a8ec;
+  box-shadow: 0 0 0 5px #e4efff;
+  border-radius: 50%;
+  flex: none;
+}
+
+.aei-payment-status strong {
+  display: block;
+  font-size: 12px;
+  color: #2f6097;
+  line-height: 1.6;
+}
+
+.aei-payment-status div > span {
+  display: block;
+  font-size: 10px;
+  color: #6887a9;
+  line-height: 1.7;
+}
+
+.aei-success {
+  max-width: 800px;
+  margin: 42px auto 0;
+  padding: 46px;
+  background: #fff;
+  border: 1px solid #d3e5fa;
+  border-radius: 22px;
+  text-align: center;
+  box-shadow: 0 15px 55px #22518a08;
+}
+
+.aei-success-icon {
+  width: 73px;
+  height: 73px;
+  margin: 0 auto 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e6f8ef;
+  border: 1px solid #b9e7d2;
+  color: #259c6b;
+  font-size: 35px;
+  box-shadow: 0 0 0 9px #f2fbf6;
+}
+
+.aei-success > .aei-eyebrow {
+  font-size: 10px;
+  margin: 0 0 13px;
+}
+
+.aei-success > h2 {
+  font-size: 34px;
+  line-height: 1.25;
+  letter-spacing: -.05em;
+  margin-bottom: 18px;
+}
+
+.aei-success > p {
+  font-size: 14px;
+  color: #506c8d;
+  line-height: 1.9;
+}
+
+.aei-success-details {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  border-top: 1px solid #e2ecf7;
+  border-bottom: 1px solid #e2ecf7;
+  padding: 24px 0;
+  margin: 28px 0;
+}
+
+.aei-success-details small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: .09em;
+  color: #6585a8;
+  margin-bottom: 7px;
+}
+
+.aei-success-details strong {
+  font-size: 14px;
+  color: #2c5681;
+}
+
+.aei-delivery-check {
+  color: #218462;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 23px;
+}
+
+.aei-email-preview {
+  text-align: left;
+  background: #fff;
+  border: 1px solid #d6e5f7;
+  border-radius: 13px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.aei-email-head {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border-bottom: 1px solid #dfeaf6;
+  background: #f1f7ff;
+  padding: 17px 21px;
+}
+
+.aei-email-head > i {
+  font-size: 23px;
+  color: #4b86d5;
+}
+
+.aei-email-head strong {
+  display: block;
+  color: #335d89;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.aei-email-head div > span {
+  display: block;
+  font-size: 10px;
+  color: #6281a4;
+  line-height: 1.8;
+}
+
+.aei-email-head > .aei-demo-tag {
+  margin-left: auto;
+}
+
+.aei-email-body {
+  padding: 20px 23px;
+}
+
+.aei-email-body > p {
+  font-size: 12px;
+  color: #537397;
+  margin-bottom: 17px;
+  line-height: 1.8;
+}
+
+.aei-email-body dl {
+  margin: 0;
+}
+
+.aei-email-body dl > div {
+  display: flex;
+  gap: 20px;
+  padding: 9px 0;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.aei-email-body dt {
+  width: 145px;
+  flex: none;
+  font-weight: 500;
+  color: #6784a6;
+}
+
+.aei-email-body dd {
+  margin: 0;
+  color: #294e78;
+}
+
+.aei-email-body code {
+  font-size: 10px;
+  background: #eff6ff;
+  color: #3564a1;
+  padding: 3px 5px;
+  border-radius: 4px;
+}
+
+@media (max-width: 991px) {
+  .aei-checkout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aei-order-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 767px) {
+  .aei-qr-layout {
+    grid-template-columns: 1fr;
+  }
+}
+

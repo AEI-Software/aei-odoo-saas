@@ -4,7 +4,7 @@ Follow the root [AGENTS.md](../../AGENTS.md) workflow (SDD question, TDD, qualit
 This file adds the rules specific to this module.
 
 ## Owns
-- The public landing page (homepage override), pricing section, plan products, module explorer and plan dialogs.
+- The public landing page (homepage override), dedicated pricing page (`/pricing`), plan products, module explorer, 16-row comparison matrix, and plan dialogs.
 - Custom public auth templates (`/web/login`, `/web/signup`, `/web/reset_password`, and `/account` redirect) wired to Odoo's native authentication engine.
 - Custom Contact Us pages (`/contactus`, `/contactus-thank-you`, and CSRF-protected `POST /contactus/submit`).
 - Static assets for the public site (`static/src/css/foundation`, `static/src/css/refinements`, `static/src/js/landing.js` including bidirectional scroll reveal/exit animations).
@@ -44,8 +44,6 @@ This file adds the rules specific to this module.
   editable by non-developers, move it to fields on the product.
 - Top plan size is open (spec D1): the card shows the subscription template value (50 users
   today) while the design says 25. One data change fixes it once the owner decides.
-- Not ported yet: standalone `/pricing` route. Header links point to anchors on `/` until
-  `/pricing` exists.
 - The homepage override uses `xpath` on `//div[@id='wrap']`. Confirm it against
   `website.homepage` in Odoo 18 whenever the website module is upgraded.
 - `website.homepage_page` and `/contactus` chrome flags are set by `<function>` calls in
@@ -54,27 +52,29 @@ This file adds the rules specific to this module.
 
 ## Testing
 `tests/test_landing.py`, `tests/test_landing_offers.py`, `tests/test_landing_dialogs.py`,
-`tests/test_plan_pricing.py`, `tests/test_account_and_contact.py` (HTTP, records, auth/contact
-flows, scroll motion) and `tests/test_static_rules.py` (no Bootstrap, prefixes, no unsafe DOM).
+`tests/test_plan_pricing.py`, `tests/test_pricing_page.py`, `tests/test_account_and_contact.py`
+(HTTP, records, auth/contact flows, pricing matrix, scroll motion) and `tests/test_static_rules.py`
+(no Bootstrap, prefixes, no unsafe DOM).
 Run with the command in the root `AGENTS.md` (in multi-DB environments pass `--db-filter=^aei_test$`
 and `--workers=0 --max-cron-threads=0 --http-interface=127.0.0.1 --http-port=8099`).
 
 ## Key files
-- `controllers/public_pages.py` (`/account` redirect and `/contactus/submit`)
+- `controllers/public_pages.py` (`/pricing`, `/account` redirect, and `/contactus/submit`)
 - `models/plans/`, `models/catalog/`, `models/contact/website_contact.py`, `models/pages/website_page.py`
-- `views/layout.xml`, `views/home/*.xml`, `views/homepage.xml`, `views/account/*.xml`, `views/contact/contactus.xml`
+- `views/layout.xml`, `views/home/*.xml`, `views/pricing/*.xml`, `views/homepage.xml`, `views/account/*.xml`, `views/contact/contactus.xml`
 - `static/src/css/{foundation,refinements}/**`, `static/src/js/landing.js`, `migrations/`
 
 ## Structure (root `AGENTS.md`: size, models layout, comments, names)
 This module is the reference for the rules and must stay clean with no baseline entries:
 ```
-controllers/      public_pages.py            /account redirect and /contactus/submit
-models/catalog/   module_catalog.py          interactive module explorer data
+controllers/      public_pages.py            /pricing, /account redirect, and /contactus/submit
+models/catalog/   website_catalog.py         interactive module explorer and comparison matrix data
 models/contact/   website_contact.py         sanitized contact form -> mail.mail
 models/pages/     website_page.py            own chrome flags and b2c signup config
 models/plans/     product_template.py, ...   plan lookup and billing pricing
 views/layout.xml  header, footer, badge      shared page chrome
 views/home/       one file per home section: hero, clients, processes, profiles, plans, ...
+views/pricing/    pricing_page.xml, pricing_comparison.xml
 views/account/    login_layout.xml, login_forms.xml
 views/contact/    contactus.xml              /contactus and /contactus-thank-you
 views/homepage.xml                           assembles the home sections

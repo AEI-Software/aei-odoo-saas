@@ -93,6 +93,42 @@
   color: #4a688d;
 }
 
+.aei-password-wrap {
+  position: relative;
+  margin-top: 8px;
+}
+
+.aei-password-wrap .aei-input-password {
+  margin-top: 0;
+  padding-right: 44px;
+}
+
+.aei-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #5b7396;
+  cursor: pointer;
+  padding: 0;
+  transition: color .18s ease, background-color .18s ease;
+}
+
+.aei-password-toggle:hover,
+.aei-password-toggle:focus-visible {
+  color: #17365e;
+  background: #eff5fc;
+  outline: none;
+}
+
 .aei-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;

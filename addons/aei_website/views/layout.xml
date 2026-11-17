@@ -11,8 +11,8 @@
                 <button class="aei-menu-toggle" type="button" data-aei-menu-toggle="" aria-expanded="false" aria-controls="aei-site-nav" aria-label="Abrir menú">☰</button>
                 <nav id="aei-site-nav" aria-label="Navegación principal">
                     <a href="/">Inicio</a>
-                    <a href="/#planes">Planes y precios</a>
-                    <a href="/#procesos">Módulos</a>
+                    <a href="/pricing">Planes y precios</a>
+                    <a href="/pricing#modulos">Módulos</a>
                     <a href="https://www.ribentek.com/nosotros">Nosotros</a>
                     <a href="/contactus">Contáctanos</a>
                 </nav>
@@ -23,7 +23,7 @@
                     <t t-else="">
                         <a class="aei-portal-link" href="/my">Mi cuenta</a>
                     </t>
-                    <a href="/#planes" class="aei-btn aei-btn-primary">Pruébalo gratis ↗</a>
+                    <a href="/pricing#planes" class="aei-btn aei-btn-primary">Pruébalo gratis ↗</a>
                 </div>
             </div>
         </header>
@@ -41,8 +41,8 @@
                     <div>
                         <h3>Explora AEI</h3>
                         <a href="/">Inicio, misión y visión</a>
-                        <a href="/#planes">Planes y precios</a>
-                        <a href="/#procesos">Módulos y procesos</a>
+                        <a href="/pricing">Planes y precios</a>
+                        <a href="/pricing#modulos">Módulos y procesos</a>
                         <a href="/shop">Elige tu plan</a>
                         <a href="https://www.ribentek.com/nosotros">Nosotros</a>
                     </div>
@@ -74,4 +74,3 @@
         </div>
     </template>
 </odoo>
-

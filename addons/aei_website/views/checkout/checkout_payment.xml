@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Checkout Step 3 (Trial activation or Banco Ganadero v1.17.4 QR payment)
+         and Step Done (.aei-success confirmation screen). -->
+
+    <template id="checkout_step_payment" name="AEI Software checkout: step 3 payment or trial">
+        <div>
+            <t t-if="aei_mode == 'trial'">
+                <span class="aei-step-kicker">03 / TU PRUEBA GRATUITA</span>
+                <h2>15 días para dar el primer paso.</h2>
+                <p>Explora el alcance de <t t-out="aei_plan['name']"/> con tu equipo. Sin tarjeta ni pago inicial.</p>
+                <div class="aei-trial-orbit">
+                    <strong>15</strong>
+                    <span>días gratis</span>
+                    <i aria-hidden="true">✦</i>
+                </div>
+                <ul class="aei-trial-features">
+                    <li>✓ <t t-out="aei_plan['users']"/> usuarios · <t t-out="aei_plan['storage_gi']"/> GB · Facturación electrónica incluida</li>
+                    <li>✓ Del <t t-out="aei_start_date"/> al <t t-out="aei_end_date"/></li>
+                    <li>✓ Al terminar, tú decides si quieres continuar.</li>
+                </ul>
+                <form action="/checkout/confirm" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="plan" t-att-value="aei_plan_param"/>
+                    <input type="hidden" name="cycle" t-att-value="aei_cycle"/>
+                    <input type="hidden" name="mode" value="trial"/>
+                    <input type="hidden" name="coupon" t-att-value="aei_coupon"/>
+                    <label class="aei-checkbox">
+                        <input type="checkbox" name="accept_terms" value="1" required="required" checked="checked"/>
+                        Confirmo la activación de mis 15 días de prueba gratuita.
+                    </label>
+                    <button type="submit" class="aei-btn aei-btn-primary aei-w100">
+                        Activar mis 15 días gratis <span aria-hidden="true">↗</span>
+                    </button>
+                </form>
+                <p class="aei-demo-note">Sin cobro automático. Puedes pagar tu plan desde el portal cuando lo decidas.</p>
+            </t>
+            <t t-else="">
+                <span class="aei-step-kicker">03 / PAGO POR QR · BANCO GANADERO</span>
+                <h2>Escanea. Confirma. Comienza.</h2>
+                <p>
+                    Tu plan <t t-out="aei_plan['name']"/> ·
+                    <t t-out="'Suscripción anual' if aei_cycle == 'annual' else 'Suscripción mensual'"/>
+                </p>
+                <div class="aei-qr-layout">
+                    <div class="aei-qr-card">
+                        <div class="aei-bank-name">
+                            <span aria-hidden="true">▰</span>
+                            <strong>BANCO<br/>GANADERO</strong>
+                            <small t-if="aei_qr.get('is_demo')">QR DE PRUEBA</small>
+                            <small t-else="">QR SIMPLE</small>
+                        </div>
+                        <div class="aei-qr-image">
+                            <img t-if="aei_qr.get('qr_image')"
+                                 t-att-src="('data:image/svg+xml;base64,' if aei_qr.get('is_demo') else 'data:image/png;base64,') + aei_qr.get('qr_image', '')"
+                                 width="220" height="220"
+                                 alt="Código QR Banco Ganadero"/>
+                            <span t-if="aei_qr.get('is_demo')">MODO PRUEBA · BANCO GANADERO</span>
+                        </div>
+                        <strong class="aei-qr-amount"><t t-out="aei_pricing['total_label']"/></strong>
+                        <span class="aei-qr-ref">AEI Software · <t t-out="aei_qr.get('reference', '')"/></span>
+                    </div>
+                    <div class="aei-qr-instructions">
+                        <h3>Así de simple será.</h3>
+                        <ol>
+                            <li>
+                                <strong>Abre tu app bancaria.</strong>
+                                <span>Lee el QR desde GanaMóvil o el banco de tu preferencia.</span>
+                            </li>
+                            <li>
+                                <strong>Espera la confirmación.</strong>
+                                <span>El pago se valida automáticamente con el Banco Ganadero.</span>
+                            </li>
+                            <li>
+                                <strong>Revisa tu correo.</strong>
+                                <span>Recibirás el enlace de tu ambiente y tus credenciales.</span>
+                            </li>
+                        </ol>
+                        <p class="aei-demo-note" t-if="aei_qr.get('is_demo')">
+                            Entorno en modo prueba: puedes completar el recorrido con el botón de simulación.
+                        </p>
+                    </div>
+                </div>
+                <div class="aei-payment-status" role="status">
+                    <span class="aei-status-dot"></span>
+                    <div>
+                        <strong>Esperando la confirmación del pago</strong>
+                        <span>El importe y la referencia QR (<t t-out="aei_qr.get('qr_id', '')"/>) están listos.</span>
+                    </div>
+                </div>
+                <form t-if="aei_qr.get('is_demo')" action="/checkout/confirm" method="post">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="plan" t-att-value="aei_plan_param"/>
+                    <input type="hidden" name="cycle" t-att-value="aei_cycle"/>
+                    <input type="hidden" name="mode" value="paid"/>
+                    <input type="hidden" name="coupon" t-att-value="aei_coupon"/>
+                    <label class="aei-checkbox">
+                        <input type="checkbox" name="accept_terms" value="1" required="required" checked="checked"/>
+                        Entiendo que se simulará el pago QR en modo prueba, sin transferencia bancaria real.
+                    </label>
+                    <button type="submit" class="aei-btn aei-btn-primary aei-w100">
+                        Simular pago desde mi banco <span aria-hidden="true">↗</span>
+                    </button>
+                </form>
+            </t>
+            <a class="aei-text-button aei-step-back" t-att-href="aei_step2_url">← Volver al paso anterior</a>
+        </div>
+    </template>
+
+    <template id="checkout_step_done" name="AEI Software checkout: step done">
+        <div class="aei-success">
+            <div class="aei-success-icon" aria-hidden="true">✓</div>
+            <span class="aei-eyebrow">
+                <t t-out="'TU PRUEBA ESTÁ LISTA' if aei_mode == 'trial' else 'PAGO CONFIRMADO · BANCO GANADERO'"/>
+            </span>
+            <h2>
+                <t t-out="'Tu próximo capítulo empieza hoy.' if aei_mode == 'trial' else 'Bienvenido a una gestión más simple.'"/>
+            </h2>
+            <p>
+                <t t-out="'Activamos tus 15 días gratis.' if aei_mode == 'trial' else 'El pago se confirmó correctamente.'"/>
+                Enviamos el enlace de tu ambiente y tus credenciales a
+                <strong><t t-out="aei_done.get('email', '')"/></strong>.
+            </p>
+            <div class="aei-success-details">
+                <span><small>PLAN</small><strong><t t-out="aei_plan['name']"/></strong></span>
+                <span><small>ESTADO</small><strong><t t-out="aei_done.get('status_label', 'Activa')"/></strong></span>
+                <span><small>HASTA EL</small><strong><t t-out="aei_end_date"/></strong></span>
+            </div>
+            <p class="aei-delivery-check">✓ Suscripción y ambiente registrados en tu cuenta.</p>
+            <div class="aei-email-preview">
+                <div class="aei-email-head">
+                    <i class="fa fa-envelope-o" aria-hidden="true"></i>
+                    <div>
+                        <strong>Tu ambiente AEI ya está listo</strong>
+                        <span>Para: <t t-out="aei_done.get('email', '')"/></span>
+                    </div>
+                    <span class="aei-demo-tag">RESUMEN DE ACCESO</span>
+                </div>
+                <div class="aei-email-body">
+                    <p>
+                        Hola, <t t-out="aei_done.get('user_first_name', 'Cliente')"/>.
+                        <t t-out="'Tu prueba de ' + aei_plan['name'] + ' ya está activa.' if aei_mode == 'trial' else 'Tu plan ' + aei_plan['name'] + ' ya está activo.'"/>
+                    </p>
+                    <dl>
+                        <div>
+                            <dt>Ambiente asignado</dt>
+                            <dd>
+                                <a t-att-href="aei_done.get('login_url', '#')" target="_blank" rel="noopener">
+                                    <code><t t-out="aei_done.get('domain', '')"/></code> ↗
+                                </a>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Usuario</dt>
+                            <dd><code><t t-out="aei_done.get('tenant_login', 'admin')"/></code></dd>
+                        </div>
+                        <div t-if="aei_done.get('demo_password')">
+                            <dt>Contraseña (modo demo)</dt>
+                            <dd><code><t t-out="aei_done.get('demo_password')"/></code></dd>
+                        </div>
+                    </dl>
+                    <p class="aei-demo-note" t-if="aei_done.get('demo_password')">
+                        Modo demo: en producción esta contraseña llega solo por correo.
+                    </p>
+                </div>
+            </div>
+            <a class="aei-btn aei-btn-primary" t-att-href="aei_done.get('login_url', '/my')" target="_blank" rel="noopener">Abrir mi ambiente <span aria-hidden="true">↗</span></a>
+            <a class="aei-btn aei-btn-outline" href="/my">Ir a mi portal</a>
+            <a class="aei-btn aei-btn-outline" href="/pricing#planes">Seguir explorando</a>
+        </div>
+    </template>
+</odoo>
+

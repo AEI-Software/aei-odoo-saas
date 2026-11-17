@@ -1,4 +1,4 @@
-"""Public HTTP routes for the friendly /account alias and CSRF-protected /contactus form."""
+"""Public HTTP routes for /pricing, /account alias, and CSRF-protected /contactus form."""
 from urllib.parse import urlencode
 
 from odoo import http
@@ -8,15 +8,22 @@ GENERIC_CONTACT_ERROR = "Revisa los datos ingresados e inténtalo nuevamente."
 
 
 class AeiPublicPagesController(http.Controller):
-    """Serves the /account redirect and processes public contact inquiries."""
+    """Serves the /pricing page, /account redirect, and public contact inquiries."""
 
-    @http.route("/account", type="http", auth="public", website=True, methods=["GET"])
+    @http.route(["/pricing", "/pricing/"], type="http", auth="public", website=True, methods=["GET"])
+    def pricing_page(self, **_kwargs):
+        """Render the dedicated AEI Software plans, module comparison, and reports page."""
+        return request.render("aei_website.pricing_page")
+
+    @http.route(["/account", "/account/"], type="http", auth="public", website=True, methods=["GET"])
     def account_redirect(self, **kwargs):
-        """Redirect /account to Odoo's /web/login (or /my when already signed in)."""
+        """Redirect /account to /web/signup (or /web/login if mode=login, or /my when signed in)."""
         if not request.env.user._is_public():
             return request.redirect("/my", code=303)
+        mode = kwargs.pop("mode", None)
+        base_route = "/web/login" if mode == "login" else "/web/signup"
         query = urlencode(kwargs) if kwargs else ""
-        target = f"/web/login?{query}" if query else "/web/login"
+        target = f"{base_route}?{query}" if query else base_route
         return request.redirect(target, code=303)
 
     @http.route("/contactus/submit", type="http", auth="public", website=True, methods=["POST"])

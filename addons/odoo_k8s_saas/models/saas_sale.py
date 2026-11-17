@@ -141,30 +141,23 @@ class AccountMove(models.Model):
                 # Build tenant_id from partner name
                 tenant_id = self._generate_tenant_id(order.partner_id)
 
-                # ── Find subscription FIRST so we can set subscription_id at
-                # create-time.  This is CRITICAL: if subscription_id is set
-                # as part of the create() call it is flushed to the DB before
-                # _link_subscription() calls subscription.write(stage_id=…).
-                # Without this, SaleSubscription.write() searches for linked
-                # instances and finds none (ORM buffer not yet flushed) →
-                # creates a 2nd duplicate namespace → infinite loop.
+                # Find subscription first so subscription_id is flushed at create() time
+                # before _link_subscription() triggers SaleSubscription.write().
                 Subscription = self.env["sale.subscription"]
                 subscription_for_order = Subscription.search([
                     ("sale_order_id", "=", order.id),
                 ], limit=1)
+                sub_tmpl = subscription_for_order.template_id if subscription_for_order else False
 
                 instance = Instance.create({
                     "name": f"{order.partner_id.name} — {order.name}",
                     "tenant_id": tenant_id,
-                    "plan": "starter",
-                    "storage_gi": 10,
+                    "plan": getattr(sub_tmpl, "plan", False) or "starter",
+                    "storage_gi": getattr(sub_tmpl, "storage_gi", False) or 10,
                     "partner_id": order.partner_id.id,
                     "sale_order_id": order.id,
                     "odoo_version": product.odoo_version or "18.0",
                     "custom_image": product.custom_image,
-                    # Set subscription_id at create-time so the ORM flushes it
-                    # to the DB before the stage-advance write() fires the
-                    # SaleSubscription.write() hook below.
                     "subscription_id": subscription_for_order.id if subscription_for_order else False,
                 })
                 logger.info(
