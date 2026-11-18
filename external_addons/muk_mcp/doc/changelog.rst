@@ -1,3 +1,23 @@
+`3.2.0`
+-------
+
+- File Links for Reports and Exports
+
+`3.1.0`
+-------
+
+- Activity and File Transfer Tools
+
+`3.0.0`
+-------
+
+- MCP Version 2026-07-28
+
+`2.0.0`
+-------
+
+- MCP Version 2025-11-25
+
 `1.4.0`
 -------
 

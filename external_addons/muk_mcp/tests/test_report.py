@@ -2,9 +2,10 @@ import base64
 import json
 
 from odoo.exceptions import UserError
-from odoo.tests import common
+from odoo.tests import common, tagged
 
 
+@tagged('post_install', '-at_install')
 class TestMcpPrintReport(common.TransactionCase):
 
     # ----------------------------------------------------------
@@ -114,3 +115,9 @@ class TestMcpPrintReport(common.TransactionCase):
         })
         self.assertNotIn(' ', result['filename'])
         self.assertIn('MCP_Test_Report', result['filename'])
+        self.report.print_report_name = "'Doc / %s' % object.name"
+        result = self._call('print_report', {
+            'report_ref': str(self.report.id),
+            'ids': [self.partner.id],
+        })
+        self.assertEqual(result['filename'], 'Doc_MCP_Print_Target.txt')

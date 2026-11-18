@@ -9,6 +9,23 @@ Compatible clients include Claude Desktop, Claude Code, OpenCode,
 Cursor, Windsurf, Codex CLI, and any tool that supports the MCP
 Streamable HTTP transport.
 
+**Protocol revisions**
+
+The server serves `2026-07-28`, `2025-11-25` and `2025-06-18`, resolved
+per request from the `_meta` block, the `MCP-Protocol-Version` header,
+or the revision the session negotiated -- in that order.
+
+`2026-07-28` is stateless: it has no `initialize` handshake and no
+session, identifies every request by its bearer key, replaces
+capability discovery with `server/discover`, and drops `ping`,
+`logging/setLevel` and the `GET /mcp` notification stream. Requests on
+that revision must carry `protocolVersion`, `clientInfo` and
+`clientCapabilities` in `_meta`.
+
+`2025-03-26` is no longer served. A client asking for it is answered
+`2025-06-18` rather than refused. JSON-RPC batching, removed from the
+specification in `2025-06-18`, is no longer accepted on any revision.
+
 ## Configuration
 
 **Creating an MCP Key**
@@ -180,15 +197,16 @@ pane to run the current tool.
 ## Usage
 
 Once connected, the AI client automatically discovers all available
-tools via the `tools/list` MCP method. The module ships with 17
+tools via the `tools/list` MCP method. The module ships with 22
 built-in tools organized into two categories:
 
-**Read Tools (12)**
+**Read Tools (14)**
 
 - `list_models` -- Discover available Odoo models by substring search.
 - `list_modules` -- List installed modules with versions and states.
 - `describe_model` -- Get complete field definitions for any model
-  (types, labels, relations, selection values).
+  (types, labels, relations, selection values), with help texts for the
+  fields asked for.
 - `whoami` -- Retrieve the authenticated user's name, company,
   language, timezone, and security groups.
 - `get_access_rights` -- Check the current user's CRUD permissions on a
@@ -202,14 +220,24 @@ built-in tools organized into two categories:
 - `get_messages` -- Retrieve chatter history, comments, and field
   tracking for a record.
 - `print_report` -- Render an `ir.actions.report` (PDF, text, HTML) for
-  one or more records and return the binary as base64. Accepts the
+  one or more records, as base64 or a one-time download link. Accepts the
   report xmlid, `report_name`, or numeric id.
-- `export_records` -- Export records to CSV or XLSX (base64). Field
+- `export_records` -- Export records to CSV or XLSX (base64 or a one-time
+  download link). Field
   paths use `/` to traverse relations (e.g. `partner_id/name`,
   `order_line/product_id/default_code`). Honours record rules and
   field access through Odoo's `export_data`.
+- `read_resource` -- Fetch the bytes of a resource by `odoo://` URI
+  and return them as a typed MCP content block (`text` for textual
+  mimetypes, `image` / `audio` for media, `resource` with a base64
+  blob for everything else). Two URI shapes are supported:
+  `odoo://attachment/<id>` for an `ir.attachment` row, and
+  `odoo://record/<model>/<id>/<field>` for a Binary field on a
+  record. Mimetype is auto-detected when not stored.
+- `authorize_download` -- A one-time link to fetch a file with an HTTP
+  GET, so it never passes through the conversation.
 
-**Write Tools (5)**
+**Write Tools (8)**
 
 - `create_records` -- Create new records with support for relational
   field command tuples.
@@ -217,6 +245,12 @@ built-in tools organized into two categories:
 - `delete_records` -- Permanently delete records by ID.
 - `post_message` -- Post comments or internal notes on a record's
   chatter thread.
+- `schedule_activity` -- Schedule an activity on a record, by type name,
+  for a user and a due date.
+- `upload_file` -- Put a file into a binary field or onto a record as an
+  attachment, from an `authorize_upload` file, plain text or base64.
+- `authorize_upload` -- A one-time link the client sends the raw file to
+  with an HTTP PUT, so the file never passes through the conversation.
 - `call_method` -- Call any public method on a model or recordset
   (private methods starting with `_` are blocked for safety).
 
@@ -381,7 +415,24 @@ cleaned up based on the configured retention period.
 
 **Sessions**
 
-The server maintains stateful sessions per the MCP specification.
+Sessions belong to the `2025-06-18` and `2025-11-25` revisions, which
+open one through the `initialize` handshake; the stateless
+`2026-07-28` revision has none and identifies each request by its
+bearer key alone. Each session records the revision it negotiated, so
+a client that sends no `MCP-Protocol-Version` header is still served
+under the right one.
+
 Active sessions are visible at **Settings > MCP Server > Sessions** (in
 debug mode) and can be revoked from user preferences. Sessions are
 automatically cleaned up after the configured timeout.
+
+**Allowed Origins**
+
+Browser-originated requests are checked against an allow-list to guard
+against DNS rebinding, as the Streamable HTTP transport requires. A
+request without an `Origin` header is not browser-initiated and passes
+untouched; a request whose origin is not allowed is answered `403`.
+
+The instance's own base URL is always allowed. Add more with the
+`muk_mcp.allowed_origins` system parameter (comma-separated), or set
+`muk_mcp.allow_any_origin` to `True` to disable the check entirely.

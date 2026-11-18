@@ -1,4 +1,3 @@
-from . import test_batch
 from . import test_connect
 from . import test_content
 from . import test_controller
@@ -16,4 +15,7 @@ from . import test_registry
 from . import test_report
 from . import test_resource
 from . import test_tools
+from . import test_transfer
 from . import test_tour
+from . import test_transport
+from . import test_version

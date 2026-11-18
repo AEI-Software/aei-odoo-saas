@@ -1,9 +1,19 @@
+import base64
 import json
+from datetime import date, timedelta
 
+from odoo import fields
 from odoo.exceptions import UserError
-from odoo.tests import common
+from odoo.tests import common, tagged
+from odoo.tests.common import new_test_user
+
+PNG = (
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQ'
+    'VQYV2NgAAIAAAUAAarVyFEAAAAASUVORK5CYII='
+)
 
 
+@tagged('post_install', '-at_install')
 class TestMcpTool(common.TransactionCase):
 
     # ----------------------------------------------------------
@@ -14,13 +24,23 @@ class TestMcpTool(common.TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.tool_model = cls.env['muk_mcp.tool']
+        cls.user = new_test_user(
+            cls.env,
+            login='mcp_tool_user',
+            groups='base.group_user,base.group_partner_manager',
+        )
+        cls.partner_a, cls.partner_b = cls.env['res.partner'].create(
+            [{'name': 'MCP Tool Partner A'}, {'name': 'MCP Tool Partner B'}],
+        )
 
     # ----------------------------------------------------------
     # Helper
     # ----------------------------------------------------------
 
-    def _call(self, name, arguments):
-        text, _info = self.tool_model._call(name, arguments, self.env)
+    def _call(self, name, arguments, user=None):
+        """Run the ``name`` tool in-process, as ``user`` if given, and decode it."""
+        env = self.env(user=user) if user else self.env
+        text, _info = env['muk_mcp.tool']._call(name, arguments, env)
         return json.loads(text)
 
     # ----------------------------------------------------------
@@ -51,6 +71,12 @@ class TestMcpTool(common.TransactionCase):
         self.assertIn('name', result)
         self.assertIn('email', result)
         self.assertEqual(result['name']['type'], 'char')
+        self.assertNotIn('help', result['is_company'])
+        detail = self._call(
+            'describe_model', {'model': 'res.partner', 'fields': ['is_company']}
+        )
+        self.assertEqual(list(detail), ['is_company'])
+        self.assertIn('help', detail['is_company'])
 
     def test_search_read_handler(self):
         result = self._call('search_read', {
@@ -78,28 +104,94 @@ class TestMcpTool(common.TransactionCase):
         })
         self.assertTrue(deleted['success'])
 
-    def test_update_handler(self):
-        record = self.env['res.partner.category'].create({'name': 'MCP Update'})
-        try:
-            result = self._call('update_records', {
-                'model': 'res.partner.category',
-                'ids': [record.id],
-                'values': {'name': 'MCP Updated'},
-            })
-            self.assertTrue(result['success'])
-            self.assertEqual(record.name, 'MCP Updated')
-        finally:
-            record.unlink()
-
-    def test_read_handler(self):
-        partner = self.env['res.partner'].search([], limit=1)
-        self.assertTrue(partner)
-        result = self._call('read_records', {
+    def test_values_odoo_computes_itself_are_reported(self):
+        created = self._call('create_records', {
             'model': 'res.partner',
-            'ids': [partner.id],
-            'fields': ['name'],
+            'values': {'name': 'MCP Computed', 'commercial_company_name': 'Ignored'},
         })
-        self.assertEqual(result[0]['id'], partner.id)
+        self.assertEqual(created['ignored_fields'], ['commercial_company_name'])
+        self.assertFalse(
+            self.env['res.partner'].browse(created['id']).commercial_company_name
+        )
+
+    def test_write_handlers_take_a_value_per_language(self):
+        self.env['res.lang']._activate_lang('de_DE')
+        category = self.env['res.partner.category'].create({'name': 'MCP Update'})
+        view = self.env['ir.ui.view'].create({
+            'name': 'MCP Update',
+            'type': 'qweb',
+            'arch': '<t t-name="mcp_update"><p>Steel</p></t>',
+        })
+        arch = {
+            'en_US': '<t t-name="mcp_update"><p>Flat</p><p>Steel</p></t>',
+            'de_DE': '<t t-name="mcp_update"><p>Flach</p><p>Stahl</p></t>',
+        }
+        for target, name, value in (
+            (category, 'name', 'MCP Updated'),
+            (category, 'name', {'en_US': 'Steel', 'de_DE': 'Stahl'}),
+            (view, 'arch_db', arch),
+            (
+                view,
+                'arch_db',
+                {'de_DE': '<t t-name="mcp_update"><p>Flach</p><p>Eisen</p></t>'},
+            ),
+            (
+                self.env['res.partner.category'],
+                'name',
+                {'en_US': 'Iron', 'de_DE': 'Eisen'},
+            ),
+        ):
+            with self.subTest(model=target._name, ids=target.ids, value=value):
+                if target:
+                    self._call('update_records', {
+                        'model': target._name,
+                        'ids': target.ids,
+                        'values': {name: value},
+                    })
+                else:
+                    created = self._call('create_records', {
+                        'model': target._name,
+                        'values': {name: value},
+                        'context': {'lang': 'de_DE'},
+                    })
+                    target = target.browse(created['id'])
+                for lang, text in (
+                    value if isinstance(value, dict) else {'en_US': value}
+                ).items():
+                    self.assertEqual(target.with_context(lang=lang)[name], text)
+        with self.assertRaisesRegex(UserError, 'another structure'):
+            self._call('update_records', {
+                'model': 'ir.ui.view',
+                'ids': view.ids,
+                'values': {
+                    'arch_db': {'de_DE': '<t t-name="mcp_update"><p>Stahl</p></t>'},
+                },
+            })
+
+    def test_reads_return_binaries_as_uris_and_lean_defaults(self):
+        self.partner_a.write({'image_1920': PNG, 'email': 'a@mcp.example.com'})
+        deleted = self.env['res.partner'].create({'name': 'MCP Deleted'})
+        deleted.unlink()
+        rows = self._call('read_records', {
+            'model': 'res.partner',
+            'ids': [self.partner_a.id, deleted.id, self.partner_b.id],
+            'fields': ['name', 'image_1920'],
+        })
+        self.assertEqual(
+            [row['image_1920'] for row in rows],
+            ['odoo://record/res.partner/%d/image_1920' % self.partner_a.id, False],
+        )
+        found = self._call('search_read', {
+            'model': 'res.partner', 'domain': [['id', '=', self.partner_a.id]],
+        }, user=self.user)
+        self.assertEqual(
+            found, [{'id': self.partner_a.id, 'display_name': 'MCP Tool Partner A'}],
+        )
+        [row] = self._call('read_records', {
+            'model': 'res.partner', 'ids': self.partner_a.ids,
+        }, user=self.user)
+        self.assertEqual(row['email'], 'a@mcp.example.com')
+        self.assertFalse({'image_1920', 'child_ids', 'tz_offset'} & row.keys())
 
     def test_whoami_handler(self):
         result = self._call('whoami', {})
@@ -122,6 +214,17 @@ class TestMcpTool(common.TransactionCase):
             'groupby': ['is_company'],
         })
         self.assertIsInstance(result, list)
+
+    def test_read_group_counts_and_orders_by_field_names(self):
+        result = self._call('read_group', {
+            'model': 'res.partner',
+            'fields': ['create_date:month', '__count', 'color'],
+            'groupby': ['create_date:month'],
+            'order': 'create_date desc, color desc',
+        })
+        months = [row['create_date:month'] for row in result]
+        self.assertEqual(months, sorted(months, reverse=True))
+        self.assertTrue(all('color:sum' in row for row in result))
 
     def test_invalid_model_raises(self):
         with self.assertRaises(UserError):
@@ -151,13 +254,30 @@ class TestMcpTool(common.TransactionCase):
                 'ids': [],
             })
 
-    def test_read_group_without_groupby_raises(self):
-        with self.assertRaises(UserError):
+    def test_read_group_without_groupby_returns_the_totals(self):
+        result = self._call('read_group', {
+            'model': 'res.partner',
+            'fields': ['__count', 'color'],
+            'groupby': [],
+        })
+        partners = self.env['res.partner'].search([])
+        self.assertEqual(
+            result,
+            [{'color:sum': sum(partners.mapped('color')), '__count': len(partners)}],
+        )
+
+    def test_invalid_arguments_return_input_schema(self):
+        with self.assertRaisesRegex(
+            UserError, "unexpected keyword argument 'aggregates'"
+        ) as ctx:
             self._call('read_group', {
                 'model': 'res.partner',
                 'fields': ['is_company'],
-                'groupby': [],
+                'aggregates': ['__count'],
+                'groupby': ['is_company'],
             })
+        self.assertIn('Expected input schema', str(ctx.exception))
+        self.assertIn('"fields"', str(ctx.exception))
 
     def test_tool_result_contains_id_for_create(self):
         created = self._call('create_records', {
@@ -191,12 +311,209 @@ class TestMcpTool(common.TransactionCase):
         finally:
             archived.unlink()
 
-    def test_mail_tools_still_resolve_via_db(self):
-        tools = self.tool_model.get_tools()
-        names = {t['name'] for t in tools}
-        self.assertIn('get_messages', names)
-        self.assertIn('post_message', names)
-        db_records = self.tool_model.search([
-            ('name', 'in', ['get_messages', 'post_message']),
-        ])
-        self.assertEqual(len(db_records), 2)
+    def test_chatter_tools_post_and_read_back(self):
+        for kind, subtype in (
+            ('comment', 'mail.mt_comment'),
+            ('note', 'mail.mt_note'),
+        ):
+            with self.subTest(kind=kind):
+                result = self._call('post_message', {
+                    'model': 'res.partner',
+                    'id': self.partner_a.id,
+                    'body': f'<p>{kind}</p>',
+                    'type': kind,
+                }, user=self.user)
+                message = self.env['mail.message'].browse(result['id'])
+                self.assertEqual(message.subtype_id, self.env.ref(subtype))
+        offer = self.env['ir.attachment'].create(
+            {
+                'name': 'offer.txt',
+                'raw': b'Offer',
+                'res_model': 'mail.compose.message',
+            }
+        )
+        message.attachment_ids = offer
+        messages = self._call(
+            'get_messages',
+            {'model': 'res.partner', 'id': self.partner_a.id},
+            user=self.user,
+        )
+        self.assertLessEqual(
+            {('<p>note</p>', tuple(offer.ids)), ('<p>comment</p>', ())},
+            {(entry['body'], tuple(entry['attachment_ids'])) for entry in messages},
+        )
+
+    def test_schedule_activity_resolves_type_deadline_and_user(self):
+        today = fields.Date.context_today(self.partner_a)
+        todo = self.env.ref('mail.mail_activity_data_todo')
+        call = self.env.ref('mail.mail_activity_data_call')
+        other = new_test_user(self.env, login='mcp_tool_other')
+        for arguments, kind, deadline, user, summary in (
+            ({}, todo, today + timedelta(days=5), self.user, 'To-Do'),
+            (
+                {
+                    'activity_type': 'call',
+                    'date_deadline': '2030-01-02',
+                    'user_id': other.id,
+                    'summary': 'Ring back',
+                    'note': '<p>About the offer</p>',
+                },
+                call,
+                date(2030, 1, 2),
+                other,
+                'Ring back',
+            ),
+            (
+                {'activity_type': 'mail.mail_activity_data_call'},
+                call,
+                today + timedelta(days=2),
+                self.user,
+                'Call',
+            ),
+            (
+                {'activity_type': todo.id},
+                todo,
+                today + timedelta(days=5),
+                self.user,
+                'To-Do',
+            ),
+        ):
+            with self.subTest(arguments=arguments):
+                result = self._call(
+                    'schedule_activity',
+                    {'model': 'res.partner', 'id': self.partner_a.id, **arguments},
+                    user=self.user,
+                )
+                activity = self.env['mail.activity'].browse(result['id'])
+                self.assertEqual(
+                    (activity.res_model, activity.res_id, activity.activity_type_id),
+                    ('res.partner', self.partner_a.id, kind),
+                )
+                self.assertEqual(
+                    (activity.date_deadline, activity.user_id, result['summary']),
+                    (deadline, user, summary),
+                )
+        ring_back = self.partner_a.activity_ids.filtered(
+            lambda activity: activity.summary == 'Ring back'
+        )
+        self.assertEqual(str(ring_back.note), '<p>About the offer</p>')
+
+    def test_upload_file_writes_fields_and_attachments(self):
+        raw = base64.b64decode(PNG)
+        for extra, res_model, res_id in (
+            (
+                {'model': 'res.partner', 'id': self.partner_a.id},
+                'res.partner',
+                self.partner_a.id,
+            ),
+            ({}, False, 0),
+            ({'data': f'data:image/png;base64,{PNG}', 'name': 'pixel'}, False, 0),
+        ):
+            with self.subTest(extra=extra):
+                result = self._call(
+                    'upload_file',
+                    {'data': PNG, 'name': 'pixel.png', **extra},
+                    user=self.user,
+                )
+                attachment = self.env['ir.attachment'].browse(result['id'])
+                self.assertEqual(
+                    (attachment.raw, attachment.mimetype), (raw, 'image/png')
+                )
+                self.assertEqual(
+                    (attachment.res_model, attachment.res_id), (res_model, res_id)
+                )
+        result = self._call('upload_file', {
+            'data': PNG,
+            'name': 'pixel.png',
+            'model': 'res.partner',
+            'id': self.partner_b.id,
+            'field': 'image_1920',
+        }, user=self.user)
+        self.assertEqual(
+            result['uri'], f'odoo://record/res.partner/{self.partner_b.id}/image_1920'
+        )
+        self.assertTrue(self.partner_b.image_1920)
+        text = self._call('upload_file', {'text': 'Hello', 'name': 'hello.txt'})
+        self.assertEqual(self.env['ir.attachment'].browse(text['id']).raw, b'Hello')
+        self.env['ir.config_parameter'].sudo().set_param('web.max_file_upload_size', 10)
+        with self.assertRaisesRegex(UserError, 'upload limit'):
+            self._call('upload_file', {'data': PNG, 'name': 'pixel.png'})
+
+    def test_chatter_activity_and_upload_errors_guide_the_caller(self):
+        for name, arguments, message in (
+            ('schedule_activity', {'model': 'res.country', 'id': 1}, 'no activities'),
+            (
+                'schedule_activity',
+                {'model': 'res.partner', 'id': self.partner_a.id, 'user_id': 1},
+                'not an active user',
+            ),
+            (
+                'post_message',
+                {'model': 'res.country', 'id': 1, 'body': 'x'},
+                'no chatter',
+            ),
+            ('get_messages', {'model': 'res.partner', 'id': 999999999}, 'not found'),
+            ('get_messages', {'model': 'no.such.model', 'id': 1}, 'not found'),
+            (
+                'schedule_activity',
+                {'model': 'res.partner', 'id': 999999999},
+                'not found',
+            ),
+            (
+                'schedule_activity',
+                {
+                    'model': 'res.partner',
+                    'id': self.partner_a.id,
+                    'activity_type': 'Nope',
+                },
+                'not available.*To-Do',
+            ),
+            ('upload_file', {'data': 'not base64!', 'name': 'x'}, 'not valid base64'),
+            ('upload_file', {'name': 'x'}, 'exactly one of file'),
+            (
+                'create_records',
+                {'model': 'res.partner', 'values': [{'name': 'x'}, {'name': 'y'}]},
+                'one JSON object',
+            ),
+            ('upload_file', {'data': PNG}, 'file name is required'),
+            (
+                'upload_file',
+                {'data': PNG, 'name': 'x', 'field': 'image_1920'},
+                'model and record ID are required',
+            ),
+            (
+                'upload_file',
+                {'data': PNG, 'name': 'x', 'model': 'res.partner'},
+                'record ID is required',
+            ),
+            (
+                'upload_file',
+                {
+                    'data': PNG,
+                    'name': 'x',
+                    'model': 'res.partner',
+                    'id': self.partner_a.id,
+                    'field': 'name',
+                },
+                'not a binary field',
+            ),
+        ):
+            with self.subTest(name=name, arguments=arguments):
+                with self.assertRaisesRegex(UserError, message):
+                    self._call(name, arguments, user=self.user)
+
+    def test_unexpected_error_names_its_cause(self):
+        result = self.tool_model._call_result(
+            'read_records',
+            {
+                'model': 'res.partner',
+                'ids': [self.partner_a.id],
+                'fields': ['mcp_no_such_field'],
+            },
+            self.env,
+        )
+        self.assertTrue(result['isError'])
+        self.assertIn(
+            'Internal server error: Invalid field',
+            result['content'][0]['text'],
+        )
