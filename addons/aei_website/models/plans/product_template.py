@@ -8,6 +8,11 @@ from odoo import api, models
 from .plan_pricing import annual_amounts, format_money, format_number
 
 SAAS_CATEGORY_XMLID = "odoo_k8s_saas.product_category_odoo_saas"
+AEI_PLAN_XMLIDS = (
+    "aei_website.product_saas_plan_starter",
+    "aei_website.product_saas_plan_pro",
+    "aei_website.product_saas_plan_enterprise",
+)
 
 
 class ProductTemplate(models.Model):
@@ -27,16 +32,21 @@ class ProductTemplate(models.Model):
         category = self.env.ref(SAAS_CATEGORY_XMLID, raise_if_not_found=False)
         if not category:
             return []
-        products = self.sudo().search(
-            [
-                ("categ_id", "=", category.id),
-                ("subscribable", "=", True),
-                ("sale_ok", "=", True),
-                ("website_published", "=", True),
-                ("subscription_template_id", "!=", False),
-            ],
-            order="list_price, id",
-        )
+        own_ids = [
+            rec.id
+            for xmlid in AEI_PLAN_XMLIDS
+            if (rec := self.env.ref(xmlid, raise_if_not_found=False))
+        ]
+        domain = [
+            ("categ_id", "=", category.id),
+            ("subscribable", "=", True),
+            ("sale_ok", "=", True),
+            ("website_published", "=", True),
+            ("subscription_template_id", "!=", False),
+        ]
+        if own_ids:
+            domain.append(("id", "in", own_ids))
+        products = self.sudo().search(domain, order="list_price, id")
         return [self._website_saas_plan_values(product) for product in products]
 
     @api.model

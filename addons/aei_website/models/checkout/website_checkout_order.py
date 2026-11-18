@@ -1,8 +1,8 @@
 """Order creation, Banco Ganadero v1.17.4 QR transaction setup, and checkout confirmation."""
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from odoo import models
+from odoo import fields, models
 
 _logger = logging.getLogger(__name__)
 
@@ -125,5 +125,16 @@ class WebsiteCheckoutOrder(models.Model):
             order = clean_self._aei_get_or_create_checkout_order(partner, plan, 0.0, company.get("name"))
             if order.state == "draft":
                 order.action_confirm()
+            sub = clean_self.env["sale.subscription"].sudo().search(
+                [("sale_order_id", "=", order.id)], order="id desc", limit=1
+            )
+            stage = clean_self.env.ref(
+                "subscription_oca.subscription_stage_in_progress", raise_if_not_found=False
+            )
+            if sub and stage:
+                sub.write({
+                    "stage_id": stage.id,
+                    "recurring_next_date": fields.Date.today() + timedelta(days=15),
+                })
         return order.id if order else False
 
