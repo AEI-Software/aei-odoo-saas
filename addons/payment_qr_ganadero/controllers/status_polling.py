@@ -34,6 +34,8 @@ class QrGanaderoStatusPollingController(http.Controller):
             return {'state': 'error', 'message': 'transaction not found'}
 
         if tx.state in ('done', 'cancel', 'error'):
+            if tx.state == 'done' and not tx.is_post_processed:
+                self._post_process_safely(tx)
             return {
                 'state': tx.state,
                 'reference': tx.reference,
@@ -55,6 +57,17 @@ class QrGanaderoStatusPollingController(http.Controller):
             'reference': tx.reference,
             'landing_route': tx.landing_route or '/payment/status',
         }
+
+    def _post_process_safely(self, tx):
+        """Finish a bank-confirmed payment (order, invoice) right away, like Odoo's own poll.
+
+        Without this the sale order waits for the post-processing cron. A failure is logged
+        and left to that cron, so the browser still learns that the payment is done.
+        """
+        try:
+            tx._post_process()
+        except Exception:
+            _logger.exception('QR Banco Ganadero: post-proceso diferido al cron ref=%s', tx.reference)
 
     def _poll_bank_if_due(self, tx):
         """Acquire advisory row lock with SKIP LOCKED and poll Point 5 (/qrcode/status)."""

@@ -13,19 +13,25 @@
                     <group string="Credenciales API — Banco Ganadero Bolivia">
                         <field name="qr_ganadero_base_url"
                                string="URL Base API"
-                               placeholder="https://sandbox.bg.com.bo"/>
+                               placeholder="https://..."
+                               required="code == 'qr_ganadero' and state == 'enabled'"/>
                         <field name="qr_ganadero_api_key"
                                string="API Key"
-                               password="True"/>
+                               password="True"
+                               required="code == 'qr_ganadero' and state == 'enabled'"/>
                         <field name="qr_ganadero_api_key_header"
-                               string="Cabecera API Key"/>
+                               string="Cabecera API Key"
+                               required="code == 'qr_ganadero' and state == 'enabled'"/>
                         <field name="qr_ganadero_username"
-                               string="Usuario API"/>
+                               string="Usuario API"
+                               required="code == 'qr_ganadero' and state == 'enabled'"/>
                         <field name="qr_ganadero_password"
                                string="Contraseña API"
-                               password="True"/>
+                               password="True"
+                               required="code == 'qr_ganadero' and state == 'enabled'"/>
                         <field name="qr_ganadero_account_ref"
-                               string="Referencia de Cuenta"/>
+                               string="Referencia de Cuenta"
+                               required="code == 'qr_ganadero' and state == 'enabled'"/>
                         <field name="qr_ganadero_ssl_verify"
                                string="Verificar SSL"/>
                     </group>
@@ -37,6 +43,14 @@
                                password="True"/>
                         <field name="qr_ganadero_inbound_jwt_ttl"
                                string="Vigencia Token (segundos)"/>
+                    </group>
+                    <!-- Diagnostics used before and during the joint test with the bank. -->
+                    <group string="Diagnóstico con el Banco">
+                        <button name="action_qr_ganadero_test_connection" type="object"
+                                string="Probar conexión" class="btn-secondary"/>
+                        <button name="%(payment_qr_ganadero.action_payment_qr_ganadero_test_qr)d"
+                                type="action" string="Generar QR de prueba" class="btn-secondary"
+                                context="{'default_provider_id': id}"/>
                     </group>
                 </group>
             </xpath>

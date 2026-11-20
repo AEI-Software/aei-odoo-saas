@@ -70,14 +70,16 @@ class PaymentProviderGanaderoTokenAuth(models.Model):
         self.ensure_one()
         base_url = (self.qr_ganadero_base_url or '').rstrip('/')
         url = f'{base_url}{_ACCESS_PATH}'
-        header_name = (self.qr_ganadero_api_key_header or 'XApi--Key').strip()
+        header_name = (self.qr_ganadero_api_key_header or 'X-Api-Key').strip()
+        api_key = ''.join((self.qr_ganadero_api_key or '').split())
         headers = {
-            header_name: self.qr_ganadero_api_key or '',
+            'X-Api-Key': api_key,
+            header_name: api_key,
             'Content-Type': 'application/json',
         }
         payload = {
-            'userName': self.qr_ganadero_username or '',
-            'password': self.qr_ganadero_password or '',
+            'userName': (self.qr_ganadero_username or '').strip(),
+            'password': (self.qr_ganadero_password or '').strip(),
         }
         try:
             resp = requests.post(
@@ -93,6 +95,11 @@ class PaymentProviderGanaderoTokenAuth(models.Model):
             _logger.error('QR Banco Ganadero: fallo HTTP en /qrcode/access: %s', type(exc).__name__)
             raise ValidationError(
                 _('No se pudo conectar al servicio de autenticación de Banco Ganadero.')
+            ) from exc
+        except ValueError as exc:
+            _logger.warning('QR Banco Ganadero: /qrcode/access devolvió una respuesta que no es JSON.')
+            raise ValidationError(
+                _('El Banco Ganadero devolvió una respuesta inesperada en /qrcode/access.')
             ) from exc
 
         result_code = (data.get('result') or '').strip()

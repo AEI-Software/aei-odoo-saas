@@ -1,9 +1,17 @@
 # -*- coding: utf-8 -*-
 """Configuration and credential fields on payment.provider for Banco Ganadero."""
 
-from odoo import fields, models
+from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
-_DEFAULT_BASE_URL = 'https://sandbox.bg.com.bo'
+_REQUIRED_ENABLED_FIELDS = (
+    ('qr_ganadero_base_url', 'URL Base API (Ganadero)'),
+    ('qr_ganadero_api_key', 'API Key (Ganadero)'),
+    ('qr_ganadero_api_key_header', 'Cabecera API Key (Ganadero)'),
+    ('qr_ganadero_username', 'Usuario API (Ganadero)'),
+    ('qr_ganadero_password', 'Contraseña API (Ganadero)'),
+    ('qr_ganadero_account_ref', 'Referencia de Cuenta (Ganadero)'),
+)
 
 
 class PaymentProviderGanaderoFields(models.Model):
@@ -16,37 +24,30 @@ class PaymentProviderGanaderoFields(models.Model):
         ondelete={'qr_ganadero': 'set default'},
     )
 
-    # ── Outbound API Credentials ─────────────────────────────────────────────
+    # ── Outbound API Credentials (stored per environment in DB, never hardcoded) ─
     qr_ganadero_base_url = fields.Char(
         string='URL Base API (Ganadero)',
-        default=_DEFAULT_BASE_URL,
-        required_if_provider='qr_ganadero',
-        help='Host base del servicio QR Empresarial del Banco Ganadero.',
+        help='Host base del servicio QR Empresarial asignado por el Banco Ganadero.',
     )
     qr_ganadero_api_key = fields.Char(
         string='API Key (Ganadero)',
-        required_if_provider='qr_ganadero',
         help='Clave de seguridad asignada a la empresa por el Banco Ganadero.',
     )
     qr_ganadero_api_key_header = fields.Char(
         string='Cabecera API Key (Ganadero)',
-        default='XApi--Key',
-        required_if_provider='qr_ganadero',
+        default='X-Api-Key',
         help='Nombre de la cabecera HTTP enviada en el servicio de autenticación.',
     )
     qr_ganadero_username = fields.Char(
         string='Usuario API (Ganadero)',
-        required_if_provider='qr_ganadero',
         help='Código de cliente con rol cobrador de la empresa.',
     )
     qr_ganadero_password = fields.Char(
         string='Contraseña API (Ganadero)',
-        required_if_provider='qr_ganadero',
         help='Clave del cliente con rol cobrador de la empresa.',
     )
     qr_ganadero_account_ref = fields.Char(
         string='Referencia de Cuenta (Ganadero)',
-        required_if_provider='qr_ganadero',
         help='Alias de la cuenta recaudadora parametrizada en GanaNet (máx. 20 caracteres).',
     )
     qr_ganadero_ssl_verify = fields.Boolean(
@@ -70,7 +71,6 @@ class PaymentProviderGanaderoFields(models.Model):
     # ── Inbound Webhook Credentials ──────────────────────────────────────────
     qr_ganadero_bank_user = fields.Char(
         string='Usuario Entrante',
-        default='BANCOGANADERO1',
         help='Usuario alfanumérico sin caracteres especiales para que el banco se autentique en /login.',
     )
     qr_ganadero_bank_password = fields.Char(
@@ -88,3 +88,27 @@ class PaymentProviderGanaderoFields(models.Model):
         default=3600,
         help='Tiempo de vigencia en segundos del token emitido por Odoo al banco.',
     )
+
+    @api.constrains(
+        'state',
+        'qr_ganadero_base_url',
+        'qr_ganadero_api_key',
+        'qr_ganadero_api_key_header',
+        'qr_ganadero_username',
+        'qr_ganadero_password',
+        'qr_ganadero_account_ref',
+    )
+    def _check_qr_ganadero_enabled_credentials(self):
+        """Require real bank credentials only when the provider is enabled (not in local demo mode)."""
+        for provider in self:
+            if provider.code != 'qr_ganadero' or provider.state != 'enabled':
+                continue
+            missing = [
+                label
+                for field_name, label in _REQUIRED_ENABLED_FIELDS
+                if not (provider[field_name] or '').strip()
+            ]
+            if missing:
+                raise ValidationError(
+                    _('QR Banco Ganadero requiere configurar: %s') % ', '.join(missing)
+                )

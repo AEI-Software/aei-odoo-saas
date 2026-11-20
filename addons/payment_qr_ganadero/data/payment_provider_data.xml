@@ -29,13 +29,7 @@
             <field name="code">qr_ganadero</field>
             <field name="state">test</field>
             <field name="is_published">True</field>
-            <field name="qr_ganadero_base_url">https://sandbox.bg.com.bo</field>
-            <field name="qr_ganadero_api_key">CONFIGURAR_EN_ADMIN</field>
-            <field name="qr_ganadero_api_key_header">XApi--Key</field>
-            <field name="qr_ganadero_username">CONFIGURAR_EN_ADMIN</field>
-            <field name="qr_ganadero_password">CONFIGURAR_EN_ADMIN</field>
-            <field name="qr_ganadero_account_ref">CUENTAGANANET</field>
-            <field name="qr_ganadero_bank_user">BANCOGANADERO1</field>
+            <field name="qr_ganadero_api_key_header">X-Api-Key</field>
             <field name="payment_method_ids" eval="[(4, ref('payment_method_qr_ganadero'))]"/>
             <field name="redirect_form_view_id" ref="payment_qr_ganadero.qr_ganadero_redirect_form"/>
         </record>

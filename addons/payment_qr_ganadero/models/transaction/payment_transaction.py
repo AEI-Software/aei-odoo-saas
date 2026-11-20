@@ -64,8 +64,13 @@ class PaymentTransactionGanadero(models.Model):
             )
             qr_image = qr_data.get('qrImage') or ''
             qr_id = qr_data.get('qrId') or ''
+        except ValidationError as exc:
+            # Bank rejection or bad input: the message carries the bank code, never a secret.
+            _logger.warning('QR Banco Ganadero: no se generó el QR para ref=%s: %s', reference, exc)
+            self._set_error(_('No se pudo generar el QR con el Banco Ganadero.'))
         except Exception:
-            _logger.exception('QR Banco Ganadero: fallo al generar QR para ref=%s', reference)
+            _logger.exception('QR Banco Ganadero: fallo inesperado al generar QR para ref=%s', reference)
+            self._set_error(_('No se pudo generar el QR con el Banco Ganadero.'))
 
         self.sudo().write({
             'qr_ganadero_qr_id': qr_id,

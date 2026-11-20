@@ -2,7 +2,7 @@
 # Manifest for the Banco Ganadero QR Empresarial v1.17.4 payment provider.
 {
     'name': 'Payment Provider: QR Banco Ganadero',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.1.0',
     'category': 'Accounting/Payment Providers',
     'summary': 'Pago por QR Empresarial v1.17.4 — Banco Ganadero (Bolivia)',
     'description': """
@@ -14,6 +14,7 @@
     'depends': ['payment', 'website_sale'],
     'data': [
         'security/ir.model.access.csv',
+        'views/test_qr_wizard_views.xml',
         'views/payment_provider_views.xml',
         'views/payment_qr_ganadero_templates.xml',
         'data/payment_provider_data.xml',
