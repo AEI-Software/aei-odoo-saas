@@ -548,6 +548,22 @@
   line-height: 1.7;
 }
 
+/* The bank could not create the QR: same card, warning colors, then a retry button. */
+.aei-payment-error {
+  border-color: #f3d0c9;
+  background: #fff6f4;
+  margin-bottom: 18px;
+}
+
+.aei-payment-error .aei-status-dot {
+  background: #e0715c;
+  box-shadow: 0 0 0 5px #fbe3de;
+}
+
+.aei-payment-error strong {
+  color: #a5432f;
+}
+
 .aei-success {
   max-width: 800px;
   margin: 42px auto 0;

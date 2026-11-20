@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Settings > Website: adds the "Contact form recipient" field under Website Info. -->
+
+    <record id="res_config_settings_view_form_aei_contact" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.aei.contact</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="website.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@id='website_info_settings']" position="inside">
+                <setting id="aei_contact_recipient_setting" string="Contact form recipient"
+                         help="Mailbox that receives the inquiries sent from /contactus. Separate several addresses with commas.">
+                    <field name="aei_contact_recipient" placeholder="ventas@empresa.bo"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

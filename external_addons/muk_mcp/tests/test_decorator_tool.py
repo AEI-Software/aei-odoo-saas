@@ -3,7 +3,7 @@ import json
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError, UserError
-from odoo.tests import common
+from odoo.tests import common, tagged
 
 from odoo.addons.muk_mcp.core import tool as core_tool
 
@@ -46,6 +46,7 @@ TEST_REGISTRY = {
 }
 
 
+@tagged('post_install', '-at_install')
 class TestMcpDecoratorTool(common.TransactionCase):
 
     # ----------------------------------------------------------
@@ -114,6 +115,9 @@ class TestMcpDecoratorTool(common.TransactionCase):
         self.assertIn('mcp_test_write', names)
         echo_entry = next(t for t in tools if t['name'] == 'mcp_test_echo')
         self.assertEqual(echo_entry['description'], 'Echo back the provided text.')
+        hints = {tool['name']: tool['annotations']['readOnlyHint'] for tool in tools}
+        self.assertTrue(hints['mcp_test_echo'])
+        self.assertFalse(hints['mcp_test_write'])
         self.assertEqual(
             echo_entry['inputSchema']['properties']['text']['type'], 'string',
         )
@@ -210,6 +214,56 @@ class TestMcpDecoratorTool(common.TransactionCase):
             'mcp_scanner_probe', {'value': 'pong'}, self.env,
         )
         self.assertEqual(json.loads(text), {'pong': 'pong'})
+
+    def test_decorator_stamps_meta_and_visibility(self):
+        @core_tool.mcp_tool(
+            name='meta_probe',
+            meta={'execute': 'client', 'client': 'webclient'},
+            visibility=['chat'],
+        )
+        def handler(self, **kw):
+            return None
+
+        self.assertEqual(handler.__mcp_tool__['meta'], {
+            'execute': 'client',
+            'client': 'webclient',
+            'ui': {'visibility': ['chat']},
+        })
+
+    def test_meta_flows_from_registry_to_get_tools(self):
+        @core_tool.mcp_tool(
+            name='mcp_meta_probe',
+            description='Client-executed probe.',
+            category='read',
+            meta={'execute': 'client', 'client': 'webclient'},
+        )
+        def _mcp_meta_probe(self):
+            return {'ok': True}
+
+        mixin_cls = type(self.env['muk_mcp.mixin'])
+        self.startPatcher(patch.object(
+            mixin_cls, '_mcp_meta_probe', _mcp_meta_probe, create=True,
+        ))
+        core_tool.invalidate_registry_cache(self.env)
+        self.addCleanup(core_tool.invalidate_registry_cache, self.env)
+        index = core_tool.get_tool_index(self.env)
+        self.assertEqual(index['mcp_meta_probe']['meta'], {
+            'execute': 'client', 'client': 'webclient',
+        })
+        entry = next(
+            t for t in self.tool_model.get_tools()
+            if t['name'] == 'mcp_meta_probe'
+        )
+        self.assertEqual(entry['_meta'], {
+            'execute': 'client', 'client': 'webclient',
+        })
+
+    def test_get_tools_omits_meta_key_when_tool_declares_none(self):
+        entry = next(
+            t for t in self.tool_model.get_tools()
+            if t['name'] == 'mcp_test_echo'
+        )
+        self.assertNotIn('_meta', entry)
 
     def test_recordset_result_serialized_via_record_encoder(self):
         partner = self.env['res.partner'].create({'name': 'MCP Encoder Test'})

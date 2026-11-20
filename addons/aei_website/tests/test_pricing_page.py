@@ -106,6 +106,23 @@ class TestPricingPage(HttpCase):
         self.assertTrue(footer.xpath('.//a[@href="/pricing"]'))
         self.assertTrue(footer.xpath('.//a[@href="/pricing#modulos"]'))
 
+    def test_checkout_summary_shows_the_plan_capacities_from_the_template(self):
+        """HU-06: users, storage and support hours come from the subscription template."""
+        template = self.env.ref("aei_website.product_saas_plan_starter").subscription_template_id
+        template.write({"included_users": 4, "storage_gi": 12, "support_hours_included": 6})
+        tree = html.fromstring(self.url_open("/checkout?plan=starter").content)
+        summary = " ".join(tree.xpath('string(//*[contains(@class, "aei-order-plan")])').split())
+        self.assertIn("1 empresa · 4 usuarios · 12 GB · 6 h soporte/mes", summary)
+
+    def test_checkout_trial_step_shows_the_plan_capacities_from_the_template(self):
+        """HU-06: the trial activation step lists the same capacities, support included."""
+        template = self.env.ref("aei_website.product_saas_plan_starter").subscription_template_id
+        template.write({"included_users": 4, "storage_gi": 12, "support_hours_included": 6})
+        self.authenticate("admin", "admin")
+        tree = html.fromstring(self.url_open("/checkout?plan=starter&mode=trial&step=3").content)
+        features = " ".join(tree.xpath('string(//*[contains(@class, "aei-trial-features")])').split())
+        self.assertIn("4 usuarios · 12 GB · 6 h soporte/mes", features)
+
     def test_checkout_page_renders_three_step_wizard_and_summary(self):
         """GET /checkout renders the 3-step AEI onboarding wizard and TU SELECCIÓN summary in Bs."""
         response = self.url_open("/checkout?plan=starter&cycle=annual&mode=trial")

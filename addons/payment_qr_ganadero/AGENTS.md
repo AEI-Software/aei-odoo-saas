@@ -10,8 +10,21 @@ This file adds the rules specific to this module.
   - Inbound webhooks exposed to Banco Ganadero: Point 6 (`POST /payment/qr_ganadero/login`)
     and Point 7 (`POST /payment/qr_ganadero/payments`) with Point 8 response codes
     (`COD000`, `COD001`, `COD002`, `COD003`).
-  - Test/Demo mode (`state == 'test'`) with SVG QR generation and payment simulation.
+  - Test/Demo mode (`state == 'test'`) with SVG QR generation and payment simulation. Demo mode
+    **never calls the bank**: to test against the bank QA environment use `state == 'enabled'`
+    with the QA base URL (see `docs/specs/payment-qr-ganadero-bank-testing.md`).
   - 3-second frontend status polling and 2-minute fallback cron (`_cron_qr_ganadero_poll_pending`).
+    The status route also post-processes a confirmed transaction (`_post_process`), like Odoo's own poll.
+  - Diagnostics for the bank certification: "Probar conexión" (`models/provider/connection_check.py`)
+    and the "Generar QR de prueba" wizard (`models/diagnostics/test_qr_wizard.py`), which creates a
+    standalone pending transaction with no sale order (no invoice, subscription or tenant).
+  - A rejected QR generation puts the transaction in `error` and is logged with the bank code only.
+
+## Configuration
+- Every bank value (base URL, apiKey, user, password, account reference) lives on the provider
+  record and is entered from Odoo. Never in code, data files, tests or docs.
+- Base URL is the host plus environment prefix (QA: `https://api.bg.com.bo/bgqa`); the module
+  appends `/ws-servicio-codigo-qr-empresas/service/v1/qrcode/<point>`.
 
 ## Invariants & Security Rules
 - **Server-to-server CSRF exceptions (documented per root `AGENTS.md`):**

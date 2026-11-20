@@ -114,9 +114,9 @@ class MCPKey(models.Model):
     def _hash_key(key):
         return hashlib.sha256(key.encode()).hexdigest()
 
-    def _check_rate_limit(self, count=1):
+    def _check_rate_limit(self):
         return rate_limiter.check(
-            self.id, self.rate_limit, 60, count=count,
+            self.id, self.rate_limit, 60,
         )
 
     # ----------------------------------------------------------
@@ -165,12 +165,19 @@ class MCPKey(models.Model):
             with mute_logger('odoo.sql_db'), self.env.cr.savepoint():
                 self.env.cr.execute(SQL(
                     """
-                    UPDATE %s
+                    UPDATE %(table)s
                     SET last_used = NOW() AT TIME ZONE 'UTC'
-                    WHERE id = %s
+                    WHERE id IN (
+                        SELECT id FROM %(table)s
+                        WHERE id = %(id)s AND (
+                            last_used IS NULL OR
+                            last_used < NOW() AT TIME ZONE 'UTC' - INTERVAL '1 minute'
+                        )
+                        FOR NO KEY UPDATE SKIP LOCKED
+                    )
                     """,
-                    table,
-                    row[0],
+                    table=table,
+                    id=row[0],
                 ))
         except Exception:
             pass

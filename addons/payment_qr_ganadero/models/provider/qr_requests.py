@@ -65,15 +65,16 @@ class PaymentProviderGanaderoQrRequests(models.Model):
             expiration_date = (datetime.now() + timedelta(days=1)).strftime('%d%m%Y')
 
         # Point 8 requires all keys to be present in the JSON payload even if optional.
+        api_key = ''.join((self.qr_ganadero_api_key or '').split())
         payload = {
-            'accountReference': (self.qr_ganadero_account_ref or '')[:20],
+            'accountReference': (self.qr_ganadero_account_ref or '').strip()[:20],
             'amount': numeric_amount,
             'currency': currency_name,
             'gloss': (gloss or '')[:60],
             'expirationDate': expiration_date,
             'singleUse': int(single_use),
-            'userName': (self.qr_ganadero_username or '')[:50],
-            'apiKey': self.qr_ganadero_api_key or '',
+            'userName': (self.qr_ganadero_username or '').strip()[:50],
+            'apiKey': api_key,
         }
         return self._qr_ganadero_post_with_jwt('/collections', token, payload)
 
@@ -90,10 +91,11 @@ class PaymentProviderGanaderoQrRequests(models.Model):
                 'transactionNumber': 0,
             }
         token = self._qr_ganadero_get_token()
+        api_key = ''.join((self.qr_ganadero_api_key or '').split())
         payload = {
             'qrId': (qr_id or '')[:20],
-            'userName': (self.qr_ganadero_username or '')[:50],
-            'apiKey': self.qr_ganadero_api_key or '',
+            'userName': (self.qr_ganadero_username or '').strip()[:50],
+            'apiKey': api_key,
         }
         return self._qr_ganadero_post_with_jwt('/status', token, payload, raise_on_error=False)
 
@@ -103,11 +105,12 @@ class PaymentProviderGanaderoQrRequests(models.Model):
         if self.state == 'test':
             return {'result': 'COD000', 'message': 'Modo Demo', 'orders': []}
         token = self._qr_ganadero_get_token()
+        api_key = ''.join((self.qr_ganadero_api_key or '').split())
         payload = {
-            'userName': (self.qr_ganadero_username or '')[:50],
+            'userName': (self.qr_ganadero_username or '').strip()[:50],
             'startDate': start_date,
             'endDate': end_date,
-            'apiKey': self.qr_ganadero_api_key or '',
+            'apiKey': api_key,
         }
         return self._qr_ganadero_post_with_jwt('/transactions', token, payload)
 
@@ -116,8 +119,10 @@ class PaymentProviderGanaderoQrRequests(models.Model):
         self.ensure_one()
         base_url = (self.qr_ganadero_base_url or '').rstrip('/')
         url = f'{base_url}{_BASE_SERVICE_PATH}{sub_path}'
+        api_key = ''.join((self.qr_ganadero_api_key or '').split())
         headers = {
             'Authorization': f'Bearer {token}',
+            'X-Api-Key': api_key,
             'Content-Type': 'application/json',
         }
         try:
@@ -135,6 +140,13 @@ class PaymentProviderGanaderoQrRequests(models.Model):
             if raise_on_error:
                 raise ValidationError(
                     _('Error de comunicación con Banco Ganadero en %s.') % sub_path
+                ) from exc
+            return {}
+        except ValueError as exc:
+            _logger.warning('QR Banco Ganadero: %s devolvió una respuesta que no es JSON.', sub_path)
+            if raise_on_error:
+                raise ValidationError(
+                    _('El Banco Ganadero devolvió una respuesta inesperada en %s.') % sub_path
                 ) from exc
             return {}
 

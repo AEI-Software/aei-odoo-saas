@@ -15,7 +15,7 @@
                     <i aria-hidden="true">✦</i>
                 </div>
                 <ul class="aei-trial-features">
-                    <li>✓ <t t-out="aei_plan['users']"/> usuarios · <t t-out="aei_plan['storage_gi']"/> GB · Facturación electrónica incluida</li>
+                    <li>✓ <t t-out="aei_plan['users']"/> usuarios · <t t-out="aei_plan['storage_gi']"/> GB · <t t-out="aei_plan['support_hours']"/> h soporte/mes · Facturación electrónica incluida</li>
                     <li>✓ Del <t t-out="aei_start_date"/> al <t t-out="aei_end_date"/></li>
                     <li>✓ Al terminar, tú decides si quieres continuar.</li>
                 </ul>
@@ -42,6 +42,20 @@
                     Tu plan <t t-out="aei_plan['name']"/> ·
                     <t t-out="'Suscripción anual' if aei_cycle == 'annual' else 'Suscripción mensual'"/>
                 </p>
+                <!-- The bank rejected the QR: explain it and offer a fresh attempt. -->
+                <t t-if="aei_qr.get('error')">
+                    <div class="aei-payment-status aei-payment-error" role="alert">
+                        <span class="aei-status-dot"></span>
+                        <div>
+                            <strong>No pudimos generar el QR.</strong>
+                            <span>El Banco Ganadero no respondió como esperábamos. Intenta nuevamente en unos segundos.</span>
+                        </div>
+                    </div>
+                    <a class="aei-btn aei-btn-primary aei-w100" t-att-href="aei_url_paid" data-aei-qr-retry="">
+                        Intentar nuevamente <span aria-hidden="true">↗</span>
+                    </a>
+                </t>
+                <t t-else="">
                 <div class="aei-qr-layout">
                     <div class="aei-qr-card">
                         <div class="aei-bank-name">
@@ -81,7 +95,13 @@
                         </p>
                     </div>
                 </div>
-                <div class="aei-payment-status" role="status">
+                <!-- Polls the payment state (checkout_payment_poll.js) and opens step=done when paid. -->
+                <div class="aei-payment-status" role="status"
+                     t-att-data-aei-qr-poll="'' if aei_qr.get('tx_id') else None"
+                     t-att-data-aei-reference="aei_qr.get('reference')"
+                     t-att-data-aei-status-url="aei_qr.get('status_url')"
+                     t-att-data-aei-done-url="aei_step_done_url"
+                     t-att-data-aei-poll-interval="aei_qr.get('poll_interval_ms')">
                     <span class="aei-status-dot"></span>
                     <div>
                         <strong>Esperando la confirmación del pago</strong>
@@ -102,6 +122,7 @@
                         Simular pago desde mi banco <span aria-hidden="true">↗</span>
                     </button>
                 </form>
+                </t>
             </t>
             <a class="aei-text-button aei-step-back" t-att-href="aei_step2_url">← Volver al paso anterior</a>
         </div>

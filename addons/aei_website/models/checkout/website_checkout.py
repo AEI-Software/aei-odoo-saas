@@ -89,6 +89,7 @@ class WebsiteCheckout(models.Model):
             "aei_url_annual": "/checkout?" + urlencode({**base_q, "cycle": "annual", "step": step}),
             "aei_url_trial": "/checkout?" + urlencode({**base_q, "mode": "trial", "step": step}),
             "aei_url_paid": "/checkout?" + urlencode({**base_q, "mode": "paid", "step": step}),
+            "aei_step_done_url": "/checkout?" + urlencode({**base_q, "step": "done"}),
         }
 
     def _aei_checkout_pricing(self, monthly_price, cycle, mode, coupon):

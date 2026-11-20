@@ -6,6 +6,11 @@ from odoo import fields, models
 
 _logger = logging.getLogger(__name__)
 
+# Public JSON route of payment_qr_ganadero that reports the state of a transaction.
+QR_STATUS_ROUTE = "/payment/qr_ganadero/status"
+# How often Step 3 asks for the payment state. The route itself throttles calls to the bank.
+QR_POLL_INTERVAL_MS = 3000
+
 
 class WebsiteCheckoutOrder(models.Model):
     """Handles sale.order and payment.transaction wiring for the AEI 3-step checkout."""
@@ -53,6 +58,10 @@ class WebsiteCheckoutOrder(models.Model):
             "qr_id": tx.qr_ganadero_qr_id or tx.reference,
             "qr_image": tx.qr_ganadero_image or "",
             "is_demo": provider.state == "test",
+            # The bank rejected the QR: Step 3 offers a retry, which starts a new transaction.
+            "error": tx.state == "error",
+            "status_url": QR_STATUS_ROUTE,
+            "poll_interval_ms": QR_POLL_INTERVAL_MS,
         }
 
     def _aei_get_or_create_checkout_order(self, partner, plan, total_amount, instance_name):

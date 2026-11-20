@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wizard that generates a standalone test QR for the joint certification with Banco Ganadero. -->
+<odoo>
+
+    <!-- Input fields first; once the QR exists the result (QR ID, state, image) replaces them. -->
+    <record id="payment_qr_ganadero_test_qr_view_form" model="ir.ui.view">
+        <field name="name">payment.qr.ganadero.test.qr.form</field>
+        <field name="model">payment.qr.ganadero.test.qr</field>
+        <field name="arch" type="xml">
+            <form string="QR de prueba — Banco Ganadero">
+                <group invisible="transaction_id">
+                    <field name="provider_id" readonly="1"/>
+                    <field name="amount"/>
+                    <field name="currency_id"/>
+                    <field name="gloss" placeholder="Opcional: si queda vacío se usa la referencia"/>
+                </group>
+                <group invisible="not transaction_id">
+                    <field name="qr_id"/>
+                    <field name="transaction_state"/>
+                    <field name="transaction_id"/>
+                    <field name="qr_filename" invisible="1"/>
+                    <field name="qr_file" filename="qr_filename"/>
+                </group>
+                <footer>
+                    <button name="action_generate" type="object" string="Generar QR"
+                            class="btn-primary" invisible="transaction_id"/>
+                    <button string="Cerrar" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Opened from the provider form with default_provider_id in the context. -->
+    <record id="action_payment_qr_ganadero_test_qr" model="ir.actions.act_window">
+        <field name="name">QR de prueba</field>
+        <field name="res_model">payment.qr.ganadero.test.qr</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

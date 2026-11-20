@@ -15,6 +15,12 @@ class TestGanaderoBankWebhooks(TransactionCase):
         cls.provider = cls.env.ref('payment_qr_ganadero.payment_provider_qr_ganadero')
         cls.provider.write({
             'state': 'enabled',
+            'qr_ganadero_base_url': 'https://bank.example.test',
+            'qr_ganadero_api_key': 'FAKEAPIKEY0001',
+            'qr_ganadero_api_key_header': 'X-Api-Key',
+            'qr_ganadero_username': 'FAKECOBRADOR1',
+            'qr_ganadero_password': 'FAKEPASSWORD1',
+            'qr_ganadero_account_ref': 'FAKE_REF',
             'qr_ganadero_bank_user': 'BANCOGANADERO1',
             'qr_ganadero_bank_password': 'CLAVEBANCO2026',
         })

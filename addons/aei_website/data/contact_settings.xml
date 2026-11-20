@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- noupdate: the commercial mailbox is created once (also on existing databases) and
+         then edited from Settings > Website, so an upgrade never overwrites it. -->
+    <data noupdate="1">
+        <record id="param_contact_recipient" model="ir.config_parameter">
+            <field name="key">aei_website.contact_recipient</field>
+            <field name="value">ebendek@ribentek.com</field>
+        </record>
+    </data>
+</odoo>

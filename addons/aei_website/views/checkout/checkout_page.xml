@@ -18,7 +18,7 @@
                 </span>
                 <div>
                     <h2>Plan <t t-out="aei_plan['name']"/></h2>
-                    <p>1 empresa · <t t-out="aei_plan['users']"/> usuarios · <t t-out="aei_plan['storage_gi']"/> GB</p>
+                    <p>1 empresa · <t t-out="aei_plan['users']"/> usuarios · <t t-out="aei_plan['storage_gi']"/> GB · <t t-out="aei_plan['support_hours']"/> h soporte/mes</p>
                 </div>
                 <a href="/pricing#planes" aria-label="Cambiar el plan seleccionado">Cambiar</a>
             </div>

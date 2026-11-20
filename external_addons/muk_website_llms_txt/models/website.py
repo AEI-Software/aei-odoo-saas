@@ -70,9 +70,38 @@ class Website(models.Model):
         help="Include published events in llms.txt."
     )
 
+    llms_link_headers_enabled = fields.Boolean(
+        string="Agent Discovery Link Headers",
+        default=True,
+        help=(
+            "Advertise machine-readable resources to AI agents and crawlers "
+            "by adding RFC 8288 Link response headers to your website pages."
+        )
+    )
+
     # ----------------------------------------------------------
     # Helper
     # ----------------------------------------------------------
+
+    def _get_llms_link_header(self, path=''):
+        self.ensure_one()
+        links = []
+        if path:
+            links.append(
+                f'<{path}>; rel="alternate"; '
+                'type="text/markdown"; title="Markdown"'
+            )
+        if self.llms_txt_enabled:
+            links.append(
+                '</llms.txt>; rel="describedby"; '
+                'type="text/plain"; title="LLMs.txt"'
+            )
+        if self.llms_full_txt_enabled:
+            links.append(
+                '</llms-full.txt>; rel="describedby"; '
+                'type="text/plain"; title="LLMs-full.txt"'
+            )
+        return ', '.join(links)
 
     def _get_llms_base_url(self):
         self.ensure_one()
@@ -89,10 +118,7 @@ class Website(models.Model):
         return [f'# {self.name or "Odoo Website"}']
 
     def _is_module_installed(self, module_name):
-        return bool(self.env['ir.module.module'].sudo().search(
-            [('name', '=', module_name), ('state', '=', 'installed')],
-            limit=1
-        ))
+        return module_name in self.env['ir.module.module']._installed()
 
     def _get_llms_txt_pages(self, base_url):
         if not self.llms_include_pages:
