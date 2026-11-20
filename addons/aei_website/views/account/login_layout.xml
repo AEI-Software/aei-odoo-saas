@@ -20,6 +20,12 @@
                                     <span class="aei-eyebrow">TU CUENTA AEI</span>
                                     <h1>Tu empresa.<br/>Un nuevo comienzo.</h1>
                                     <p>Inicia sesión o crea una cuenta para probar tu próximo espacio de trabajo.</p>
+                                    <!-- Benefits shown beside every account form (login, signup, reset). -->
+                                    <ul class="aei-account-benefits">
+                                        <li><i class="fa fa-check" aria-hidden="true"></i><span>15 días de prueba gratis, sin tarjeta</span></li>
+                                        <li><i class="fa fa-check" aria-hidden="true"></i><span>Facturación electrónica incluida en todos los planes</span></li>
+                                        <li><i class="fa fa-check" aria-hidden="true"></i><span>Instancia privada para tu empresa</span></li>
+                                    </ul>
                                 </div>
                                 <div id="aei-account" class="aei-account-card aei-reveal aei-reveal-right aei-delay-1">
                                     <div class="aei-auth-panel">

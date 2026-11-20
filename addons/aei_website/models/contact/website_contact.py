@@ -15,6 +15,7 @@ FIELD_MAX_LENGTHS = {
     "description": 4000,
 }
 DEFAULT_CONTACT_RECIPIENT = "ebendek@ribentek.com"
+CONTACT_RECIPIENT_PARAM = "aei_website.contact_recipient"
 
 
 class WebsiteContact(models.Model):
@@ -34,7 +35,7 @@ class WebsiteContact(models.Model):
             return True, cleaned
         if not self._is_valid_contact_payload(cleaned):
             return False, cleaned
-        recipient = (self.company_id.email or "").strip() or DEFAULT_CONTACT_RECIPIENT
+        recipient = self._aei_contact_recipient()
         body_html = self._build_contact_mail_body(cleaned)
         self.env["mail.mail"].sudo().create(
             {
@@ -46,6 +47,20 @@ class WebsiteContact(models.Model):
             }
         )
         return True, cleaned
+
+    def _aei_contact_recipient(self):
+        """Return the address(es) that receive the inquiries.
+
+        Read from the system parameter ``aei_website.contact_recipient`` (editable in
+        Settings > Website). One address or several separated by commas; if the value is
+        empty or any address is malformed it falls back to the commercial mailbox, so a
+        typo can never make the inquiries vanish.
+        """
+        raw = self.env["ir.config_parameter"].sudo().get_param(CONTACT_RECIPIENT_PARAM) or ""
+        addresses = [item.strip() for item in raw.split(",") if item.strip()]
+        if addresses and all(EMAIL_PATTERN.fullmatch(item) for item in addresses):
+            return ", ".join(addresses)
+        return DEFAULT_CONTACT_RECIPIENT
 
     def _clean_contact_payload(self, payload):
         """Normalize whitespace and clamp candidate string inputs."""

@@ -1,6 +1,6 @@
 {
     'name': 'AEI Software — Website & Landing Page',
-    'version': '18.0.1.3.0',
+    'version': '18.0.1.4.0',
     'summary': 'Public landing, pricing, account, and contact pages for AEI Software SaaS',
     'category': 'Website/Theme',
     'author': 'AEI Software',
@@ -14,10 +14,12 @@
     ],
     'data': [
         'data/saas_plans.xml',
+        'data/contact_settings.xml',
         'views/layout.xml',
         'views/account/login_layout.xml',
         'views/account/login_forms.xml',
         'views/contact/contactus.xml',
+        'views/contact/contact_settings_views.xml',
         'views/home/dialog_frame.xml',
         'views/home/billing_bar.xml',
         'views/home/plan_card.xml',
@@ -83,6 +85,7 @@
             'aei_website/static/src/css/refinements/effects/motion.css',
             'aei_website/static/src/css/effects/keyframes.css',
             'aei_website/static/src/js/landing.js',
+            'aei_website/static/src/js/checkout_payment_poll.js',
         ],
     },
     'installable': True,

@@ -82,6 +82,24 @@ class TestAccountAndContact(HttpCase):
         self.assertTrue(reset_tree.xpath('//section[contains(@class, "aei-account-section")]'))
         self.assertTrue(reset_tree.xpath('//form//input[@name="csrf_token"]/@value'))
 
+    def test_account_intro_lists_the_trial_benefits(self):
+        """HU-07: the left column of every account page lists three benefits."""
+        self.env["ir.config_parameter"].sudo().set_param("auth_signup.invitation_scope", "b2c")
+        self.env["ir.config_parameter"].sudo().set_param("auth_signup.reset_password", "True")
+        expected = (
+            "15 días de prueba gratis, sin tarjeta",
+            "Facturación electrónica incluida en todos los planes",
+            "Instancia privada para tu empresa",
+        )
+        for path in ("/web/login", "/web/signup", "/web/reset_password"):
+            tree = self._parse(path)
+            items = tree.xpath(
+                '//*[contains(@class, "aei-account-intro")]'
+                '//ul[contains(@class, "aei-account-benefits")]/li'
+            )
+            texts = [" ".join(item.text_content().split()) for item in items]
+            self.assertEqual(texts, list(expected), path)
+
     def test_e12_contactus_renders_aei_design_and_submits_with_csrf(self):
         """Verify /contactus renders AEI layout, validates CSRF/inputs, and creates mail.mail."""
         tree = self._parse("/contactus")

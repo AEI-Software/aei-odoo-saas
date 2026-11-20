@@ -29,6 +29,29 @@
   max-width: 410px;
 }
 
+.aei-account-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 26px 0 0;
+  max-width: 410px;
+}
+
+.aei-account-benefits li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  color: #2f4a6d;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.aei-account-benefits i {
+  color: #3b79ca;
+  font-size: 12px;
+  flex: none;
+}
+
 .aei-account-trust {
   max-width: 390px;
   margin-top: 28px;

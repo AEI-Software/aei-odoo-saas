@@ -1,4 +1,6 @@
 from . import test_account_and_contact
+from . import test_checkout_qr_payment
+from . import test_contact_recipient
 from . import test_landing
 from . import test_landing_offers
 from . import test_landing_dialogs
